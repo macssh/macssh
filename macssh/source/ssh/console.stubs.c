@@ -332,18 +332,48 @@ int WriteCharsToTTY(int id, void *ctx, char *buffer, int n)
 		/* write data to local socket */
 		check_listener(context);
 		if ( context->_socket != -1 ) {
+			long len = n;
+			long inlen = 0;
+/*
 			while ( n > 0 && context->_socket != -1 ) {
 				long len = n;
 				long inlen = 0;
-				inlen = write( context->_socket, buf, len );
-				if ( inlen <= 0 ) {
-					close( context->_socket );
-					context->_socket = -1;
-				} else {
-					buf += inlen;
-					written += inlen;
-					n -= inlen;
+				char tmpbuf[512];
+				long outlen = 0;
+
+syslog(0, "WriteCharsToTTY\n" );
+dumpln(0L, NULL, buf, len);
+
+				while ( inlen < len && outlen < sizeof(tmpbuf) - 1 ) {
+					char c = buf[inlen++];
+					if ( c != 0x0d ) {
+						tmpbuf[outlen++] = c;
+					}
 				}
+				if (outlen) {
+
+syslog(0, "write socket\n" );
+dumpln(0L, NULL, tmpbuf, outlen);
+					inlen = write( context->_socket, tmpbuf, outlen );
+					if ( inlen <= 0 ) {
+						close( context->_socket );
+						context->_socket = -1;
+					} else {
+						buf += inlen;
+						written += inlen;
+						n -= inlen;
+					}
+				}
+			}
+*/
+			inlen = write( context->_socket, buf, len );
+			if ( inlen <= 0 ) {
+				close( context->_socket );
+				context->_socket = -1;
+			} else {
+				buf += inlen;
+				written += inlen;
+				n -= inlen;
 			}
 		}
 	}
