@@ -272,7 +272,8 @@ void VSem
 {
     register short sx;
     register short escflg; /* state of escape sequence interpretation */
-    short insert, attrib, extra, offend, notyet;
+    unsigned short attrib;
+    short insert, extra, offend, notyet;
     char  *current, *start;
 	unsigned short *acurrent;
     escflg = VSIw->escflg;
@@ -398,28 +399,6 @@ void VSem
 			else
 				acurrent = &VSIw->linest[VSIw->y]->attr[VSIw->x]; /* where to put corresponding attribute byte */
 			attrib = VSIw->attrib; /* current writing attribute */
-
-/* NONO */
-			if ( attrib & 0x40 ) {
-				// inverting, replace '<AD>' '<B7>' ... (pb with my LinuxPPC...)
-				unsigned char ch, cl;
-				if ( ctr >= 4 && *c == '<' && (c[3] == '<' || c[3] == '>')
-				 && (((ch = c[1] - 'A' + 0xa) >= 0xa && ch <= 0xf)
-				   || (ch = c[1] - '0' >= 0 && ch <= 9))
-				 && (((cl = c[2] - 'A' + 0xa) >= 0xa && cl <= 0xf)
-				   || (cl = c[2] - '0' >= 0 && cl <= 9)) ) {
-					c += 3;
-					ctr -= 3;
-					if ( *c == '<' )
-						continue;
-					// do not invert
-					VSIw->attrib &= ~0x40;
-					attrib &= ~0x40;
-					*c = ch * 16 + cl;
-				}
-			}
-/* NONO */
-
 			insert = VSIw->IRM; /* insert mode (boolean) */
 			offend = 0; /* wrapped to next line (boolean) */
 			extra = 0; /* overwriting last character of line  */
