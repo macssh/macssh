@@ -10,7 +10,11 @@
 #include <ansi_parms.h>
 
 #if __MSL__ < 0x7001
+#if __MSL__ < 0x6000
 typedef char				int8_t;
+#else
+typedef signed char			int8_t;
+#endif
 typedef short				int16_t;
 typedef long				int32_t;
 typedef SInt64				int64_t;
