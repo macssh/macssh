@@ -70,7 +70,7 @@ Boolean YesNoDialog(StringPtr prompt)
 	return result;
 }
 
-Boolean SSH2RandomizeDialog( long *type, long *level, long *encrypt )
+Boolean SSH2RandomizeDialog( long *type, long *level, long *encrypt, Str255 comment )
 {
 	DialogPtr		dlog;
 	Boolean			result = 0;
@@ -103,6 +103,10 @@ Boolean SSH2RandomizeDialog( long *type, long *level, long *encrypt )
 		//SetDialogItemText(itemHandle, "\p1024");
 		GetDialogItem(dlog, 11, &itemType, &itemHandle, &itemRect);	// Encrypt
 		SetControlValue((ControlHandle)itemHandle, 1);
+		if (comment) {
+			GetDialogItem(dlog, 12, &itemType, &itemHandle, &itemRect);
+			SetDialogItemText(itemHandle, comment);
+		}
 		ShowWindow(dlog);
 		do {
 			movableModalDialog(dlogFilterUPP, &item);
@@ -153,6 +157,10 @@ Boolean SSH2RandomizeDialog( long *type, long *level, long *encrypt )
 			if (encrypt) {
 				GetDialogItem(dlog, 11, &itemType, &itemHandle, &itemRect);
 				*encrypt = GetControlValue((ControlHandle)itemHandle);
+			}
+			if (comment) {
+				GetDialogItem(dlog, 12, &itemType, &itemHandle, &itemRect);
+				GetDialogItemText(itemHandle, comment);
 			}
 			result = 1;
 		}
@@ -216,7 +224,7 @@ RandomizeFilter(DialogPtr dlog,EventRecord *event,short *itemHit)
 			break;			//	below
 	}
 
-	if (((DialogPeek)dlog)->editField == 8 ) {	// item-1 !!! => password
+	if (((DialogPeek)dlog)->editField == 8 ) {	// item-1 !!!
 		start = (**((DialogPeek)dlog)->textH).selStart;	// Get the current selection
 		end = (**((DialogPeek)dlog)->textH).selEnd;
 		

@@ -762,7 +762,7 @@ char *getpass( const char *prompt )
 	char			*password;
 	Boolean			valid;
 
-	if ( wind && !strchr(prompt, '@') ) {
+	if ( wind && /*!strchr(prompt, '@')*/ strstr(prompt, "assword for") ) {
 		/* password authentication */
 		password = wind->sshdata.currentpass;
 		password[0] = '\0';
@@ -1182,10 +1182,10 @@ void make_env( lshcontext *context, WindRec *w )
 	/*hstr = GetString( -16413 );*/ /* get computer name */
 	hstr = GetString( -16096 ); /* get user name */
 	if ( hstr && *hstr ) {
-    	i = **hstr;
-    	BlockMoveData( *hstr + 1, username, i );
-    	username[i] = 0;
-    	ReleaseResource( (Handle)hstr );
+		i = **hstr;
+		BlockMoveData( *hstr + 1, username, i );
+		username[i] = 0;
+		ReleaseResource( (Handle)hstr );
   		context->_envv[1] = username;	/* set user name */
   	} else {
   		context->_envv[1] = NULL;
@@ -1607,6 +1607,7 @@ struct RandStruct {
 	int rsa;
 	int level;
 	int encrypt;
+	char label[256];
 };
 
 struct RandStruct gRand;
@@ -1725,6 +1726,11 @@ void *ssh2_randomize_thread(struct RandStruct *rnd)
 		/* FIXME: let the user select encryption type */
 		strcat(argstr, " -c 3des");
 	}
+	if (rnd->label[0]) {
+		strcat(argstr, " -l \"");
+		strcat(argstr, rnd->label);
+		strcat(argstr, "\"");
+	}
 
 	make_args( argstr, tabargv, &argc, &argv );
 
@@ -1785,8 +1791,12 @@ void ssh_randomize(void)
 	long				type;
 	long				level;
 	long				encrypt;
+	Str255				label;
+	StringHandle		hstr;
+	char				host[128];
 	pthread_attr_t		attr = NULL;
 	int					i;
+	int					j;
 	struct AnimationCursRec	**cursorList;
 	short				cursorID;
 	CursHandle			cursorHandle;
@@ -1799,13 +1809,29 @@ void ssh_randomize(void)
 		goto done;
 	}
 
-	if (!SSH2RandomizeDialog( &type, &level, &encrypt )) {
+	label[0] = 0;
+	hstr = GetString( -16096 ); /* get user name */
+	if ( hstr && *hstr ) {
+		if ( gethostname( host, sizeof(host) ) >= 0 ) {
+			i = **hstr + 1;
+			BlockMoveData( *hstr, label, i );
+			label[i++] = '@';
+			BlockMoveData( host, label + i, j = strlen(host) );
+			label[0] = i + j - 1;
+		}
+		ReleaseResource( (Handle)hstr );
+  	}	  
+
+	if (!SSH2RandomizeDialog( &type, &level, &encrypt, label)) {
 		goto done;
 	}
 
 	gRand.rsa = (type != 0);
 	gRand.level = level;
 	gRand.encrypt = encrypt;
+	BlockMoveData(label + 1, gRand.label, label[0]);
+	gRand.label[label[0]] = 0;
+
 	gmessage[0] = 0;
 
 	ssh2_init();
