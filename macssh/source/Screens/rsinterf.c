@@ -50,8 +50,8 @@ extern WindRec *screens;
 extern short MaxRS;
 extern RSdata *RSlocal, *RScurrent;
 extern Rect	noConst;
-extern short RSw,         /* last window used */
-    RSa;          /* last attrib used */
+extern short RSw;         /* last window used */
+extern VSAttrib RSa;          /* last attrib used */
 extern  short **topLeftCorners;
 extern short	NumberOfColorBoxes;
 extern short	BoxColorItems[8];
@@ -292,6 +292,7 @@ RSupdatecontent(
 	{
 		VSredraw(RSfindvwind(wind), x1, y1, x2, y2); /* draw that text */
 		// We must reset, less we risk looking UGLY as sin...
+
 		BackPat(PATTERN(qd.white));
 		PenPat(PATTERN(qd.black));
 
@@ -314,6 +315,7 @@ RSupdatecontent(
 		  	}
 		  }
 	    RSa = -1;
+
 	}
 	return(0);
 }
@@ -556,20 +558,20 @@ Boolean RSsetcolor
 	(
 	short w, /* window number */
 	short n, /* color entry number */
-	RGBColor	Color
+	RGBColor	*color
 	)
   /* sets a new value for the specified color entry of a terminal window. */
   {
     if ( !(TelInfo->haveColorQuickDraw) || (RSsetwind(w) < 0) || (n > 15) || (n < 0))
 		return(FALSE);
 
-	SetEntryColor(RScurrent->pal, n, &Color);
+	SetEntryColor(RScurrent->pal, n, color);
 
 	if ( n == 1 ) {
 		/* set background color */
 #if GENERATINGPOWERPC
 		if (gHasSetWindowContentColor ) {
-			SetWindowContentColor(RScurrent->window, &Color);
+			SetWindowContentColor(RScurrent->window, color);
 		} else
 #endif
 		{
@@ -579,9 +581,11 @@ Boolean RSsetcolor
 				(**colorTable).wCReserved = 0;
 				(**colorTable).ctSize = 0;
 				(**colorTable).ctTable[0].value = wContentColor;
-				(**colorTable).ctTable[0].rgb = Color;
+				(**colorTable).ctTable[0].rgb = *color;
 				SetWinColor(RScurrent->window, colorTable);
-				DisposeHandle((Handle)colorTable);
+				/* heap becomes corrupted after CloseWindow() */
+				/* if I call DisposeHandle... but no leak ? */
+				/*DisposeHandle((Handle)colorTable);*/
 			}
 		}
 	}
@@ -735,8 +739,7 @@ short RSnewwindow
 		
 		for (i=0; i < MAXATTR*2; i++) //get the ANSI colors from the palette
 		{
-			GetEntryColor(TelInfo->AnsiColors, i, &scratchRGB);
-			(*ourColorTableHdl)->ctTable[i+4].rgb = scratchRGB;
+			GetEntryColor(TelInfo->AnsiColors, i, &(*ourColorTableHdl)->ctTable[i+4].rgb);
 			(*ourColorTableHdl)->ctTable[i+4].value = 0;
 		}
 		
@@ -841,11 +844,13 @@ void RSkillwindow
   /* closes a terminal window. */
   {
  	WindRecPtr tw;
- 	RSdata *temp = RSlocal + w;
+ 	RSdata *temp;
 
  	tw = &screens[findbyVS(w)];
+
  	--((*topLeftCorners)[tw->positionIndex]); //one less window at this position
 
+ 	temp = RSlocal + w;
  	if (temp->pal != NULL) {
  		DisposePalette(temp->pal);		
  		temp->pal = NULL;
@@ -1160,10 +1165,9 @@ void	RScprompt(short w)
 
 	for (scratchshort = 0, NumberOfColorBoxes = 4; scratchshort < NumberOfColorBoxes; scratchshort++)
 	{
-		RGBColor tempColor;
-		RSgetcolor(w,scratchshort, &tempColor);
+		RSgetcolor(w,scratchshort, &scratchRGBcolor);
 		BoxColorItems[scratchshort] = ColorNF + scratchshort;
-		BlockMoveData(&tempColor,&BoxColorData[scratchshort], sizeof(RGBColor));
+		BlockMoveData(&scratchRGBcolor,&BoxColorData[scratchshort], sizeof(RGBColor));
 		UItemAssign( dptr, ColorNF + scratchshort, ColorBoxItemProcUPP);
 	}
 		
@@ -1203,7 +1207,7 @@ void	RScprompt(short w)
 		}
 		
 	for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++) 
-			RSsetcolor(w,scratchshort,BoxColorData[scratchshort]);
+			RSsetcolor(w,scratchshort, &BoxColorData[scratchshort]);
 	
 	/* force redrawing of entire window contents */
 	SetPort(RSlocal[w].window);
@@ -1602,12 +1606,16 @@ void RSchangefont(short w, short fnum,long fsiz)
 		(short) (x1 + (RScurrent->rwidth ) / RScurrent->fwidth - 1),
 		(short) (y1 + (RScurrent->rheight) / RScurrent->fheight - 1));
 	VSgetrgn(w, &x1, &y1, &x2, &y2);		/* Get new region */
-	
+
+/*
 	DrawGrowIcon(RScurrent->window);
 	RSdrawlocker(w, RScurrent->window->visRgn);
-	VSredraw(w, 0, 0, x2 - x1 + 1, y2 - y1 + 1); /* redraw newly-revealed area, if any */
-	ValidRect(&RScurrent->window->portRect); /* no need to do it again */
+	VSredraw(w, 0, 0, x2 - x1 + 1, y2 - y1 + 1); // redraw newly-revealed area, if any
+	ValidRect(&RScurrent->window->portRect); // no need to do it again
 	DrawControls(RScurrent->window);
+*/
+	InvalRect(&RScurrent->window->portRect);
+
   } /* RSchangefont */
 
 void RSchangebold
@@ -1625,7 +1633,10 @@ void RSchangebold
 /* NONO */
 	RScurrent->realbold = allowBold;
 /* NONO */
+/*
 	VSredraw(screens[scrn].vs,0,0,VSmaxwidth(screens[scrn].vs),VSgetlines(screens[scrn].vs)-1);
+*/
+	InvalRect(&RScurrent->window->portRect);
 }
 
 short RSgetfont
@@ -1786,11 +1797,11 @@ void calculateWindowPosition(WindRec *theScreen,Rect *whereAt, short colsHigh, s
 	theScreen->positionIndex = 0;
 	while (!done)
 	{
-		
+	
 		while (((*topLeftCorners)[theScreen->positionIndex] > currentCount)&& //find an empty spot
 				(theScreen->positionIndex < MaxSess - 1))
 			theScreen->positionIndex++;
-		
+
 		offset = ((gApplicationPrefs->StaggerWindows == TRUE) ? 
 					gApplicationPrefs->StaggerWindowsOffset : 1) * (theScreen->positionIndex);
 		whereAt->top = GetMBarHeight() + 25 + offset;
