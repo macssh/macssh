@@ -72,6 +72,7 @@ char *gURLSchemeNames[] = {
 	"tn3270:",
 	"finger:",
 	"whois:",
+	"ssh:",
 	nil
 };
 
@@ -93,6 +94,60 @@ Boolean MyStrNEqual (char *s1, char *s2, short n)
 #define isLWSP(a) ((a) == ' ' || (a) == '\t')
 #define isLWSPorCR(a) (isLWSP(a) || (a) == CR)
 
+static void LaunchURL(Handle urlH, short w)
+{
+	TURLKind urlKind;
+	OSErr err;
+	OSType sig;
+	short returnedSize;
+	long fakeSelBegin, fakeSelEnd, handleSize;
+	
+	HLock(urlH);
+
+	urlKind = ParseURL(urlH, &returnedSize);
+
+	if (urlKind != 100) {
+		if ( w >= 0 )
+			FlashSelection(w);
+		if (urlKind == kTelnetURL || urlKind == kSSHURL) {
+			//we handle this, send apple event to ourselves
+			ProcessSerialNumber psn;
+			unsigned short launchControlFlags;
+			launchControlFlags = launchContinue | launchNoFileFlags | launchDontSwitch;
+			GetCurrentProcess( &psn );
+			err = LaunchAppWithEventAndString(TRUE, NULL, &psn,
+					kGetURLEventClass, kGetURLEventID,
+					keyDirectObject, *urlH, 0, launchControlFlags);
+		} else {
+			fakeSelBegin = 0;
+			fakeSelEnd = returnedSize;
+			ICFindConfigFile(inst, 0, 0);
+			ICLaunchURL(inst, aligned_pstring("\p"), *urlH, returnedSize, &fakeSelBegin, &fakeSelEnd);
+		}
+		return;
+	}
+//		sig = GetHelperInfo(urlKind);
+//	if (sig == NULL)
+//		return;
+//	err = OpenHelperWithURL(sig, *urlH);
+}
+
+
+void HandleURLString(ConstStr255Param urlString)
+{
+	Handle urlH;
+	
+	urlH = NewHandle(urlString[0] + 1);
+	if (MemError() != noErr) {
+		return;
+	}
+	HLock(urlH);
+	BlockMoveData(urlString + 1, *urlH, urlString[0]);
+	(*urlH)[urlString[0] + 1] = ' ';
+	LaunchURL(urlH, -1);
+	DisposeHandle(urlH);
+}
+
 void HandleURL(short w)
 {
 	Handle urlH;
@@ -106,10 +161,9 @@ void HandleURL(short w)
 	if ((urlH == (char **)-1L) || (urlH == nil)) {
 		return;
 	}
-
-										// 12/10/97, RJZ.  Increase size by one
-										// so there is room for a NULL
-										// terminator.
+	// 12/10/97, RJZ.  Increase size by one
+	// so there is room for a NULL
+	// terminator.
 	handleSize = GetHandleSize(urlH);
 	SetHandleSize(urlH, handleSize + 1);
 	if (MemError() != noErr) {
@@ -117,40 +171,11 @@ void HandleURL(short w)
 		return;
 	}
 	HLock(urlH);
-		
 	(*urlH)[handleSize] = ' ';
-
-	urlKind = ParseURL(urlH, &returnedSize);
-	
-	if (urlKind == 100)
-		return;
-	else if ((urlKind == kTelnetURL)/*||(urlKind == kRloginURL)*/)
-	{	//we handle this, send apple event to ourselves
-		ProcessSerialNumber psn;
-		unsigned short launchControlFlags;
-		FlashSelection(w);
-		launchControlFlags = launchContinue | launchNoFileFlags;
-		launchControlFlags |= launchDontSwitch;
-
-		GetCurrentProcess(&psn);
-		err = LaunchAppWithEventAndString(TRUE, NULL, &psn,
-				kGetURLEventClass, kGetURLEventID,
-				keyDirectObject, *urlH, 0, launchControlFlags);
-		return;
-	}
-	else {
-		fakeSelBegin = 0;
-		fakeSelEnd = returnedSize;
-		FlashSelection(w);
-		ICFindConfigFile(inst, 0, 0);
-		ICLaunchURL(inst, aligned_pstring("\p"), *urlH, returnedSize, &fakeSelBegin, &fakeSelEnd);
-	}
-//		sig = GetHelperInfo(urlKind);
-//	if (sig == NULL)
-//		return;
-//	err = OpenHelperWithURL(sig, *urlH);
-	return;
+	LaunchURL(urlH, w);
+	DisposeHandle(urlH);
 }
+
 
 TURLKind ParseURL(Handle urlH, short *returnedSize)
 {
