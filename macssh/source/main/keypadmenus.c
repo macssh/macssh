@@ -27,7 +27,7 @@ static	unsigned char KeypadMenuMap[] = {				/* Baylor - which menu items map to 
 /*	up,		left,	down,	right,	*/
 	VSUP,	VSLT,	VSDN,	VSRT,
 /*	pf1,	pf2,	pf3,	pf4		*/
-	VSF1,	VSF2,	VSF3,	VSF4,
+	VSPF1,	VSPF2,	VSPF3,	VSPF4,
 /*	kp7,	kp8,	kp9,	minus,	*/
 	VSK7,	VSK8,	VSK9,	VSKM,
 /*	kp4,	kp5,	kp6,	comma,	*/
