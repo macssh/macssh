@@ -1389,7 +1389,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	scratchlong = TermPrefsPtr->fontsize;
 	NumToString(scratchlong, scratchPstring);
 	SetTEText(dptr, TermFontSize, scratchPstring);
-	scratchlong = TermPrefsPtr->numbkscroll;
+	scratchlong = (unsigned short)TermPrefsPtr->numbkscroll;
 	NumToString(scratchlong, scratchPstring);
 	SetTEText(dptr, TermScrollback, scratchPstring);
 	SetTEText(dptr, TermAnswerback, TermPrefsPtr->AnswerBackMessage);
@@ -1661,8 +1661,8 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 
 	GetTEText(dptr, TermScrollback, scratchPstring);
 	StringToNum(scratchPstring, &scratchlong);
-	BoundsCheck(&scratchlong, 50000, 24);
-	TermPrefsPtr->numbkscroll = (short) scratchlong;
+	BoundsCheck(&scratchlong, 32767, 24);
+	TermPrefsPtr->numbkscroll = (unsigned short) scratchlong;
 
 	GetTEText(dptr, TermAnswerback, scratchPstring);
 	if (StrLength(scratchPstring) > 63) scratchPstring[0] = 63;
@@ -1973,6 +1973,14 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	SetTEText(dptr, 58, (unsigned char *)SessPrefsPtr->username);
 //	SetTEText(dptr, 59, (unsigned char *)SessPrefsPtr->password);
 	SetTEText(dptr, 60, (unsigned char *)SessPrefsPtr->clientuser);
+
+	if ( SessPrefsPtr->protocol != 4 ) {
+		GetIndString(scratchPstring, MISC_STRINGS, MISC_COMMAND);
+	} else {
+		GetIndString(scratchPstring, MISC_STRINGS, MISC_ARGUMENTS);
+	}
+	SetTEText(dptr, 57, scratchPstring);
+
 	SetTEText(dptr, 61, (unsigned char *)SessPrefsPtr->command);
 	SetTEText(dptr, 66, (unsigned char *)SessPrefsPtr->sockshost);
 	SetTEText(dptr, 71, (unsigned char *)SessPrefsPtr->socksusername);
@@ -2166,6 +2174,13 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 					NumToString((unsigned short)tempPort, scratchPstring);
 					SetTEText(dptr, SessPort, scratchPstring);
 					CheckPortPopup( dptr, (unsigned short)tempPort, 90 );
+
+					if ( protocol != 5 ) {
+						GetIndString(scratchPstring, MISC_STRINGS, MISC_COMMAND);
+					} else {
+						GetIndString(scratchPstring, MISC_STRINGS, MISC_ARGUMENTS);
+					}
+					SetTEText(dptr, 57, scratchPstring);
 				}
 				break;
 
