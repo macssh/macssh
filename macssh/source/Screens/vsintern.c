@@ -37,17 +37,21 @@
 #include "maclook.proto.h"
 #include "wind.h"
 #include "rsdefs.h"
+#include "Vers.h"
 
 #define ScrollbackQuantum 100
 
-#define VSIclrattrib 0
+//#define VSIclrattrib 0
+#define VSIclrattrib VSIw->attrib
 
 #include "vsintern.proto.h"
 
 extern short 	TempItemsVRefNum;
 extern long		TempItemsDirID;
-extern WindRec *screens;
-extern RSdata *RSlocal;
+extern WindRec	*screens;
+extern RSdata	*RSlocal;
+
+
 
 short VSIclip
   (
@@ -225,27 +229,33 @@ void VSIcursenable()
 	VSIw->disableCursor = 0;
 }
 
-short VSIcursorvisible		/* BYU 2.4.12 */
-  (							/* BYU 2.4.12 */
-	void					/* BYU 2.4.12 */
-  )							/* BYU 2.4.12 */
-  {							/* BYU 2.4.12 */
-	short						/* BYU 2.4.12 */
-		x = VSIw->x,		/* BYU 2.4.12 */
-		y = VSIw->y,		/* BYU 2.4.12 */
-		x2,					/* BYU 2.4.12 */
-		y2,					/* BYU 2.4.12 */
-		n = 1,				/* BYU 2.4.12 */
-		offset;				/* BYU 2.4.12 */
+short VSIcursorenabled( void )
+{
+	if (!VSIw->DECCM)
+		return 0; // Bri 970610
+	if (VSIw->disableCursor)
+		return 0; // RAB BetterTelnet 2.0b4
+	if (!RSisInFront(VSIwn))
+		return 0;
+	return 1;
+}
 
-	if (!VSIw->DECCM) return 0; // Bri 970610
-	if (VSIw->disableCursor) return 0; // RAB BetterTelnet 2.0b4
-															/* BYU 2.4.12 */
-	if (!VSIclip(&x, &y, &x2, &y2, &n, &offset))			/* BYU 2.4.12 */
-		return 1;											/* BYU 2.4.12 */
-	else					/* BYU 2.4.12 */
-		return 0;			/* BYU 2.4.12 */
-}							/* BYU 2.4.12 */
+short VSIcursorvisible( void )
+{
+	short
+		x = VSIw->x,
+		y = VSIw->y,
+		x2,
+		y2,
+		n = 1,
+		offset;
+
+	if (!VSIcursorenabled())
+		return 0;
+	if (VSIclip(&x, &y, &x2, &y2, &n, &offset))
+		return 0;
+	return 1;
+}
 
 VSlineArray VSInewlinearray
   (
@@ -1710,13 +1720,10 @@ void VSIrange
   )
   /* constrains cursor position to valid range (somewhere on the screen). */
   {
-	short
-		wrap = 0;
-	if (VSIw->DECAWM)
-		wrap = 1;
+	short wrap = (VSIw->DECAWM) ? 1 : 0;
 	if (VSIw->x < 0)
 		VSIw->x = 0;
-	if (VSIw->x > (VSIw->maxwidth + wrap))
+	if (VSIw->x > VSIw->maxwidth + wrap)
 		VSIw->x = VSIw->maxwidth + wrap;
 	if (VSIw->y < 0)
 		VSIw->y = 0;
@@ -1724,52 +1731,105 @@ void VSIrange
 		VSIw->y = VSIw->lines;
   } /* VSIrange */
 
-void VTsendpos
-  (
-	void
-  )
-  /* sends an escape sequence representing the current cursor position. */
-  {
+/*
+ * VTsendpos
+ *
+ * sends an escape sequence representing the current cursor position.
+ */
+
+void VTsendpos( void )
+{
 	char
 		tempbuf[19];
 	short
 		x = VSIw->x,
 		y = VSIw->y;
 
-	if (x > VSIw->maxwidth)
-	  {
-	  /* autowrap pending */
+	if (x > VSIw->maxwidth) {
+		/* autowrap pending */
 		x = 0;
 		y++;
-	  }
+	}
 	if (y > VSIw->lines)
-	  /* scroll pending (because of the autowrap) */
+		/* scroll pending (because of the autowrap) */
 		y = VSIw->lines;
 
 	sprintf(tempbuf, "\033[%d;%dR", y + 1, x + 1);
 	RSsendstring(VSIwn, tempbuf, strlen(tempbuf));
-  } /* VTsendpos */
+} /* VTsendpos */
 
-void VTsendstat
-  (
-	void
-  )
-  /* sends the terminal status string. */
-  {
+
+/*
+ * VTsendprintstat
+ *
+ * sends the printer status string.
+ */
+
+void VTsendprintstat( void )
+{
+	/* FIXME: always ready... */
+	//RSsendstring(VSIwn, "\033[?13n", 6);	/* no printer */
+	RSsendstring(VSIwn, "\033[?10n", 6);	/* The printer is ready */
+	//RSsendstring(VSIwn, "\033[?11n", 6);	/* The printer is not ready */
+} /* VTsendprintstat */
+
+
+/*
+ * VTsendudkstat
+ *
+ * sends the used defined key status string.
+ */
+
+void VTsendudkstat( void )
+{
+	/* FIXME: always locked... */
+	RSsendstring(VSIwn, "\033[?21n", 6);	/* User Defined Keys are locked */
+	//RSsendstring(VSIwn, "\033[?20n", 6);	/* User Defined Keys are unlocked */
+} /* VTsendudkstat */
+
+
+/*
+ * VTsendstat
+ *
+ * sends the terminal status string.
+ */
+
+void VTsendstat( void )
+{
 	RSsendstring(VSIwn, "\033[0n", 4);
-  } /* VTsendstat */
+} /* VTsendstat */
 
-void VTsendident
-  (
-	void
-  )
-  /* sends an appropriate terminal identification sequence. */
-  {
+
+/*
+ * VTsendident
+ *
+ * sends an appropriate terminal identification sequence.
+ */
+
+void VTsendident( void )
+{
 	if (screens[findbyVS(VSIwn)].vtemulation)
-		RSsendstring(VSIwn, "\033[?62;1;6c", 10);			/* BYU 2.4.12 - VT200-series*/
-	else													/* BYU 2.4.12 */
-		RSsendstring(VSIwn, "\033[?6c", 5);					/* BYU 2.4.12 - VT102 */
-  } /* VTsendident */
+		//RSsendstring(VSIwn, "\033[?62;1;6c", 10);			// VT200-series
+		RSsendstring(VSIwn, "\033[?62;1;2;6;7;8c", 16);		// VT200-series
+	else
+		RSsendstring(VSIwn, "\033[?6c", 5);					// VT102
+} /* VTsendident */
+
+
+/*
+ * VTsendsecondaryident
+ *
+ * sends an appropriate terminal identification sequence.
+ */
+
+void VTsendsecondaryident( void )
+{
+	char identstr[64];
+
+  	sprintf(identstr, "\033[>1;10;0c");
+	RSsendstring(VSIwn, identstr, strlen(identstr));
+} /* VTsendsecondaryident */
+
 
 void VTalign
   (
@@ -1860,6 +1920,7 @@ void VSIsetoption
 				case 7: /* autowrap mode */
 					VSIw->DECAWM = toggle;
 					break;
+
 				case 25: /* cursor mode */
 					VSIw->DECCM = toggle;
 					break;

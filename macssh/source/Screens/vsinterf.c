@@ -580,7 +580,8 @@ void VSredrawLine(short w) //redraws current line
 	if (VSvalids(w) != 0)
 		return;
 	VSredraw(w, 0, VSIw->y,VSIw->maxwidth, VSIw->y); 
-	VSIcuroff(w);
+	if (VSIcursorvisible())
+		VSIcuroff(w);
 }
 
 
@@ -626,8 +627,8 @@ short VSredraw
 	
 	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
 	
-	VSIcuroff(w); 						// temporarily hide cursor
-	RSerase(w, tx1, ty1, tx2, ty2);		// Erase the offending area
+	if (VSIcursorenabled())
+		VSIcuroff(w); 						// temporarily hide cursor
 
 	// draw visible part of scrollback buffer
 	if (y1 < 0) {
@@ -710,7 +711,8 @@ short VSredraw
 		}
 	}
 
-	VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
+	if (VSIcursorenabled())
+		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
 	return(0);
   } /* VSredraw */
 
@@ -754,7 +756,9 @@ short VSOredraw
 	
 	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
 	
-	VSIcuroff(w); 						// temporarily hide cursor
+	if (VSIcursorenabled())
+		VSIcuroff(w); 						// temporarily hide cursor
+
 	RSerase(w, tx1, ty1, tx2, ty2);		// Erase the offending area
 
 	// draw visible part of scrollback buffer
@@ -820,7 +824,8 @@ short VSOredraw
 		}
 	}
 
-	VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
+	if (VSIcursorenabled())
+		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
 
 	return(0);
   } /* VSOredraw */
@@ -839,12 +844,14 @@ short VSwrite
 		return 0;
 	if (VSvalids(w) != 0)
 		return(-3);
-	VSIcuroff(w); /* hide cursor momentarily */
+	if (VSIcursorenabled())
+		VSIcuroff(w); /* hide cursor momentarily */
 	VSIcursdisable(); // RAB BetterTelnet 2.0b4
 	VSem((unsigned char *) ptr, len);	/* BYU LSC - interpret the character stream */
 	VSIflush(); // RAB BetterTelnet 2.0b3
 	VSIcursenable();
-	VSIcurson(w, VSIw->x, VSIw->y, 1); /* restore cursor, force it to be visible. */
+	if (VSIcursorenabled())
+		VSIcurson(w, VSIw->x, VSIw->y, 1); /* restore cursor, force it to be visible. */
 //	_profile = 0;
 	return(0);
   } /* VSwrite */
@@ -865,7 +872,8 @@ short VSwritefast
 		return 0;
 	if (VSvalids(w) != 0)
 		return(-3);
-	VSIcuroff(w); /* hide cursor momentarily */
+	if (VSIcursorenabled())
+		VSIcuroff(w); /* hide cursor momentarily */
 	VSIcursdisable();
 	VSem((unsigned char *) ptr, len);	/* BYU LSC - interpret the character stream */
 
@@ -885,7 +893,8 @@ void VSflushwrite(short w) {
 
 	VSIflush();
 	VSIcursenable();
-	VSIcurson(w, VSIw->x, VSIw->y, 1);
+	if (VSIcursorenabled())
+		VSIcurson(w, VSIw->x, VSIw->y, 1);
 
 }
 // Utility routine: BetterTelnet 1.0fc3 (RAB)
@@ -980,10 +989,12 @@ void VSpossendEM											// MAT--we can change this to support EMACS
 																				// MAT--
 	if (0)	//(note: supposed to look for "echo" here)							// MAT--
 	  {																			// MAT--
-		VSIcuroff(w);															// MAT--
+		if (VSIcursorenabled())
+			VSIcuroff(w);															// MAT--
 		VSIw->x = x;															// MAT--
 		VSIw->y = y;															// MAT--
-		VSIcurson(w, VSIw->x, VSIw->y, 1); /* Force Move */						// MAT--
+		if (VSIcursorenabled())
+			VSIcurson(w, VSIw->x, VSIw->y, 1); /* Force Move */						// MAT--
 	  } /* if */																// MAT--
   } /* VSpossendEM */					// changed comment						// MAT--
  	
@@ -1051,10 +1062,12 @@ void VSpossend
 
 	if (echo)
 	  {
-		VSIcuroff(w);
+		if (VSIcursorenabled())
+			VSIcuroff(w);
 		VSIw->x = x;
 		VSIw->y = y;
-		VSIcurson(w, VSIw->x, VSIw->y, 1); /* Force Move */
+		if (VSIcursorenabled())
+			VSIcurson(w, VSIw->x, VSIw->y, 1); /* Force Move */
 	  } /* if */
   } /* VSpossend */
 
@@ -1180,9 +1193,11 @@ short VSreset
   {
 	if (VSvalids(w) != 0)
 		return(-3);
-	VSIcuroff(w);			/* NCSA: SB -- get rid of extraneous cursor BS */
+	if (VSIcursorenabled())
+		VSIcuroff(w);			/* NCSA: SB -- get rid of extraneous cursor BS */
 	VSIreset(); /* causes cursor to disappear */
-	VSIcurson(w, VSIw->x, VSIw->y, 1); /* redisplay cursor at home position */
+	if (VSIcursorenabled())
+		VSIcurson(w, VSIw->x, VSIw->y, 1); /* redisplay cursor at home position */
 	return(0);
   } /* VSreset */
 
@@ -1206,13 +1221,15 @@ void VSscrolright
 	if (n == 0)
 		return;									/* Do nothing if appropriate */
 
-	VSIcuroff(w); /* temporarily hide cursor */
+	if (VSIcursorenabled())
+		VSIcuroff(w); /* temporarily hide cursor */
 	VSIw->Rleft += n; /* update visible region */
 	VSIw->Rright += n;
 	sn = VSIw->Rbottom - VSIw->Rtop;
 	RSmargininfo(w, lmmax, VSIw->Rleft);	/* update horizontal scroll bar */
 	RSdelcols(w, n); /* scroll the window contents */
-	VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
+	if (VSIcursorenabled())
+		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
   /* redraw newly-revealed portion of screen */
 	VSredraw(w, (VSIw->Rright - VSIw->Rleft) - n, 0, (VSIw->Rright - VSIw->Rleft), sn);
   } /* VSscrolright */
@@ -1237,13 +1254,15 @@ void VSscrolleft
 	if (n == 0)
 		return;									/* Do nothing if appropriate */
 
-	VSIcuroff(w); /* temporarily hide cursor */
+	if (VSIcursorenabled())
+		VSIcuroff(w); /* temporarily hide cursor */
 	VSIw->Rleft -= n; /* update visible region */
 	VSIw->Rright -= n;
 	sn = VSIw->Rbottom - VSIw->Rtop;
 	RSmargininfo(w, lmmax, VSIw->Rleft); /* update horizontal scroll bar */
 	RSinscols(w, n); /* scroll the window contents */
-	VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
+	if (VSIcursorenabled())
+		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
 	VSredraw(w, 0, 0, n, sn); /* redraw newly-revealed portion of screen */
   } /* VSscrolleft */
 
@@ -1275,7 +1294,8 @@ short VSscrolback
 	if (n <= 0)
 		return(0);			/* Dont be scrollin' no lines.... */
 
-	VSIcuroff(w); /* temporarily hide cursor */
+	if (VSIcursorenabled())
+		VSIcuroff(w); /* temporarily hide cursor */
 
 	VSIw->Rtop = VSIw->Rtop - n; /* adjust the visible region */
 	VSIw->Rbottom = VSIw->Rbottom - n;
@@ -1298,7 +1318,8 @@ short VSscrolback
 	if (n <= VSIw->lines)
 	  {
 		RSinslines(w, 0, sn, n, 0);	/* scroll, preserving current selection */
-		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
+		if (VSIcursorenabled())
+			VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
 		VSredraw(w, 0, 0, VSIw->maxwidth, n - 1); /* redraw newly-revealed portion */
 	  }
 	else {
@@ -1328,7 +1349,8 @@ short VSscrolforward
 	if (n <= 0)
 		return(0);			/* Dont be scrollin' no lines.... */
 
-	VSIcuroff(w); /* temporarily hide cursor */
+	if (VSIcursorenabled())
+		VSIcuroff(w); /* temporarily hide cursor */
 
 	VSIw->Rtop = n + VSIw->Rtop; /* adjust the visible region */
 	VSIw->Rbottom = n + VSIw->Rbottom;
@@ -1351,7 +1373,8 @@ short VSscrolforward
 	if (n <= VSIw->lines)
 	  {
 		RSdellines(w, 0, sn, n, 0);	/* scroll, preserving current selection */
-		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
+		if (VSIcursorenabled())
+			VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
 		VSredraw(w, 0, (sn + 1) - n, VSIw->maxwidth, sn); /* redraw newly-revealed portion */
 	  } /* if */
 	else {
@@ -1722,7 +1745,8 @@ short VSsetlines
 	
 	VSIw->x = 0;
 	VSIw->y = 0;
-	VSIcurson(w, VSIw->x, VSIw->y, 1); 	/* keeps cursor from pointing outside of window */
+	if (VSIcursorenabled())
+		VSIcurson(w, VSIw->x, VSIw->y, 1); 	/* keeps cursor from pointing outside of window */
 
 	VSIw->vistop = VSIw->scrntop;			/* Force view to the top of the screen */
 	
@@ -1857,7 +1881,8 @@ short VSOsetlines
 	
 	VSIw->x = 0;
 	VSIw->y = 0;
-	VSIcurson(w, VSIw->x, VSIw->y, 1); 	/* keeps cursor from pointing outside of window */
+	if (VSIcursorenabled())
+		VSIcurson(w, VSIw->x, VSIw->y, 1); 	/* keeps cursor from pointing outside of window */
 
 	VSIw->vistop = VSIw->scrntop;			/* Force view to the top of the screen */
 	
@@ -2023,18 +2048,24 @@ short VSgetcols(short w)												/* NCSA: SB */
 // DJ: VSPulseAll is an attempt to JUST do the blinkers.
 // VSPulseOne redraws one window with a different RS call.  Still huge overkill....but oh well.
 short VSPulseOne(short w, short x1, short y1,short x2, short y2);
+
 void VSPulseAll(void)
 {
 	short			i;
-	
-	for(i=0; i < VSmax; i++)
-		if ((VSscreens[i].stat == 1) && (VSscreens[i].loc->realBlink))
+
+	for ( i=0; i < VSmax; i++ )
+		if ( VSscreens[i].stat == 1 && VSscreens[i].loc->realBlink )
 				VSPulseOne(i, 0, 0,
-		(VSscreens[i].loc->Rright - VSscreens[i].loc->Rleft), ( VSscreens[i].loc->Rbottom - VSscreens[i].loc->Rtop));
+					VSscreens[i].loc->maxwidth, VSscreens[i].loc->lines);
+/*
+					VSscreens[i].loc->Rright - VSscreens[i].loc->Rleft,
+					VSscreens[i].loc->Rbottom - VSscreens[i].loc->Rtop);
+*/
 }
+
 short VSPulseOne
   (
-	short w, 		// window to redraw */
+	short w, 		// window to redraw
 	short x1, 		
 	short y1,
 	short x2,
@@ -2076,77 +2107,67 @@ short VSPulseOne
 	
 	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
 	
-	cursOff = 0;
-//	VSIcuroff(w); 						// temporarily hide cursor // Nah [NONO] (flicker)
-//	RSerase(w, tx1, ty1, tx2, ty2);		// Erase the offending area // Nah [DJ] (flicker)
+	RSa = -1;
 
+	cursOff = 0;
 
 	// draw visible part of scrollback buffer
 	
-	tx1 = x1;		// Set up to clip redraw area to visible area of scrollback buffer
-	tx2 = x2;
-	ty1 = y1;
-	ty2 = y2; // RAB
-	tn = -1;
-	
-// RAB BetterTelnet 2.0fc1 - DJ wrote this, but I had to revise it to cover
-// the "new" attributes-in-scrollback scenario
+	ypt = VSIw->vistop;
+	for(y=VSIw->Rtop; y<y1; y++)
+		ypt = ypt->next;		// Get pointer to top line we need
 
-	if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
-		ypt = VSIw->vistop;
-		for(y=VSIw->Rtop; y<y1; y++)
-			ypt = ypt->next;		// Get pointer to top line we need
+	for (y=ty1; y<=ty2; y++) {
+		char *pt;
+		VSAttrib *pa;
+		VSAttrib lasta;
+		short x, lastx;
 
-		for (y=ty1; y<=ty2; y++) {
-			char *pt;
-			VSAttrib *pa;
-			VSAttrib lasta;
-			short x, lastx;
+		pt = ypt->text + VSIw->Rleft;
+		pa = ypt->attr + VSIw->Rleft;
 
-			pt = ypt->text + VSIw->Rleft;
-			pa = ypt->attr + VSIw->Rleft;
-
-			lastx = tx1;
-			lasta = pa[tx1];
-			for(x=tx1+1; x<=tx2; x++) {
-				if (pa[x]!=lasta && (VSisblnk(lasta) || VSisfastblnk(lasta))) { // Ahah! [DJ]
-					if (!cursOff) {
+		lastx = tx1;
+		lasta = pa[tx1];
+		for( x = tx1+1; x <= tx2; x++ ) {
+			if ( pa[x] != lasta ) {
+				if ( VSisblnk(lasta) ) {
+					if ( y == VSIw->y && lastx <= VSIw->x && VSIw->x <= x && VSIcursorvisible()) {
 						// temporarily hide cursor
 						cursOff = 1;
 						VSIcuroff(w);
 					}
-					RSa = 0; // RAB - shouldn't be necessary, but...
 					RSdraw(w, lastx, y, lasta, x-lastx, pt + lastx);
-					lastx = x;
-					lasta = pa[x];
+					if ( cursOff ) {
+						// restore cursor at original position
+						cursOff = 0;
+						VSIcurson(w, VSIw->x, VSIw->y, 0);
+					}
 				}
+				lastx = x;
+				lasta = pa[x];
 			}
-			if (lastx<=tx2 && (VSisblnk(lasta) || VSisfastblnk(lasta))) {			// Ditto [DJ]
-				if (!cursOff) {
-					// temporarily hide cursor
-					cursOff = 1;
-					VSIcuroff(w);
-				}
-				RSa = 0;
-				RSdraw(w, lastx, y, lasta, tx2-lastx+1, pt + lastx);
-			}
-			ypt = ypt->next;
 		}
+		if ( lastx <= tx2 && VSisblnk(lasta) ) {
+			if ( y == VSIw->y && lastx <= VSIw->x && VSIw->x <= x && VSIcursorvisible() ) {
+				// temporarily hide cursor
+				cursOff = 1;
+				VSIcuroff(w);
+			}
+			RSdraw(w, lastx, y, lasta, tx2-lastx+1, pt + lastx);
+			if ( cursOff ) {
+				// restore cursor at original position
+				cursOff = 0;
+				VSIcurson(w, VSIw->x, VSIw->y, 0);
+			}
+		}
+		ypt = ypt->next;
 	}
-	if ( cursOff ) {
-		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
-	}
-/* NONO */
-/* ??? what is this for ???
-	tx1 = ty1 = 0;
-	tn = 132;
-*/
-/* NONO */
-	return(0);
+	return 0;
 }
+
 short VSOPulseOne
   (
-	short w, 		// window to redraw */
+	short w, 		// window to redraw
 	short x1, 		
 	short y1,
 	short x2,
@@ -2185,32 +2206,10 @@ short VSOPulseOne
 	
 	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
 	
+	RSa = -1;
+
 	cursOff = 0;
-//	VSIcuroff(w); 						// temporarily hide cursor // Nah [NONO] (flicker)
-//	RSerase(w, tx1, ty1, tx2, ty2);		// Erase the offending area // Nah [DJ] (flicker)
-/*
-	// draw visible part of scrollback buffer
-	if (y1 < 0) {
-	
-		tx1 = x1;		// Set up to clip redraw area to visible area of scrollback buffer
-		tx2 = x2;
-		ty1 = y1;
-		ty2 = (y2>=0) ? -1 : y2;
-		tn = -1;
-		
-		if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
-			ypt = VSIw->vistop;
-			for(y=VSIw->Rtop; y<y1; y++)
-				ypt = ypt->next;		// Get pointer to top line we need
-	
-			for (y=ty1; y<=ty2; y++) {
-				RSdraw(w, tx1, y, 0, tn, ypt->text + VSIw->Rleft +tx1);
-				ypt = ypt->next;
-			}
-		}
-		y1 = 0;			// continue with on-screen buffer, if any
-	}
-*/
+
 	if(y1<0) y1=0;
 	// draw visible part of on-screen buffer, taking account of attributes
 	if (y2 >= 0) {
@@ -2237,42 +2236,42 @@ short VSOPulseOne
 
 				lastx = tx1;
 				lasta = pa[tx1];
-				for(x=tx1+1; x<=tx2; x++) {
-					if (pa[x]!=lasta && (VSisblnk(lasta) || VSisfastblnk(lasta))) { // Ahah! [DJ]
-						if (!cursOff) {
-							// temporarily hide cursor
-							cursOff = 1;
-							VSIcuroff(w);
+				for( x = tx1+1; x <= tx2; x++ ) {
+					if ( pa[x] != lasta ) {
+						if ( VSisblnk(lasta) ) {
+							if ( y == VSIw->y && lastx <= VSIw->x && VSIw->x <= x && VSIcursorvisible() ) {
+								// temporarily hide cursor
+								cursOff = 1;
+								VSIcuroff(w);
+							}
+							RSdraw(w, lastx, y, lasta, x-lastx, pt + lastx);
+							if ( cursOff ) {
+								// restore cursor at original position
+								cursOff = 0;
+								VSIcurson(w, VSIw->x, VSIw->y, 0);
+							}
 						}
-						RSa = 0;
-						RSdraw(w, lastx, y, lasta, x-lastx, pt + lastx);
 						lastx = x;
 						lasta = pa[x];
 					}
 				}
-				if (lastx<=tx2 && (VSisblnk(lasta) || VSisfastblnk(lasta))) {		// Ditto [DJ]
-					if (!cursOff) {
+				if ( lastx <= tx2 && VSisblnk(lasta) ) {
+					if ( y == VSIw->y && lastx <= VSIw->x && VSIw->x <= x && VSIcursorvisible() ) {
 						// temporarily hide cursor
 						cursOff = 1;
 						VSIcuroff(w);
 					}
-					RSa = 0;
 					RSdraw(w, lastx, y, lasta, tx2-lastx+1, pt + lastx);
+					if ( cursOff ) {
+						// restore cursor at original position
+						cursOff = 0;
+						VSIcurson(w, VSIw->x, VSIw->y, 0);
+					}
 				}
 				ypt = ypt->next;
 				ypa = ypa->next;
 			}
 		}
 	}
-
-	if ( cursOff ) {
-		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
-	}
-/* NONO */
-/* ??? what is this for ???
-	tx1 = ty1 = 0;
-	tn = 132;
-*/
-/* NONO */
-	return(0);
- }
+	return 0;
+}
