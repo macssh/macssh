@@ -35,7 +35,7 @@
 #include <GUSIFactory.h>
 #include <GUSIDevice.h>
 #include <GUSIDescriptor.h>
-#include <GUSINetDB.h>
+#include <GUSIOTNetDB.h>
 #include <GUSISIOUX.h>
 
 #include <console.h>
@@ -85,6 +85,10 @@ void ssh2_init()
 
 	if ( !sGUSISetup ) {
 		GUSIContext::Setup(true);
+
+		/* this call initializes the resolver with current context */
+		gethostid();
+
 		GUSISetupConsole();
 		sGUSISetup = true;
 	}
@@ -247,7 +251,7 @@ void GUSIProcess::Yield(GUSIYieldMode wait)
 	}
 	if (fExistingThreads < 2) // Single threaded process skips sleep only once
 		fDontSleep = false;
-	if (wait == kGUSIYield && LMGetTicks() - fResumeTicks < 1) {
+	if (wait == kGUSIYield && LMGetTicks() - fResumeTicks < 12) {
 		fWillSleep 		= false;
 		return;
 	}
@@ -304,6 +308,58 @@ done:
 }
 
 
+/*
+ * The fSvc field of the GUSIOTNetDB instance is no longer valid after
+ * an interface switch in the TCP/IP control panel.
+ * Let's clear it upon kOTProviderWillClose message.
+ */
+
+// <Asynchronous notifier function for [[GUSIOTNetDB]]>=                   
+inline uint32_t CompleteMask(OTEventCode code)	
+{ 	
+	return 1 << (code & 0x1F); 
+}
+
+pascal void GUSIOTNetDBNotify(
+	GUSIOTNetDB * netdb, OTEventCode code, OTResult result, void *cookie)
+{
+	GUSI_MESSAGE(("GUSIOTNetDBNotify %08x %d\n", code, result));
+	GUSIContext *	context = netdb->fCreationContext;
+	
+	switch (code & 0x7F000000L) {
+	case 0:
+		netdb->fEvent |= code;
+		result = 0;
+		break;
+	case kPRIVATEEVENT:
+	case kCOMPLETEEVENT:
+		if (!(code & 0x00FFFFE0))
+			netdb->fCompletion |= CompleteMask(code);
+		switch (code) {
+		case T_OPENCOMPLETE:
+			netdb->fSvc = static_cast<InetSvcRef>(cookie);
+			break;
+		case T_DNRSTRINGTOADDRCOMPLETE:
+		case T_DNRADDRTONAMECOMPLETE:
+			context = static_cast<GUSIContext **>(cookie)[-1];
+			break;
+		}
+		break;
+	default:
+		if (code != kOTProviderWillClose)
+			result = 0;
+		else {
+			/* NONO : need to re-create the fSvc  */
+			netdb->fSvc = static_cast<InetSvcRef>(NULL);
+			netdb->fCreationContext = static_cast<GUSIContext *>(NULL);
+			/* NONO */
+		}
+		break;
+	}
+	if (result)
+		netdb->fAsyncError = result;
+	context->Wakeup();
+}
 
 /*
  * we need to track open()/dup()/close()/socket() calls to close files/sockets
@@ -454,3 +510,4 @@ int close(int s)
 		return 0;
 	}
 }
+

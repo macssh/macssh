@@ -22,6 +22,8 @@
 extern QHdr		gEventsQueue, gEventsFreeQueue;
 extern short	gQueueLength;
 
+extern void GUSISetupConfig();
+
 /*************************************************************************/
 /* neteventinit
 *  load up the pointers for the event queue
