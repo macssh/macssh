@@ -551,9 +551,13 @@ algorithms_argp_parser(int key, char *arg, struct argp_state *state)
 	else
 	  {
 	    int compression = lookup_compression(self->algorithms, arg, NULL);
-	    if (compression)
-	      self->compression_algorithms = make_int_list(1, compression, -1);
-	    else
+	    if (compression) {
+	      // fix attempt for unsupported zlib in OpenSSH 3.4/3.5, add 'none'
+	      if ( compression == ATOM_ZLIB )
+	        self->compression_algorithms = make_int_list(2, compression, ATOM_NONE, -1);
+	      else
+	        self->compression_algorithms = make_int_list(1, compression, -1);
+	    } else
 	      {
 		list_compression_algorithms(state, self->algorithms);
 		argp_error(state, "Unknown compression algorithm '%s'.", arg);
