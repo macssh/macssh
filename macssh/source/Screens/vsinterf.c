@@ -1185,22 +1185,22 @@ char VSkbsend
 		}								// MAT--
 
 
-	if (k < VSF10)	{						/* BYU 2.4.12 */
+	if ( k < VSF10 )	{						/* BYU 2.4.12 */
 	  /* 7-bit ascii code -- send as is */
 		RSsendstring(w,(char *) &k, 1);		/* BYU LSC */
 		return 0; // RAB BetterTelnet 2.0b5 - rest is for special keys
 	}
-	
+
 	/* Keypad (Not Application Mode): 0-9 , - . Enter */ // was (k < VSPF1)
 
-	if ((k > VSLT) && (k < VSKC) && (!VSIw->DECPAM)) { // 2.0b5 - handle VSKE below
-		RSsendstring(w, &VSIkpxlate[0][k - VSUP], 1);
+	if ( k >= VSJPBKS || (k > VSLT && k < VSKE && !VSIw->DECPAM) ) {
+		RSsendstring(w, &VSIkpxlate[shifted][k - VSUP], 1);
 		if (echo)
-			VSwrite(w, &VSIkpxlate[0][k - VSUP], 1);
+			VSwrite(w, &VSIkpxlate[shifted][k - VSUP], 1);
 //		if (k == VSKE)
 //			RSsendstring(w, "\012", 1);
 		return(0);
-	  } /* if */
+	} /* if */
 
 /*	if (VSIw->DECPAM && VSIw->DECCKM) {
 	  // aux kp mode
@@ -1237,15 +1237,21 @@ char VSkbsend
 	// now for the new - RAB BetterTelnet 2.0b5
 	// first we get the number, then we mangle it depending on what other stuff is going on
 	macronum = VSIkpnums[k - VSF10];
-	if ((macronum >= 20) && (macronum <= 29) && shifted) // Shift+F1-F10
-		macronum += 10;
-	else if ((macronum >= 40) && (macronum <= 44) && shifted) // Shift+F11-F15
+
+	if ( macronum >= 20 && macronum <= 29 ) {
+		if ( shifted )
+			macronum += 10; // Shift+F1-F10
+		else if ( VSIw->vtemulation == 2 )
+			macronum += 80;	// ANSI Function keys
+		else if ( VSIw->vtemulation == 3 )
+			macronum += 90;	// Linux Function keys
+	} else if (macronum >= 40 && macronum <= 44 && shifted) // Shift+F11-F15
 		macronum += 5;
-	else if ((macronum >= 50) && (macronum <= 59) && shifted) // Shift+PF1, Home...
+	else if (macronum >= 50 && macronum <= 59 && shifted) // Shift+PF1, Home...
 		macronum += 10;
-	else if ((macronum >= 90) && (macronum <= 93) && VSIw->DECCKM) // CKM arrows
+	else if (macronum >= 90 && macronum <= 93 && VSIw->DECCKM) // CKM arrows
 		macronum += 5;
-	else if ((k == VSKE) && !VSIw->DECPAM) // Enter (!AM)
+	else if (k == VSKE && !VSIw->DECPAM) // Enter (!AM)
 		macronum++;
 
 	sendmacro(&screens[sn], macronum); // and actually send it, the NEW way!
