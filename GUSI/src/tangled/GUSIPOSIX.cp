@@ -904,7 +904,12 @@ int select(int width, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, stru
 				&readres, &writeres, &exceptres);
 		GUSIContext::Yield(kGUSIYield);
 	}
+	// This loop is pretty much guaranteed to set [[errno]] to [[EBADF]], so we 
+ // save the actual error code and restore it (this is harmless if no error 
+ // occurred).                                                              
+ //                                                                         
 	// <Call [[post_select]] for all file descriptors>=                        
+ int saveErrno = errno;
  for (int s = 0; s < width ; ++s)
  	if (GUSISocket * sock = GUSIDescriptorTable::LookupSocket(s)) {
  		bool r = readfds && FD_ISSET(s,readfds);
@@ -914,6 +919,7 @@ int select(int width, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, stru
  		if (r || w || e)
  			sock->post_select(r, w, e);
  	}
+ errno = saveErrno;
 	// <Copy internal descriptor sets to parameters>=                          
  if (readfds)
  	*readfds = readres;
