@@ -243,7 +243,7 @@ initial_ctx =
 #define R(c, l, r, i)  do { l ^= c->p[i]; r ^= F(c, l); } while(0)
 
 static void
-encrypt(struct blowfish_ctx *bc, uint32_t *ret_xl, uint32_t *ret_xr)
+bf_encrypt(struct blowfish_ctx *bc, uint32_t *ret_xl, uint32_t *ret_xr)
 {
   uint32_t xl, xr;
 
@@ -321,7 +321,7 @@ blowfish_encrypt(struct blowfish_ctx *bc, unsigned length,
 	d1 = READ_UINT32(inbuf);
 	d2 = READ_UINT32(inbuf+ 4);
 
-	encrypt( bc, &d1, &d2 );
+	bf_encrypt( bc, &d1, &d2 );
 
 	WRITE_UINT32(outbuf, d1);
 	WRITE_UINT32(outbuf + 4, d2);
@@ -379,31 +379,31 @@ blowfish_set_key(struct blowfish_ctx *ctx,
     datal = datar = 0;
     for(i=0; i < _BLOWFISH_ROUNDS+2; i += 2 )
       {
-	encrypt( ctx, &datal, &datar );
+	bf_encrypt( ctx, &datal, &datar );
 	ctx->p[i]   = datal;
 	ctx->p[i+1] = datar;
       }
     for(i=0; i < 256; i += 2 )
       {
-	encrypt( ctx, &datal, &datar );
+	bf_encrypt( ctx, &datal, &datar );
 	ctx->s[0][i]   = datal;
 	ctx->s[0][i+1] = datar;
       }
     for(i=0; i < 256; i += 2 )
       {
-	encrypt( ctx, &datal, &datar );
+	bf_encrypt( ctx, &datal, &datar );
 	ctx->s[1][i]   = datal;
 	ctx->s[1][i+1] = datar;
       }
     for(i=0; i < 256; i += 2 )
       {
-	encrypt( ctx, &datal, &datar );
+	bf_encrypt( ctx, &datal, &datar );
 	ctx->s[2][i]   = datal;
 	ctx->s[2][i+1] = datar;
       }
     for(i=0; i < 256; i += 2 )
       {
-	encrypt( ctx, &datal, &datar );
+	bf_encrypt( ctx, &datal, &datar );
 	ctx->s[3][i]   = datal;
 	ctx->s[3][i+1] = datar;
       }
