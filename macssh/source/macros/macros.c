@@ -648,7 +648,7 @@ void	Macros( void)
 	Str255 temp;
 	Handle MacString[10], rubbish;
 
-	SetCursor(theCursors[normcurs]);
+	setLastCursor(theCursors[normcurs]);
 
 	if (TelInfo->macrosModeless) {
 		SelectWindow(TelInfo->macrosModeless);
