@@ -1745,6 +1745,7 @@ void ShowSessPanel(DialogPtr dptr, short panel)
 		ShowDialogItem(dptr, 30);
 		ShowDialogItem(dptr, 32);
 		ShowDialogItemRange(dptr, 42, 44);
+		ShowDialogItem(dptr, 91);
 		break;
 
 		case 4:
@@ -1803,6 +1804,7 @@ void HideSessPanel(DialogPtr dptr, short panel)
 		HideDialogItem(dptr, 30);
 		HideDialogItem(dptr, 32);
 		HideDialogItemRange(dptr, 42, 44);
+		HideDialogItem(dptr, 91);
 		break;
 
 		case 4:
@@ -1933,6 +1935,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	CheckPortPopup( dptr, SessPrefsPtr->localport, 88 );
 	CheckPortPopup( dptr, SessPrefsPtr->remoteport, 89 );
 	CheckPortPopup( dptr, (unsigned short)SessPrefsPtr->port, 90 );
+	SetCntrl(dptr, 91, SessPrefsPtr->launchurlesc);
 /* NONO */
 
 	if (!authOK) {
@@ -2115,6 +2118,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 				case	77:
 				case	78:
 				case	87:
+				case	91:
 /* NONO */
 					FlipCheckBox(dptr, ditem);
 					break;
@@ -2397,6 +2401,7 @@ void SetSessionData(DialogPtr dptr, SessionPrefs *SessPrefsPtr,
 	SessPrefsPtr->remoteport = (short)scratchlong;
 
 	SessPrefsPtr->ssh2guests = GetCntlVal(dptr, 87);
+	SessPrefsPtr->launchurlesc = GetCntlVal(dptr, 91);
 /* NONO */
 
 	memset(SessPrefsPtr->otppassword, 0, sizeof(SessPrefsPtr->otppassword));
