@@ -62,7 +62,7 @@ mpfr_div_ui(y, x, u, rnd_mode)
 
   /* we need to store yn+1 = xn + dif limbs of the quotient */
   if (ABSSIZE(y)>=yn+1) tmp=yp;
-  else tmp=TMP_ALLOC((yn+1)*BYTES_PER_MP_LIMB);
+  else tmp=(mp_limb_t *)TMP_ALLOC((yn+1)*BYTES_PER_MP_LIMB);
 
   c = (mp_limb_t) u;
   if (dif>=0) {
