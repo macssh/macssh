@@ -1395,7 +1395,7 @@ void VSem
 					if (!VSIw->charset) {
 						VSIw->attrib = VSnotgraph(VSIw->attrib);
 					}
-					if (tw)
+					if (tw && GetTranslationIndex(tw->innational) < 0)
 						switchintranslation(tw, kTRJIS, kASCII);
 					goto ShortCut;
 				case '0': /* DEC special graphics */
@@ -1410,11 +1410,11 @@ void VSem
 					// ASCII except for backslash () and tilde (~). The backslash is
 					// replaced by the Yen sign, and the tilde is replaced by overline. This
 					// set is Japan's national variant of ISO 646 [ISO646].
-					if (tw)
+					if (tw && GetTranslationIndex(tw->innational) < 0)
 						switchintranslation(tw, kTRJIS, kJISX0201_1976);
 					goto ShortCut;
 				case 'I': /* Not Std ISO-2022-JP */
-					if (tw) {
+					if (tw && GetTranslationIndex(tw->innational) < 0) {
 						//switchintranslation(tw, kTRJIS, kJISX0201_1976Kana);
 						switchintranslation(tw, kTRJISX0201_76kana, 0);
 					}
@@ -1503,7 +1503,7 @@ void VSem
 						if (!VSIw->charset) {
 							VSIw->attrib = VSnotgraph(VSIw->attrib);
 						}
-						if (tw)
+						if (tw && GetTranslationIndex(tw->innational) < 0)
 							switchintranslation(tw, kTRJIS, kJISX0208_1978);
 					}
 					goto ShortCut;
@@ -1515,7 +1515,7 @@ void VSem
 						if (!VSIw->charset) {
 							VSIw->attrib = VSnotgraph(VSIw->attrib);
 						}
-						if (tw)
+						if (tw && GetTranslationIndex(tw->innational) < 0)
 							switchintranslation(tw, kTRJIS, kJISX0208_1983);
 					}
 					goto ShortCut;
@@ -1528,7 +1528,7 @@ void VSem
 							VSIw->attrib = VSnotgraph(VSIw->attrib);
 						}
 						// FIXME
-						//if (tw)
+						//if (tw && GetTranslationIndex(tw->innational) < 0)
 							//switchintranslation(tw, ISO2022CN, kxxxxxxxxxxx);
 					}
 					goto ShortCut;
@@ -1550,7 +1550,7 @@ void VSem
 						if (!VSIw->charset) {
 							VSIw->attrib = VSnotgraph(VSIw->attrib);
 						}
-						if (tw)
+						if (tw && GetTranslationIndex(tw->innational) < 0)
 							//switchintranslation(tw, kTRJIS, kJISX0212_1990);
 							switchintranslation(tw, kTRJISX0212_1990, 0);
 					}
