@@ -323,6 +323,7 @@ char * strsignal(int signo)
 	static char errstr[__max_errstr];
 	
 	sprintf(errstr, "Signal no (%d)", signo);
+	return 0L;
 }
 
 
@@ -690,9 +691,6 @@ void make_args( char *argstr, char **tabargv, int *argc, char ***argv )
 
 void make_env( lshcontext *context )
 {
-	char			*buf;
-	short			vRefNum;
-	long			dirID;
 	StringHandle	hstr;
 	int				i;
 
@@ -761,12 +759,12 @@ void *lsh_thread(lshctx *ctx)
 	context = (lshcontext *)NewPtr(sizeof(lshcontext));
 	if (context == NULL) {
 		printf("### main_thread, NewPtr lshcontext failed\n");
-		return;
+		return 0L;
 	}
 	if (pthread_setspecific(ssh2threadkey, context)) {
 		printf("### main_thread, pthread_setspecific failed\n");
 		DisposePtr((Ptr)context);
-		return;
+		return 0L;
 	}
 
 	/* allocate memory pool */
@@ -774,7 +772,7 @@ void *lsh_thread(lshctx *ctx)
 	if (err != noErr) {
 		printf("### main_thread, MPInit failed\n");
 		DisposePtr((Ptr)context);
-		return;
+		return 0L;
 	}
 
 	context->_port = -1;
