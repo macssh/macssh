@@ -379,7 +379,7 @@ void switchintranslation(WindRec *tw, short national, short charset)
 	} else {
 		// force charset for subsets of ISO_2022_JP
 		if ( national == kTRJISX0208_1978 )
-			charset = kJISX0208_1983;
+			charset = kJISX0208_1978;
 		else if ( national == kTRJISX0208_1983 )
 			charset = kJISX0208_1983;
 	}
@@ -545,7 +545,7 @@ if (table > 0) {
 	} else {
 		// force charset for subsets of ISO_2022_JP
 		if ( national == kTRJISX0208_1978 )
-			charset = kJISX0208_1983;
+			charset = kJISX0208_1978;
 		else if ( national == kTRJISX0208_1983 )
 			charset = kJISX0208_1983;
 	}
