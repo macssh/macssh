@@ -78,5 +78,7 @@
 #define PASSPHRASE_PROMPT		38
 #define SHOW_LOG				39
 #define HIDE_LOG				40
+#define MISC_COMMAND			41
+#define MISC_ARGUMENTS			42
 
 #define	DNR_MESSAGES_ID			2004		// DNR error messages
