@@ -165,7 +165,8 @@
 #define Termvtwrap				26	/* Use vtwrap mode checkbox*/
 #define TermMetaIsCmdCntrol		33	/* Use control-cmd as meta */
 #define TermMetaIsOption		34	// use option as meta
-#define TermMetaIsOff			35	// no meta
+#define TermMetaIsCmd			35	// use cmd as meta
+#define TermMetaIsOff			49	// no meta
 #define Termarrow				27	/* Use emacs arrow keys checkbox */
 #define TermMAT					28	/* Map pgup, etc. checkbox */
 #define Termeightbit			29	/* Eight bit connection */
