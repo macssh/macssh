@@ -29,11 +29,31 @@ __END_DECLS
 
 void GUSISetupFactories()
 {
+	static Boolean sOTTested = false;
+	static Boolean sOTPresent = false;
+
 #ifdef GUSISetupFactories_BeginHook
 	GUSISetupFactories_BeginHook
 #endif
-	/*GUSIwithOTInetSockets();*/
-	GUSIwithOTTcpSockets();
+	/* we'll use OpenTransport if it's at least version 1.1.1 */
+	if ( !sOTTested ) {
+		long result;
+		NumVersion version;
+		if ( Gestalt(gestaltOpenTpt, &result) == noErr ) {
+			OSErr theErr = Gestalt(gestaltOpenTptVersions, (long*)&version);
+			if (theErr == noErr && (version.majorRev >= 2 || version.minorAndBugRev >= 0x11)) {
+				sOTPresent = true;
+			}
+		}
+		sOTTested = true;
+	}
+	if ( sOTPresent ) {
+		/*GUSIwithOTInetSockets();*/
+		GUSIwithOTTcpSockets();
+	} else {
+		/*GUSIwithMTInetSockets();*/
+		GUSIwithMTTcpSockets();
+	}
 #ifdef GUSISetupFactories_EndHook
 	GUSISetupFactories_EndHook
 #endif
