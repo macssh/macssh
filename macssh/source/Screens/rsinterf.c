@@ -179,7 +179,7 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 					}
 				}
 			} while (StillDown() && (EqualPt(curr, RSlocal[w].last) || EqualPt(pt, temp)));
-			if ( !EqualPt(pt, temp) ) {
+			if ( !EqualPt(pt, temp) || RSlocal[w].selected ) {
 				// toggle highlight state of text between current and last mouse positions
 				RSinvText(w, curr, RSlocal[w].last, &noConst);
 				RSlocal[w].last = curr;
@@ -649,7 +649,7 @@ void RSsendstring
  	WindRecPtr tw;
 
 	sn = findbyVS(w);
-	if (sn)
+	if ( sn < 0 )
 		return;
 	tw = &screens[sn];
 	netpush(tw->port);				/* BYU 2.4.18 - for Diab systems? */		
@@ -689,9 +689,7 @@ short RSnewwindow
 	WindowPtr	behind;
 
 	/* create the virtual screen */
-	w = VSnewscreen(vtemulation, scrollback, (scrollback != 0), /* NCSA 2.5 */
-		lines, width, flags & RSWforcesave, flags & RSWignoreBeeps,
-		flags & RSWsavelines, flags & RSWjumpscroll, flags & RSWrealBlink);
+	w = VSnewscreen(vtemulation, scrollback, (scrollback != 0), lines, width, flags);
 	if (w < 0) {		/* problems opening the virtual screen -- tell us about it */
 		return(-1);
 	}
@@ -736,7 +734,7 @@ short RSnewwindow
 
   /* create the window */
 	if (!TelInfo->haveColorQuickDraw) {
-		RScurrent->window = NewWindow(0L, wDims, name, flags & RSWshowit, 8,behind, flags & RSWgoaway, (long)w);
+		RScurrent->window = NewWindow(0L, wDims, name, (flags & RSWshowit) != 0, 8,behind, (flags & RSWgoaway) != 0, (long)w);
 		RScurrent->pal = NULL;
 		if (RScurrent->window == NULL) {
 			VSdestroy(w);
@@ -748,7 +746,7 @@ short RSnewwindow
 			return(-2);
 		}
 
-		RScurrent->window = NewCWindow(0L, wDims, name, flags & RSWshowit, 8,behind, flags & RSWgoaway, (long)w);
+		RScurrent->window = NewCWindow(0L, wDims, name, (flags & RSWshowit) != 0, 8,behind, (flags & RSWgoaway) != 0, (long)w);
 		if (RScurrent->window == NULL) {
 			VSdestroy(w);
 			return(-2);
@@ -991,6 +989,7 @@ RgnHandle RSGetTextSelRgn(short w)
 		}
 
 	RSsetwind(w);
+	RSsetConst(w);
 
 	curr = RSlocal[w].anchor;
 	last = RSlocal[w].last;
@@ -1261,11 +1260,14 @@ void	RScprompt(short w)
   /* puts up the dialog that lets the user examine and change the color
 	settings for the specified window. */
 {
-	short		scratchshort, ditem;
-	Point		ColorBoxPoint;
-	DialogPtr	dptr;
-	Boolean		UserLikesNewColor;
-	RGBColor	scratchRGBcolor;
+	short			scratchshort, ditem;
+	Point			ColorBoxPoint;
+	DialogPtr		dptr;
+	Boolean			UserLikesNewColor;
+	RGBColor		scratchRGBcolor;
+	short			itemType;
+	Handle			itemHandle;
+	Rect			itemRect;
 	
 	SetUpMovableModalMenus();
 	dptr = GetNewMySmallDialog(ColorDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
@@ -1304,6 +1306,9 @@ void	RScprompt(short w)
 						 &BoxColorData[ditem-ColorNF], &scratchRGBcolor);
 					if (UserLikesNewColor)
 						BoxColorData[ditem-ColorNF] = scratchRGBcolor;
+						// force refresh
+						GetDialogItem(dptr, ditem, &itemType, &itemHandle, &itemRect);
+						InvalRect(&itemRect);
 					}
 				break;
 				
@@ -1478,38 +1483,67 @@ short RSclick( GrafPtr window, EventRecord theEvent)
 /*--------------------------------------------------------------------------*/
 static	void HandleDoubleClick(short w, short modifiers)													
 {																				
-	Point	leftLoc, rightLoc, curr, oldcurr;													
-	long	mySize;															
-	char	theChar[5];															
-	short	mode = -1, newmode, foundEnd=0;	
-	Point	pt;														
-	Point	temp;														
+	Point	leftLoc, rightLoc, curr, oldcurr;
+	long	mySize;
+	char	theChar;
+	short	mode = -1, newmode, foundEnd=0;
+	Point	pt;
+	Point	temp;
 	VSAttrib attrib;
-
+	short	mw;
+	VSlinePtr ypt;
 
 	RSsetConst(w);								// get window dims
 	leftLoc = RSlocal[w].anchor;				// these two should be the same
-	rightLoc = RSlocal[w].last;									
-																				
-	while(!foundEnd)							// scan to the right first
-		{																		
-		mySize = VSgettext(w,rightLoc.h, rightLoc.v, rightLoc.h+1, rightLoc.v,	
-			theChar, (long)1, "\015", 0, 0);									
-		if(mySize ==0 || isspace(*theChar))		// stop if not a letter
-			foundEnd =1;														
-		else rightLoc.h++;														
-		}																		
-																				
-	foundEnd =0;																
-	while(!foundEnd)							// ...and then scan to the left
-		{																		
-		mySize = VSgettext(w,leftLoc.h-1, leftLoc.v, leftLoc.h, leftLoc.v,		
-			theChar, (long)1, "\015", 0, 0);									
-		if(mySize ==0 || isspace(*theChar))		// STOP!
-			foundEnd =1;														
-		else leftLoc.h--;														
-		}																		
-																				
+	rightLoc = RSlocal[w].last;
+
+	mw = VSgetcols(w);
+
+	ypt = VSIGetLineStart(w, rightLoc.v);
+	while ( !foundEnd ) {
+		// scan to the right first
+		mySize = VSgettext(w, rightLoc.h, rightLoc.v, rightLoc.h+1, rightLoc.v,	
+			&theChar, (long)1, "\015", 0, 0);
+		if ( mySize == 0 || isspace(theChar) ) {	// stop if not a letter
+			foundEnd = 1;														
+		} else if ( ++rightLoc.h > mw - 1 ) {
+			if ( rightLoc.v == 0 ) {
+				ypt = VSIGetLineStart(w, rightLoc.v);
+			}
+			if ( ypt && VSiswrap(ypt->lattr) ) {
+				ypt = ypt->next;
+				rightLoc.h = -1;
+				++rightLoc.v;
+			} else {
+				foundEnd = 1;														
+			}
+		}
+	}																		
+
+	if ( leftLoc.h < 0 )
+		leftLoc.h = 0;
+	ypt = VSIGetLineStart(w, leftLoc.v);
+	foundEnd = 0;																
+	while( !foundEnd ) {																		
+		// ...and then scan to the left
+		mySize = VSgettext(w, leftLoc.h-1, leftLoc.v, leftLoc.h, leftLoc.v,		
+			&theChar, (long)1, "\015", 0, 0);
+		if ( mySize == 0 || isspace(theChar) ) {		// STOP!
+			foundEnd = 1;
+		} else if ( --leftLoc.h < 0 ) {
+			if ( leftLoc.v == -1 ) {
+				ypt = VSIGetLineStart(w, leftLoc.v);
+			}
+			if ( ypt && VSiswrap(ypt->prev->lattr) ) {
+				ypt = ypt->prev;
+				leftLoc.h = mw;
+				--leftLoc.v;
+			} else {
+				foundEnd = 1;														
+			}
+		}
+	}																		
+
 	if (leftLoc.h != rightLoc.h) {				// we selected something
 
 		HiliteThis(w, leftLoc, rightLoc);
@@ -1536,7 +1570,7 @@ static	void HandleDoubleClick(short w, short modifiers)
 					}
 				} while (StillDown() && (EqualPt(curr, oldcurr) || EqualPt(pt, temp)));
 
-				if ( !EqualPt(pt, temp) ) {
+				if ( !EqualPt(pt, temp) /*|| RSlocal[w].selected*/ ) {
 					pt = temp;
 				
 					if ((curr.v < leftLoc.v) || ((curr.v == leftLoc.v) && (curr.h < leftLoc.h))) {
@@ -1639,35 +1673,39 @@ void RSchangefont(short w, short fnum,long fsiz)
 	WStateData *wstate;
 	WindowPeek wpeek;
 	short resizeWidth, resizeHeight;		/* NCSA: SB */
+	int cursOff;
 
     RSsetwind(w);
+
+	cursOff = 0;
+	if ( VSIcursorenabled() && RScursison(w) ) {
+		cursOff = 1;
+		VSIcuroff(w); 						// temporarily hide cursor
+	}
+
 	srw = RScurrent->rwidth;
 	srh = RScurrent->rheight;
 
-	if (fnum != -1)
-	  {
+	if (fnum != -1) {
 		RSTextFont(fnum,fsiz,0);	/* BYU */
 		RScurrent->fnum = fnum;
-	  } /* if */
-	
-	if (fsiz)
-	  {
-		TextSize(fsiz);
-		RScurrent->fsiz = fsiz;
-/* NONO */
-		/* adjust bold size too */
-		RScurrent->bfsiz = fsiz;
-/* NONO */
-	  } /* if */
-	
-	RSfontmetrics();
+	}
+	if ( !fsiz ) {
+		fsiz = RScurrent->fsiz;
+	}
 
+	TextSize(fsiz);
+	RScurrent->fsiz = fsiz;
+	/* adjust bold size too */
+	RScurrent->bfsiz = fsiz;
+
+	RSfontmetrics();
 
 	width = VSmaxwidth(w) + 1;
 	lines = VSgetlines(w);
-	
+
  /* resize window to preserve its dimensions in character cell units */
-	
+
 	VSgetrgn(w, &x1, &y1, &x2, &y2);	/* get visible region */
 	RScurrent->rwidth =
 		RScurrent->width = (x2 - x1 + 1) * RScurrent->fwidth - CHO;
@@ -1678,10 +1716,9 @@ void RSchangefont(short w, short fnum,long fsiz)
 	 	 RScurrent->rwidth = RMAXWINDOWWIDTH - 16 - CHO;
 	if (RScurrent->rheight > RMAXWINDOWHEIGHT - 16)
 	 	 RScurrent->rheight = RMAXWINDOWHEIGHT - 16;
-	
-	RScheckmaxwind(&RScurrent->window->portRect,RScurrent->rwidth +16,	/* NCSA: SB */
-		RScurrent->rheight + 16, &resizeWidth, &resizeHeight);			/* NCSA: SB */
 
+	RScheckmaxwind(&RScurrent->window->portRect,RScurrent->rwidth +16,
+		RScurrent->rheight + 16, &resizeWidth, &resizeHeight);
 
 	SizeWindow
 	  (
@@ -1707,8 +1744,14 @@ void RSchangefont(short w, short fnum,long fsiz)
 	VSsetrgn(w, x1, y1,
 		(short) (x1 + (RScurrent->rwidth ) / RScurrent->fwidth - 1),
 		(short) (y1 + (RScurrent->rheight) / RScurrent->fheight - 1));
-	VSgetrgn(w, &x1, &y1, &x2, &y2);		/* Get new region */
+	VSgetrgn(w, &x1, &y1, &x2, &y2);		// Get new region
 
+	if ( cursOff ) {
+		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
+	} else {
+		// just calcutate the new coordinates
+		VScursset(w, VSIw->x, VSIw->y);
+	}
 /*
 	DrawGrowIcon(RScurrent->window);
 	RSdrawlocker(w, RScurrent->window->visRgn);
@@ -1718,7 +1761,8 @@ void RSchangefont(short w, short fnum,long fsiz)
 */
 	InvalRect(&RScurrent->window->portRect);
 
-  } /* RSchangefont */
+} /* RSchangefont */
+
 
 void RSchangebold
 	(
@@ -1740,6 +1784,7 @@ void RSchangebold
 */
 	InvalRect(&RScurrent->window->portRect);
 }
+
 
 short RSgetfont
   (

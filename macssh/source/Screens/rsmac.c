@@ -198,8 +198,8 @@ short RSsetwind
   {
 	if ((w < 0) || (w > MaxRS))
 		return(-3);
-    if (RSw != w)								/* if last window used is different */
-	  {
+    if (RSw != w) {
+    	/* last window used is different */
         if (RSlocal[w].window == 0L)
 			return(-4);
 		RScurrent = RSlocal + w;
@@ -208,10 +208,10 @@ short RSsetwind
 		RSla = 0;
 		SetPort(RScurrent->window);
 		return(1);
-	  }
+	}
     SetPort(RScurrent->window);
 	return(0);
-  } /* RSsetwind */
+} /* RSsetwind */
 
 /*
  * RScursoff
@@ -221,8 +221,7 @@ short RSsetwind
 
 void RSbell( short w )
 {
-
-/* NONO : #@%! bell ! I'm not deaf, It's my autokey buffer... */
+	/* #@%! bell ! I'm not deaf, It's my autokey buffer... */
 	static unsigned long sLastBellTicks = 0;
 	static short sConsecutiveBeeps = 0;
 	if ((LMGetTicks() - sLastBellTicks) < 15) {
@@ -233,18 +232,15 @@ void RSbell( short w )
 	sLastBellTicks = LMGetTicks();
 	if ( sConsecutiveBeeps >= 5 )
 		return;
-/* NONO */
 
     RSsetwind(w);
-	if (FrontWindow() != RScurrent->window)
-	  {
+	if (FrontWindow() != RScurrent->window) {
 	  /* beep and temporarily invert the window contents, so
 		the user sees which window is beeping */
 	    InvertRect(&RScurrent->window->portRect);
 	    SysBeep(8);
 	    InvertRect(&RScurrent->window->portRect);
-	  }
-	else
+	} else
 	  /* window is frontmost--just beep */
 		SysBeep(8);
      NotifyUser();
@@ -283,20 +279,16 @@ void RScursoff( short w )
 
 } /* RScursoff */
 
+void RScursset( short w, short la, short x, short y )
 /*
- * RScurson
+ * RScursset
  *
  * displays the text cursor for the specified window, at the
  * specifified position. Assumes it isn't currently being off.
  */
-
-void RScurson( short w, short la, short x, short y )
 {
 	short		xw;
 	VSAttrib	attrib;
-
-	if ( RSlocal[w].skip || RSlocal[w].cursorstate )
-		return;
 
     RSsetwind(w);
 
@@ -357,6 +349,16 @@ void RScurson( short w, short la, short x, short y )
     		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;
 			break;
     }
+}
+
+
+void RScurson( short w, short la, short x, short y )
+{
+	if ( RSlocal[w].skip || RSlocal[w].cursorstate )
+		return;
+
+	RScursset( w, la, x, y );
+
 	if ( VSIcursorvisible() ) {
 		if ( !gApplicationPrefs->BlinkCursor ) {
 	    	InvertRect(&RScurrent->cursor);
@@ -386,12 +388,13 @@ void RSsetattr(short la, VSAttrib a)
 	RSa = a;				
 
 	size = (VSisdecdwh(la)) ? RScurrent->fsiz * 2 : RScurrent->fsiz;
+
 	if ( VSisgrph(a) ) {
         TextFont( gNCSAFontID );
+		TextSize( size );
     } else {
 		RSTextFont( RScurrent->fnum, size, VSisbold(a) && RScurrent->allowBold );
 	}
-	TextSize(size);
 
 	face = VSisundl(a) ? underline : 0;
 	if ( VSisbold(a) && RScurrent->allowBold && RScurrent->realbold ) {
@@ -469,24 +472,15 @@ void RSsetattr(short la, VSAttrib a)
 	}
 } /* RSTextFont */
 
-void RSTextFont(short myfnum, short myfsiz, short myface) 				/* BYU */
-{										/* BYU */
-short tempFontID;						// RAB BetterTelnet 1.0fc4
-
-// RAB BetterTelnet 1.0fc4: For one thing, we use font *names* now. Also, we use NCSA VT Bold
-// when the user wants, not when it's Monaco 9.
-
-	if (// (myfnum == monaco) && 			/* BYU - If Monaco, size 9, and bold, then */
-//		(myfsiz == 9) &&				/* BYU */
-		
-		(myface & bold))	{			/* BYU */
-//		GetFNum("\p%NCSA VT Bold", &tempFontID);
-//		TextFont(tempFontID);			/* BYU - use NCSA's Monaco. (75) */
-		TextFont(RScurrent->bfnum);		// RAB BetterTelnet 1.0fc9
-	} else {							/* BYU */
-		TextFont(myfnum);				/* BYU */
-	}									/* BYU */
-}										/* BYU */
+void RSTextFont(short myfnum, short myfsiz, short myface)
+{
+	if ((myface & bold))	{
+		TextFont(RScurrent->bfnum);
+	} else {
+		TextFont(myfnum);
+	}
+	TextSize(myfsiz);
+}
 
 
 #ifdef	NO_UNIVERSAL
@@ -665,10 +659,6 @@ void RSdraw
 
 	if (rect.left <= 0)
 		rect.left = 0;
-	if (rect.right >= RScurrent->width)
-		rect.right = RScurrent->width;
-	if (rect.bottom >= RScurrent->height)
-		rect.bottom = RScurrent->height;
 
 	if (VSisdecdhlt(la)) {
 		// Upper part
@@ -799,7 +789,6 @@ void RSdelchars
 		return;
     RSsetwind(w);
 
-//	RSsetattr(VSIw->lattrib, VSIw->attrib & ~kVSblnk);
 	RSsetattr(0, 0);
 
 	xw = RScurrent->fwidth;
@@ -872,7 +861,6 @@ void RSdellines
     RSsetwind(w);
 	RSsetConst(w);
 
-//	RSsetattr(VSIw->lattrib, VSIw->attrib & ~kVSblnk);
 	RSsetattr(0, 0);
 
 	if (scrolled)
@@ -935,7 +923,7 @@ void RSerase
 	if (rect.left <= 0)						/* little buffer strip on left */
 		rect.left = CHO;
 	if (rect.right >= RScurrent->width - 1)
-		rect.right = RScurrent->rwidth - 1;	/* clear to edge of window, including edge strip */
+		rect.right = RScurrent->rwidth - 1;
 	if (rect.bottom >= RScurrent->height - 1)
 		rect.bottom = RScurrent->rheight + 1;	/* clear to bottom edge also */
     EraseRect(&rect);
@@ -965,7 +953,6 @@ void RSinslines
     RSsetwind(w);
 	RSsetConst(w);
 
-//	RSsetattr(VSIw->lattrib, VSIw->attrib & ~kVSblnk);
 	RSsetattr(0, 0);
 
 	if (RScurrent->selected && (scrolled < 0))
@@ -1058,7 +1045,7 @@ void RSinsstring
 		rect,
 		x * xw,
 		ys,
-		RScurrent->width,
+		RScurrent->rwidth - 1,
 		(y + 1) * RScurrent->fheight
 	  );
 
@@ -1278,9 +1265,6 @@ void	RSsetsize( short w, short v, short h, short screenIndex)
 /*	saves the new size settings for a window, and repositions
 	the scroll bars accordingly. */
 {
-	if ( VSIcursorvisible() )
-		RScursoff( w );
-
 	RSlocal[w].height = ((v - 16 + CVO) / FHeight) * FHeight;
 	RSlocal[w].width = ((h - 16 + CHO) / FWidth) * FWidth;
 	RSlocal[w].rheight = v - 16;
@@ -1303,7 +1287,7 @@ void	RSsetsize( short w, short v, short h, short screenIndex)
 		SizeControl(RSlocal[w].scroll, 16, (v - 13));
 		MoveControl(RSlocal[w].scroll, (h - 15) + CHO, -1 + CVO);
 		ShowControl(RSlocal[w].scroll);
-		}
+	}
 	if ( RSlocal[w].left != NULL ) {
 		short i;
 		if (screenIndex < 0)

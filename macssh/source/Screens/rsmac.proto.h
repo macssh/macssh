@@ -8,6 +8,7 @@ void RSsetConst(short w);
 short RSsetwind(short w);
 void RSbell(short w);
 Boolean RScursison( short w );
+void RScursset( short w, short la, short x, short y );
 void RScursoff(short w);
 void RScurson(short w, short la, short x, short y);
 void RSsetattr(short la, VSAttrib a);
