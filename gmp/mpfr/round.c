@@ -176,7 +176,7 @@ mpfr_round(x, RND_MODE, prec)
   nw = prec / BITS_PER_MP_LIMB; 
   if (prec & (BITS_PER_MP_LIMB - 1)) nw++;
   TMP_MARK(marker); 
-  tmp = TMP_ALLOC (nw * BYTES_PER_MP_LIMB);
+  tmp = (mp_limb_t *)TMP_ALLOC (nw * BYTES_PER_MP_LIMB);
   carry = mpfr_round_raw(tmp, MANT(x), PREC(x), (SIGN(x)<0), prec, RND_MODE);
 
   if (carry)
@@ -267,7 +267,7 @@ mpfr_can_round_raw(bp, bn, neg, err, rnd1, rnd2, prec)
   switch (rnd1) {
     
   case GMP_RNDZ: /* b <= x <= b+2^(EXP(b)-err) */
-    tmp = TMP_ALLOC(tn*BYTES_PER_MP_LIMB); 
+    tmp = (mp_limb_t *)TMP_ALLOC(tn*BYTES_PER_MP_LIMB); 
     cc = (bp[bn-1]>>l1) & 1;
     cc ^= mpfr_round_raw2(bp, bn, neg, rnd2, prec);
 
@@ -283,7 +283,7 @@ mpfr_can_round_raw(bp, bn, neg, err, rnd1, rnd2, prec)
     return (cc == cc2);
 
   case GMP_RNDU: /* b-2^(EXP(b)-err) <= x <= b */
-    tmp = TMP_ALLOC(tn*BYTES_PER_MP_LIMB); 
+    tmp = (mp_limb_t *)TMP_ALLOC(tn*BYTES_PER_MP_LIMB); 
     /* first round b */
     cc = (bp[bn-1]>>l1) & 1;
     cc ^= mpfr_round_raw2(bp, bn, neg, rnd2, prec);
@@ -301,7 +301,7 @@ mpfr_can_round_raw(bp, bn, neg, err, rnd1, rnd2, prec)
 
   case GMP_RNDN: /* b-2^(EXP(b)-err-1) <= x <= b+2^(EXP(b)-err-1) */
     if (l==0) tn++; 
-    tmp = TMP_ALLOC(tn*BYTES_PER_MP_LIMB); 
+    tmp = (mp_limb_t *)TMP_ALLOC(tn*BYTES_PER_MP_LIMB); 
 
     /* this case is the same than GMP_RNDZ, except we first have to
        subtract 2^(EXP(b)-err-1) from b */
