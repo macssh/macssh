@@ -38,18 +38,33 @@ static	unsigned char KeypadMenuMap[] = {				/* Baylor - which menu items map to 
 	VSK0,	VSKP
 };
 
+/* NONO: changed F1-F15 */
+#if 0
 static	unsigned char FuncKeyMenuMap[] = {				/* Baylor - which menu items map to which key */
 /* 	no zero item */
 	0,
-/*	f6,		f7,		f8,		f9,		f10,	*/
+/*	f5,		f6,		f7,		f8,		f9,		*/
 	VSF6,	VSF7,	VSF8,	VSF9,	VSF10,
-/*	f11,	f12,	f13,	f14,	*/
-	VSF11,	VSF12,	VSF13,	VSF14,
+/*	f10,	f11,	f12,	f13,	f14,	*/
+	VSF11,	VSF12,	VSF13,	VSF14,	VSF15,
 /*	help,	do	*/
 	VSF15,	VSF16,
 /*	f17,	f18,	f19,	f20		*/
 	VSF17,	VSF18,	VSF19,	VSF20
 };
+#endif
+
+static	unsigned char FuncKeyMenuMap[] = {				/* Baylor - which menu items map to which key */
+/* 	no zero item */
+	0,
+/*	f1,		f2,		f3,		f4,		f5,		*/
+	VSF6,	VSF7,	VSF8,	VSF9,	VSF10,
+/*	f6,		f7,		f8,		f9,		f10,	*/
+	VSF11,	VSF12,	VSF13,	VSF14,	VSF15,
+/*	f11,	f12,	f13,	f14,	f15		*/
+	VSF16,	VSF17,	VSF18,	VSF19,	VSF20
+};
+/* NONO */
 
 void	KeyMenu(short theItem, short shifted)
 {
