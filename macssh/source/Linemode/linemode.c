@@ -140,7 +140,7 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 	{
 		short numSpaces = VSIgetNextTabDistance();
 		unsigned char spacechar = ' ';
-		while (numSpaces > 0) {
+		while (numSpaces-- > 0) {
 			kbwrite(tw, &spacechar, 1);
 		}
 		if (tw->echo)
