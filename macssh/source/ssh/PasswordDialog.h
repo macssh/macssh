@@ -38,7 +38,7 @@ Boolean SSH2RandomizeDialog( long *type, long *level, long *encrypt, Str255 labe
 void SSH2ErrorDialog(char *mess1);
 
 Boolean SSH2LoginDialog(StringPtr inhost, StringPtr iologin, StringPtr outpassword);
-Boolean SSH2PasswordDialog (const char *inprompt, StringPtr outpassword);
+Boolean SSH2PasswordDialog (const char *inprompt, StringPtr outpassword, WindowPtr term);
 short SSH2SOC1Dialog(const char *fingerprint);
 short SSH2SOC2Dialog(const char *fingerprint);
 

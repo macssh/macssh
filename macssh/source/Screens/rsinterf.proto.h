@@ -1,19 +1,20 @@
 /* rsinterf.proto.h */
 
 
-/* RSnewwindow Flags */
+/* RSnewwindow/VSnewscreen Flags */
 enum {
-	RSWwrapon		=	0x00000001,
-	RSWshowit		=	0x00000002,
-	RSWgoaway		=	0x00000004,
-	RSWforcesave 	=	0x00000008,
-	RSWallowBold	=	0x00000010,
-	RSWcolorBold	=	0x00000020,
-	RSWignoreBeeps	=	0x00000040,
-	RSWrealbold		=	0x00000080,
-	RSWsavelines	=	0x00000100,
-	RSWjumpscroll	=	0x00000200,
-	RSWrealBlink	=	0x00000400
+	RSWwrapon			=	0x00000001,
+	RSWshowit			=	0x00000002,
+	RSWgoaway			=	0x00000004,
+	RSWforcesave 		=	0x00000008,
+	RSWallowBold		=	0x00000010,
+	RSWcolorBold		=	0x00000020,
+	RSWignoreBeeps		=	0x00000040,
+	RSWrealbold			=	0x00000080,
+	RSWoldscrollback	=	0x00000100,
+	RSWjumpscroll		=	0x00000200,
+	RSWrealBlink		=	0x00000400,
+	RSWvt7bit			=	0x00000800
 };
 
 
