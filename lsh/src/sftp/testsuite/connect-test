@@ -1,9 +1,0 @@
-#! /bin/sh
-
-if [ -z "$srcdir" ] ; then
-    srcdir=.
-fi
-
-. $srcdir/common.sh
-
-client
