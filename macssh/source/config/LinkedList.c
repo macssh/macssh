@@ -123,7 +123,7 @@ short createNodeAndSort(LinkedListNode **head, Str255 theName)
 	}
 }
 	
-LinkedListNode *createSortedList(ResType ConfigResourceType,short numberofitems,Str255 placeThisFirst)
+LinkedListNode *createSortedList(ResType ConfigResourceType,short numberofitems,ConstStr255Param placeThisFirst)
 {
 	short 		index, resID;
  	Handle		ItemResource;
@@ -156,7 +156,7 @@ LinkedListNode *createSortedList(ResType ConfigResourceType,short numberofitems,
 	return (theHead);
 }
 
-LinkedListNode *createSortedList2(ResType ConfigResourceType,short numberofitems,Str255 placeThisFirst)
+LinkedListNode *createSortedList2(ResType ConfigResourceType,short numberofitems,ConstStr255Param placeThisFirst)
 {
 	short 		index, resID;
  	Handle		ItemResource;

@@ -2,8 +2,8 @@
 
 #include "LinkedList.h"
 
-LinkedListNode *createSortedList(ResType ConfigResourceType,short numberofitems,Str255 placeThisFirst);
-LinkedListNode *createSortedList2(ResType ConfigResourceType,short numberofitems,Str255 placeThisFirst);
+LinkedListNode *createSortedList(ResType ConfigResourceType,short numberofitems,ConstStr255Param placeThisFirst);
+LinkedListNode *createSortedList2(ResType ConfigResourceType,short numberofitems,ConstStr255Param placeThisFirst);
 void deleteItem(LinkedListNode **theHead,Str255 ItemName);
 LinkedListNode *findNode(LinkedListNode *theHead,Str255 ItemName);
 LinkedListNode *findNodeNC(LinkedListNode *theHead,Str255 ItemName);
