@@ -44,6 +44,7 @@ void GUSISetupFactories()
 __BEGIN_DECLS
 void GUSIwithDConSockets();
 void GUSIwithNullSockets();
+void GUSIwithTTYSockets();
 void GUSISetupDevices();
 __END_DECLS
 
@@ -55,6 +56,7 @@ void GUSISetupDevices()
 	GUSISetupDevices_BeginHook
 #endif
 	GUSIwithNullSockets();
+	GUSIwithTTYSockets();
 #ifdef GUSISetupDevices_EndHook
 	GUSISetupDevices_EndHook
 #endif
