@@ -119,7 +119,7 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 		}
 	else if (theEvent.modifiers & cmdKey)
 	{ // a command click means we should look for a url
-		if ((RSlocal[w].selected)&(PointInSelection(curr, w))) //we have a selection already 
+		if ( RSTextSelected(w) && PointInSelection(curr, w) ) //we have a selection already 
 			HandleURL(w);
 		else
 		{ // we need to find the url around this pnt
@@ -134,6 +134,7 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 		lastClickLoc = curr;
 		if (RSlocal[w].selected) {
 			if (!shift) {
+				RSlocal[w].selected = 0;
 			  /* unhighlight current selection */
 				RSinvText(w, RSlocal[ w].anchor, RSlocal[w].last, &noConst);
 			  /* start new selection */
@@ -152,7 +153,6 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 		  {
 		  /* start new selection */
 			curr = RSlocal[w].anchor = RSlocal[w].last = normalize(pt, w,TRUE);
-			RSlocal[w].selected = 1;
 			}
 			
 		while (StillDown())
@@ -168,9 +168,8 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 		  } /* while */
 		}
 
-	
-	if (EqualPt(RSlocal[w].anchor, RSlocal[w].last)) RSlocal[w].selected = 0;
-		else RSlocal[w].selected = 1;
+	RSlocal[w].selected = !EqualPt(RSlocal[w].anchor, RSlocal[w].last);
+
 	SetMenusForSelection((short)RSlocal[w].selected);
   } /* RSselect */
   
@@ -185,8 +184,8 @@ void RSselect( short w, Point pt, EventRecord theEvent)
     	RSinvText(w, RSlocal[ w].anchor, RSlocal[w].last, &noConst);
 	}
   }
-  Boolean PointInSelection(Point curr, short w)
-  {
+Boolean PointInSelection(Point curr, short w)
+{
   	long beg_offset, end_offset, current_offset;
   	short columns;
   	columns = VSgetcols(w);
@@ -199,8 +198,9 @@ void RSselect( short w, Point pt, EventRecord theEvent)
   		return TRUE;
   	else
   		return FALSE;
-  }
-  void RSzoom
+}
+
+void RSzoom
   (
 	GrafPtr window, /* window to zoom */
 	short code, /* inZoomIn or inZoomOut */
@@ -1440,13 +1440,7 @@ static	void HandleDoubleClick(short w, short modifiers)
 		}																		
 																				
 	if (leftLoc.h != rightLoc.h) {		/* we selected something */
-#if 0
-		RSlocal[w].anchor = leftLoc;	/* new left bound */
-		RSlocal[w].last = rightLoc;		/* and a matching new right bound */
-		RSlocal[w].selected = 1;		/* give me credit for the selection I just made */
-		RSinvText(w, RSlocal[w].anchor,		/* time to show it off */
-			RSlocal[w].last, &noConst);
-#endif
+
 		HiliteThis(w, leftLoc, rightLoc);
 
 		if (modifiers & cmdKey)		// Possible URL selection

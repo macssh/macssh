@@ -77,10 +77,11 @@ unsigned short VSIkpnums[] =	// RAB BetterTelnet 2.0b5 - macro numbers
 	  70, 72, 73, 50, 51, 52, 53 };
 */
 unsigned short VSIkpnums[] =	// RAB BetterTelnet 2.0b5 - macro numbers
-	{ 24, 25, 26, 22, 27, 28,  0, 40,  0, 42,  0, 43,  0, 29,  0, 41,
-	   0, 44, 58, 56, 54, 59, 23, 57, 21, 55, 20, 27,  0,  0,  0,  0,
-	   0, 90, 91, 93, 92, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 81,
-	  80, 82, 83, 50, 51, 52, 53 };
+	{ 24, 25, 26, 22, 27, 28,  0, 40,  0, 42,  0,
+	  43,  0, 29,  0, 41,  0, 44, 58, 56, 54, 59,
+	  23, 57, 21, 55, 20, 27,  0,  0,  0,  0,  0,
+	  90, 91, 93, 92, 70, 71, 72, 73, 74, 75, 76,
+	  77, 78, 79, 81, 80, 82, 83, 50, 51, 52, 53 };
 
 extern TelInfoRec *TelInfo;
 extern WindRec	*screens;
@@ -274,10 +275,13 @@ void VSIclrbuf
 	register VSAttrib *ta;
 	for (i = 0; i <= VSIw->lines; i++)
 	  {
-	  	if (VSIw->oldScrollback)
+	  	if (VSIw->oldScrollback) {
+	  		VSIw->attrst[i]->lattr = 0;
 	  		ta = &VSIw->attrst[i]->text[0];
-	  	else
+	  	} else {
+	  		VSIw->linest[i]->lattr = 0;
 			ta = &VSIw->linest[i]->attr[0];
+		}
 		tx = &VSIw->linest[i]->text[0];
 		for (j = 0; j <= VSIw->allwidth; j++)
 		  {
@@ -528,10 +532,13 @@ void VSrealloc(short w)
 	}
 	savedTextPtr = savedTextBlock;
 	for (i = 0; i <= VSIw->lines; i++) {
-		if (VSIw->oldScrollback)
+		if (VSIw->oldScrollback) {
+			savedTextPtr->lattr = VSIw->attrst[i]->lattr;
 			BlockMoveData(VSIw->attrst[i]->text, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
-		else
+		} else {
+			savedTextPtr->lattr = VSIw->linest[i]->lattr;
 			BlockMoveData(VSIw->linest[i]->attr, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
+		}
 		if (savedTextPtr->next) savedTextPtr = savedTextPtr->next;
 	}
 
@@ -625,7 +632,7 @@ short VSredraw
 	ty2 = y2;
 	tn = -1;		// so we include more than 1 line
 	
-	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
+//	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
 	
 	if (VSIcursorenabled())
 		VSIcuroff(w); 						// temporarily hide cursor
@@ -654,18 +661,30 @@ short VSredraw
 				pt = ypt->text + VSIw->Rleft;
 				pa = ypt->attr + VSIw->Rleft;
 				
+				// if double size, we must shift width
+				if (ypt->lattr & 3) {
+					tx1 >>= 1;
+					tx2 >>= 1;
+				}
+
 				lastx = tx1;
 				lasta = pa[tx1];
 				for(x=tx1+1; x<=tx2; x++) {
 					if (pa[x]!=lasta) {
-						RSdraw(w, lastx, y, lasta, x-lastx, pt + lastx);
+						RSdraw(w, lastx, y, ypt->lattr, lasta, x-lastx, pt + lastx);
 						lastx = x;
 						lasta = pa[x];
 					}
 				}
 				if (lastx<=tx2)
-					RSdraw(w, lastx, y, lasta, tx2-lastx+1, pt + lastx);
+					RSdraw(w, lastx, y, ypt->lattr, lasta, tx2-lastx+1, pt + lastx);
 				
+				// if double size, we must shift width
+				if (ypt->lattr & 3) {
+					tx1 <<= 1;
+					tx2 <<= 1;
+				}
+
 				ypt = ypt->next;
 			}
 		}
@@ -682,7 +701,7 @@ short VSredraw
 		tn = -1;
 
 		if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
-		
+
 			ypt = VSIw->linest[VSIw->Rtop+ty1];
 			
 			for (y=ty1; y<=ty2; y++) {
@@ -694,18 +713,30 @@ short VSredraw
 				pt = ypt->text + VSIw->Rleft;
 				pa = ypt->attr + VSIw->Rleft;
 				
+				// if double size, we must shift width
+				if (ypt->lattr & 3) {
+					tx1 >>= 1;
+					tx2 >>= 1;
+				}
+
 				lastx = tx1;
 				lasta = pa[tx1];
 				for(x=tx1+1; x<=tx2; x++) {
 					if (pa[x]!=lasta) {
-						RSdraw(w, lastx, y, lasta, x-lastx, pt + lastx);
+						RSdraw(w, lastx, y, ypt->lattr, lasta, x-lastx, pt + lastx);
 						lastx = x;
 						lasta = pa[x];
 					}
 				}
 				if (lastx<=tx2)
-					RSdraw(w, lastx, y, lasta, tx2-lastx+1, pt + lastx);
+					RSdraw(w, lastx, y, ypt->lattr, lasta, tx2-lastx+1, pt + lastx);
 				
+				// if double size, we must shift width
+				if (ypt->lattr & 3) {
+					tx1 <<= 1;
+					tx2 <<= 1;
+				}
+
 				ypt = ypt->next;
 			}
 		}
@@ -754,7 +785,7 @@ short VSOredraw
 	ty2 = y2;
 	tn = -1;		// so we include more than 1 line
 	
-	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
+//	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
 	
 	if (VSIcursorenabled())
 		VSIcuroff(w); 						// temporarily hide cursor
@@ -776,7 +807,21 @@ short VSOredraw
 				ypt = ypt->next;		// Get pointer to top line we need
 	
 			for (y=ty1; y<=ty2; y++) {
-				RSdraw(w, tx1, y, 0, tn, ypt->text + VSIw->Rleft +tx1);
+
+				// if double size, we must shift width
+				if (ypt->lattr & 3) {
+					tx1 >>= 1;
+					tx2 >>= 1;
+				}
+
+				RSdraw(w, tx1, y, ypt->lattr, 0, tn, ypt->text + VSIw->Rleft +tx1);
+
+				// if double size, we must shift width
+				if (ypt->lattr & 3) {
+					tx1 <<= 1;
+					tx2 <<= 1;
+				}
+
 				ypt = ypt->next;
 			}
 		}
@@ -806,18 +851,31 @@ short VSOredraw
 				pt = ypt->text + VSIw->Rleft;
 				pa = ypa->text + VSIw->Rleft;
 				
+				// if double size, we must shift width
+				if (ypa->lattr & 3) {
+					tx1 >>= 1;
+					tx2 >>= 1;
+				}
+
 				lastx = tx1;
 				lasta = pa[tx1];
+
 				for(x=tx1+1; x<=tx2; x++) {
 					if (pa[x]!=lasta) {
-						RSdraw(w, lastx, y, lasta, x-lastx, pt + lastx);
+						RSdraw(w, lastx, y, ypa->lattr, lasta, x-lastx, pt + lastx);
 						lastx = x;
 						lasta = pa[x];
 					}
 				}
 				if (lastx<=tx2)
-					RSdraw(w, lastx, y, lasta, tx2-lastx+1, pt + lastx);
+					RSdraw(w, lastx, y, ypa->lattr, lasta, tx2-lastx+1, pt + lastx);
 				
+				// if double size, we must shift width
+				if (ypa->lattr & 3) {
+					tx1 <<= 1;
+					tx2 <<= 1;
+				}
+
 				ypt = ypt->next;
 				ypa = ypa->next;
 			}
@@ -1069,7 +1127,8 @@ void VSpossend
 		if (VSIcursorenabled())
 			VSIcurson(w, VSIw->x, VSIw->y, 1); /* Force Move */
 	  } /* if */
-  } /* VSpossend */
+} /* VSpossend */
+
 
 char VSkbsend
   (
@@ -1123,8 +1182,9 @@ char VSkbsend
 		return 0; // RAB BetterTelnet 2.0b5 - rest is for special keys
 	}
 	
-	/* Keypad (Not Application Mode): 0-9 , - . Enter */ // was (k < VSF1)
-	if ((k > VSLT) && (k < VSKE) && (!VSIw->DECPAM)) { // 2.0b5 - handle VSKE below
+	/* Keypad (Not Application Mode): 0-9 , - . Enter */ // was (k < VSPF1)
+
+	if ((k > VSLT) && (k < VSKC) && (!VSIw->DECPAM)) { // 2.0b5 - handle VSKE below
 		RSsendstring(w, &VSIkpxlate[0][k - VSUP], 1);
 		if (echo)
 			VSwrite(w, &VSIkpxlate[0][k - VSUP], 1);
@@ -1153,7 +1213,7 @@ char VSkbsend
 			else								// BYU 2.4.13 
 				vskptr[1] = 91;					// BYU 2.4.13 
 		}										// BYU 2.4.13 
-		else if (k < VSF1) 						// BYU 2.4.12 
+		else if (k < VSPF1) 					// BYU 2.4.12 
 			vskptr = VSkbkn;					// BYU 2.4.12 
 		else 									// BYU 2.4.12 
 			vskptr = VSkbfn;					// BYU 2.4.12 
@@ -1484,6 +1544,25 @@ void VSbeepcontrol
 
 	VSIw->ignoreBeeps = beep;
 }
+
+
+/*
+ * VSenableblink
+ */
+
+void VSenableblink
+	(
+		short w,
+		Boolean enableBlink
+	)
+{
+	if (VSvalids(w) != 0) return;
+
+	VSIw->realBlink = enableBlink;
+	VSPulseOne(w, 0, 0, VSIw->maxwidth, VSIw->lines);
+}
+
+
 
 short VSgetrgn
   (
@@ -1994,6 +2073,8 @@ short VSOsetlines
   /* initialize the new screen lines to blank text and no attributes */
 	for (i = 0; i <= lines; i++)
 	  {
+	  	VSIw->attrst[i]->lattr = 0;
+	  	VSIw->linest[i]->lattr = 0;
 		tempa = VSIw->attrst[i]->text;
 		temp = VSIw->linest[i]->text;
 		for (j = 0; j <= VSIw->allwidth; j++)
@@ -2051,16 +2132,12 @@ short VSPulseOne(short w, short x1, short y1,short x2, short y2);
 
 void VSPulseAll(void)
 {
-	short			i;
+	short	i;
 
-	for ( i=0; i < VSmax; i++ )
+	for ( i = 0; i < VSmax; i++ ) {
 		if ( VSscreens[i].stat == 1 && VSscreens[i].loc->realBlink )
-				VSPulseOne(i, 0, 0,
-					VSscreens[i].loc->maxwidth, VSscreens[i].loc->lines);
-/*
-					VSscreens[i].loc->Rright - VSscreens[i].loc->Rleft,
-					VSscreens[i].loc->Rbottom - VSscreens[i].loc->Rtop);
-*/
+			VSPulseOne(i, 0, 0, VSscreens[i].loc->maxwidth, VSscreens[i].loc->lines);
+	}
 }
 
 short VSPulseOne
@@ -2126,6 +2203,12 @@ short VSPulseOne
 		pt = ypt->text + VSIw->Rleft;
 		pa = ypt->attr + VSIw->Rleft;
 
+		// if double size, we must shift width
+		if (ypt->lattr & 3) {
+			tx1 >>= 1;
+			tx2 >>= 1;
+		}
+
 		lastx = tx1;
 		lasta = pa[tx1];
 		for( x = tx1+1; x <= tx2; x++ ) {
@@ -2136,7 +2219,7 @@ short VSPulseOne
 						cursOff = 1;
 						VSIcuroff(w);
 					}
-					RSdraw(w, lastx, y, lasta, x-lastx, pt + lastx);
+					RSdraw(w, lastx, y, ypt->lattr, lasta, x-lastx, pt + lastx);
 					if ( cursOff ) {
 						// restore cursor at original position
 						cursOff = 0;
@@ -2153,15 +2236,26 @@ short VSPulseOne
 				cursOff = 1;
 				VSIcuroff(w);
 			}
-			RSdraw(w, lastx, y, lasta, tx2-lastx+1, pt + lastx);
+			RSdraw(w, lastx, y, ypt->lattr, lasta, tx2-lastx+1, pt + lastx);
 			if ( cursOff ) {
 				// restore cursor at original position
 				cursOff = 0;
 				VSIcurson(w, VSIw->x, VSIw->y, 0);
 			}
 		}
+
+		// if double size, we must shift width
+		if (ypt->lattr & 3) {
+			tx1 <<= 1;
+			tx2 <<= 1;
+		}
+
 		ypt = ypt->next;
 	}
+
+	/* back to default window colors */
+	RSsetattr( 0, 0 );
+
 	return 0;
 }
 
@@ -2234,6 +2328,12 @@ short VSOPulseOne
 				pt = ypt->text + VSIw->Rleft;
 				pa = ypa->text + VSIw->Rleft;
 
+				// if double size, we must shift width
+				if (ypa->lattr & 3) {
+					tx1 >>= 1;
+					tx2 >>= 1;
+				}
+
 				lastx = tx1;
 				lasta = pa[tx1];
 				for( x = tx1+1; x <= tx2; x++ ) {
@@ -2244,7 +2344,7 @@ short VSOPulseOne
 								cursOff = 1;
 								VSIcuroff(w);
 							}
-							RSdraw(w, lastx, y, lasta, x-lastx, pt + lastx);
+							RSdraw(w, lastx, y, ypa->lattr, lasta, x-lastx, pt + lastx);
 							if ( cursOff ) {
 								// restore cursor at original position
 								cursOff = 0;
@@ -2261,17 +2361,28 @@ short VSOPulseOne
 						cursOff = 1;
 						VSIcuroff(w);
 					}
-					RSdraw(w, lastx, y, lasta, tx2-lastx+1, pt + lastx);
+					RSdraw(w, lastx, y, ypa->lattr, lasta, tx2-lastx+1, pt + lastx);
 					if ( cursOff ) {
 						// restore cursor at original position
 						cursOff = 0;
 						VSIcurson(w, VSIw->x, VSIw->y, 0);
 					}
 				}
+
+				// if double size, we must shift width
+				if (ypa->lattr & 3) {
+					tx1 <<= 1;
+					tx2 <<= 1;
+				}
+
 				ypt = ypt->next;
 				ypa = ypa->next;
 			}
 		}
 	}
+
+	/* back to default window colors */
+	RSsetattr( 0, 0 );
+
 	return 0;
 }

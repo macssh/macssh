@@ -45,6 +45,10 @@ static char munger[255];
 extern short 	scrn;
 extern WindRec	*screens;
 
+extern Boolean authOK;					// true if authentication driver available
+extern Boolean encryptOK;				// true if des encryption routines available
+
+
 #include "parse.proto.h"
 
 static	char	*getcname(struct WindRec *tw);
@@ -787,7 +791,7 @@ static	void	telnet_do(struct WindRec *tw, short option)
 
 		case N_AUTHENTICATION:		/* do auth */
 			if (!tw->myopts[OPT_AUTHENTICATION-MHOPTS_BASE]) {
-				if (tw->authenticate) {
+				if (tw->authenticate && authOK) {
 					(tw->myopts)[OPT_AUTHENTICATION-MHOPTS_BASE] = 1;
 					send_will(tw->port, N_AUTHENTICATION);
 					}
@@ -799,7 +803,7 @@ static	void	telnet_do(struct WindRec *tw, short option)
 
 		case N_ENCRYPT: 			/* do encrypt */
 			if (!tw->myopts[OPT_ENCRYPT-MHOPTS_BASE]) {
-				if (tw->encrypt) {
+				if (tw->encrypt && encryptOK && tw->authenticate && authOK) {
 					(tw->myopts)[OPT_ENCRYPT-MHOPTS_BASE] = 1;
 					send_will(tw->port, N_ENCRYPT);
 				} else {
@@ -903,7 +907,7 @@ static	void	telnet_will(struct WindRec *tw, short option)
 
 		case N_ENCRYPT: 			/* will encrypt */
 			if (!tw->hisopts[OPT_ENCRYPT-MHOPTS_BASE]) {
-				if (tw->encrypt) {
+				if (tw->encrypt && encryptOK && tw->authenticate && authOK) {
 					(tw->hisopts)[OPT_ENCRYPT-MHOPTS_BASE] = 1;
 					send_do(tw->port, N_ENCRYPT);
 				} else {

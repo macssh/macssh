@@ -68,10 +68,10 @@
 #define VSKP    145     /* Keypad . */
 #define VSKE    146     /* Keypad Enter */
 
-#define VSF1    147     /* Function 1 */			/* Mac Keypad Clear */	
-#define VSF2    148     /* Function 2 */			/* Mac Keypad = */	
-#define VSF3    149     /* Function 3 */			/* Mac Keypad / */	
-#define VSF4    150     /* Function 4 */			/* Mac Keypad * */	
+#define VSPF1    147     /* Function 1 */			/* Mac Keypad Clear */	
+#define VSPF2    148     /* Function 2 */			/* Mac Keypad = */	
+#define VSPF3    149     /* Function 3 */			/* Mac Keypad / */	
+#define VSPF4    150     /* Function 4 */			/* Mac Keypad * */	
 
 
 #ifdef VSMASTER
@@ -94,8 +94,8 @@ extern unsigned char *VSIkplen;							/* BYU 2.4.12 */
  *          Definition of attribute bits in the Virtual Screen
  *
  *          0   -   Bold
- *          1   -   faint   (used internally for 2nd ansi foreground color)
- *          2   -   italic  (used internally for 2nd ansi background color)
+ *          1   -   faint
+ *          2   -   italic
  *          3   -   Underline
  *          4   -   slowly Blinking
  *          5   -   rapidly Blinking

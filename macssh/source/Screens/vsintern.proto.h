@@ -54,7 +54,7 @@ void VSIinschar(short x);
 void VSIinsstring(short len, char *start);
 void VSIsave(void);
 void VSIrestore(void);
-void VSIdraw(short VSIwn, short x, short y, VSAttrib a, short len, char *c);
+void VSIdraw(short VSIwn, short x, short y, short la, VSAttrib a, short len, char *c);
 void VSIflush(void);
 void VSIcursdisable();
 void VSIcursenable();

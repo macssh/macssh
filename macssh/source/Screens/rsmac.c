@@ -37,7 +37,7 @@
  *  Macintosh only Routines:
  *	NI	RSregnconv( *)				- Convert region to rect coords
  *  NI  RSsetwind(w)                - Set the port and vars to window w
- *  NI  RSsetattr(a)                - Set font/text style to a
+ *  NI  RSsetattr(la, a)                - Set font/text style to a
  *	NI	RSsetConst(w)
  *	ML	RSattach(w,wind)			- Attach the RS (w) to window wind
  *	ML	RSdetach(w)				- Ready window for go-away
@@ -133,6 +133,7 @@ Boolean gHasSetWindowContentColor = 0;
 #endif
 
 short       RSw=-1;         /* last window used */
+short	    RSla=0;          /* last line attrib used */
 VSAttrib    RSa=0;          /* last attrib used */
 extern long RScolors[];
 
@@ -204,6 +205,7 @@ short RSsetwind
 		RScurrent = RSlocal + w;
         RSw = w;
 		RSa = -1; /* attributes will need setting */
+		RSla = 0;
 		SetPort(RScurrent->window);
 		return(1);
 	  }
@@ -265,24 +267,42 @@ void RScursoff
 void RScurson
   (
 	short w,
+	short la,
 	short x,
 	short y
   )
   /* displays the text cursor for the specified window, at the
 	specified position. Assumes it isn't currently being shown. */
   {
+	short xw;
+
 	if ( RSlocal[w].skip || RSlocal[w].cursorstate )
 		return;
 
     RSsetwind(w);
 
-    RScurrent->cursor.left = x * RScurrent->fwidth;
+	xw = RScurrent->fwidth;
+	if ((la & 3)) {
+		// double width
+		xw <<= 1;
+
+
+	if (x > ((VSIw->maxwidth + 1) >> 1) - 1) {
+		x = ((VSIw->maxwidth + 1) >> 1) - 1;
+	}
+
+
+
+	}
+
+
+    RScurrent->cursor.left = x * xw;
     RScurrent->cursor.top  = y * RScurrent->fheight;
 
 	switch (RScurrent->cursType) {
 		case UNDERSCORECURSOR:
     		RScurrent->cursor.top   += RScurrent->fheight;
-    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;
+    		RScurrent->cursor.right  = RScurrent->cursor.left + xw;
     		RScurrent->cursor.bottom = RScurrent->cursor.top + 1;
 			break;
 		case VERTICALCURSOR:
@@ -295,23 +315,23 @@ void RScurson
     		RScurrent->cursor.bottom = RScurrent->cursor.top;
 			break;
 		case LOWER_THIRDCURSOR:
-    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;
+    		RScurrent->cursor.right  = RScurrent->cursor.left + xw;
     		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;
     		RScurrent->cursor.top   += 2 * RScurrent->fheight / 3;
 			break;
 		case LOWER_HALFCURSOR:
-    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;
+    		RScurrent->cursor.right  = RScurrent->cursor.left + xw;
     		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;
     		RScurrent->cursor.top   += RScurrent->fheight / 2;
 			break;
 		case TWO_THIRDSCURSOR:
-    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;
+    		RScurrent->cursor.right  = RScurrent->cursor.left + xw;
     		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;
     		RScurrent->cursor.top   += RScurrent->fheight / 3;
 			break;
 		case BLOCKCURSOR:
 		default:
-    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;
+    		RScurrent->cursor.right  = RScurrent->cursor.left + xw;
     		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;
 			break;
     }
@@ -334,24 +354,38 @@ void RScurson
 } /* RScurson */
 
 
-void RSsetattr(VSAttrib a)
+void RSsetattr(short la, VSAttrib a)
 {
- 	short fg, bg, tempFontID; // RAB BetterTelnet 1.0fc4
+ 	short fg;
+  	short bg;
+  	short tempFontID;
+  	short size;
   	short face;
  	static GrafPtr lastPort;	
 	
-	if (RSa!=-1 && RSa==a && qd.thePort==lastPort) return;			
+	if ( RSa != -1 && RSla == la && RSa == a && qd.thePort == lastPort )
+		return;			
 	lastPort = qd.thePort;
+	RSla = la;				
 	RSa = a;				
 
-	if (VSisgrph(a)) {
+	size = ((la & 3)) ? RScurrent->fsiz * 2 : RScurrent->fsiz;
+	if ( VSisgrph(a) ) {
 		//GetFNum("\p%NCSA VT", &tempFontID); // RAB BetterTelnet 1.0fc4
         //TextFont(tempFontID); /* use "NCSA VT" (74) font for special graphics */
-        TextFont(gNCSAFontID);
+        TextFont( gNCSAFontID );
     } else {
-		RSTextFont(RScurrent->fnum,RScurrent->fsiz,VSisbold(a) && RScurrent->allowBold); 	/* BYU - use user-selected text font */
+		RSTextFont( RScurrent->fnum, size, VSisbold(a) && RScurrent->allowBold );
+/*
+		if ((la & 3)) {
+			GetFNum( (la & 2) ? "\pANSI/PC Bottom" : "\pANSI/PC Top", &tempFontID);
+			RSTextFont(tempFontID,RScurrent->fsiz,VSisbold(a) && RScurrent->allowBold);
+		} else {
+			RSTextFont(RScurrent->fnum,RScurrent->fsiz,VSisbold(a) && RScurrent->allowBold);
+		}
+*/
 	}
-	TextSize(RScurrent->fsiz);
+	TextSize(size);
 
 	face = VSisundl(a) ? underline : 0;
 	if ( VSisbold(a) && RScurrent->allowBold && RScurrent->realbold ) {
@@ -454,15 +488,15 @@ short tempFontID;						// RAB BetterTelnet 1.0fc4
 #define LMSetHiliteMode(HiliteModeValue) ((* (unsigned char *) 0x0938) = (HiliteModeValue))
 #endif
 
-void DoHiliteMode(void)		/* BYU LSC */
+void DoHiliteMode(void)
   /* enables use of highlighting in place of simple color inversion
 	for next QuickDraw operation. */
-  {
-  	
+{
   	LMSetHiliteMode(LMGetHiliteMode() & 0x7F);
 //	char *p = (char *) 0x938; /* pointer to HiliteMode low-memory global */
 //	*p = *p & 0x7f; /* clear the HiliteBit */
-  } /* HiliteMode */
+} /* DoHiliteMode */
+
 
 void RSinvText
   (
@@ -479,28 +513,29 @@ void RSinvText
 	RSsetwind(w);
 
   /* normalize coordinates with respect to visible area of virtual screen */
+
 	curr.v -= RScurrent->topline;
 	curr.h -= RScurrent->leftmarg;
 	last.v -= RScurrent->topline;
 	last.h -= RScurrent->leftmarg;
 
-  /* normalize colors */
-	RSsetattr(0);
-	//VSIGetLineStart( w, RScurrent->anchor.v)[RScurrent->anchor.h]
+	if ( !RSlocal[w].selected ) {
+		/* FIXME: we should use the background color of every char */
+		/* normalize colors */
+		RSsetattr(0, 0);
+		//RSsetattr(VSIGetLineStart( w, RScurrent->anchor.v)->attr[RScurrent->anchor.h]);
+	}
 
-	if (curr.v == last.v)
-	  {
+	if (curr.v == last.v) {
 	  /* highlighted text all on one line */
-		if (curr.h < last.h) /* get bounds the right way round */
-		  {
+		if (curr.h < last.h) {
 			ub = curr;
 			lb = last;
-		  }
-		else
-		  {
+		} else {
 			ub = last;
 			lb = curr;
-		  } /* if */
+		} /* if */
+
 		MYSETRECT /* set up rectangle bounding area to be highlighted */
 		  (
 			temp,
@@ -512,10 +547,10 @@ void RSinvText
 		SectRect(&temp, constrain, &temp2); /* clip to constraint rectangle */
 		DoHiliteMode();						/* BYU LSC */
 		InvertRect(&temp2);
-	  }
-	else
-	  {
-	  /* highlighting across more than one line */
+
+	} else {
+
+		/* highlighting across more than one line */
 		if (curr.v < last.v)
 			ub = curr;
 		else
@@ -547,8 +582,8 @@ void RSinvText
 		DoHiliteMode();						/* BYU LSC */
 		InvertRect(&temp2);
 
-		if (lb.v - ub.v > 1) /* highlight extends across more than two lines */
-		  {
+		if (lb.v - ub.v > 1) {
+			/* highlight extends across more than two lines */
 		  /* highlight complete in-between lines */
 			MYSETRECT
 			  (
@@ -562,12 +597,12 @@ void RSinvText
 			DoHiliteMode();						/* BYU LSC */
 			InvertRect(&temp2);
 
-		  } /* if */
-	  } /* if */
+		} /* if */
+	} /* if */
 
-	RSsetattr(VSIw->attrib);
+	RSsetattr(VSIw->lattrib, VSIw->attrib);
 
-  } /* RSinvText */
+} /* RSinvText */
 
 
 /*
@@ -579,6 +614,7 @@ void RSdraw
 	short w, /* window number */
 	short x, /* starting column */
 	short y, /* line on which to draw */
+	short la, /* line attribute */
 	VSAttrib a, /* text attributes */
 	short len, /* length of text to draw */
 	char *ptr /* pointer to text */
@@ -588,6 +624,7 @@ void RSdraw
 	within the current selection, it will be highlighted. */
   {
     Rect rect;
+	short xw;
 	short ys;
 	RgnHandle oldClip;
 
@@ -595,17 +632,24 @@ void RSdraw
 		return;
     RSsetwind(w);
 
+	xw = RScurrent->fwidth;
+	if ((la & 3)) {
+		// double width
+		xw <<= 1;
+	}
+
 	ys = y * RScurrent->fheight;
+
     MYSETRECT /* set up rectangle bounding text being drawn */
 	  (
 		rect,
-		x * RScurrent->fwidth,
+		x * xw,
 		ys,
-		(x + len) * RScurrent->fwidth,
+		(x + len) * xw,
 		ys + RScurrent->fheight
 	  );
 
-	RSsetattr(a);
+	RSsetattr(la, a);
 
 	if (rect.left <= 0)						/* little buffer strip on left */
 		rect.left = CHO;
@@ -623,7 +667,12 @@ void RSdraw
 	if (rect.bottom >= RScurrent->height)
 		rect.bottom = RScurrent->height;
 
-	MoveTo(x * RScurrent->fwidth, ys + RScurrent->fascent);
+	if ((la & 1)) {
+		// Upper part
+		ys += RScurrent->fheight;
+	}
+
+	MoveTo(rect.left, ys + RScurrent->fascent);
 
 	oldClip = NewRgn();
 	GetClip(oldClip);
@@ -634,22 +683,15 @@ void RSdraw
 	SetClip(oldClip);
 	DisposeRgn(oldClip);
 
-/*
-	if ( rect.bottom < RScurrent->height || !VSisundl(a) ) {
-   		DrawText(ptr, 0, len);
-   	} else {
-		++rect.right;
-		TETextBox(ptr, len, &rect, teJustLeft);
-		--rect.right;
-	}
-*/
-
 	if (RScurrent->selected) {
+		/* highlight any part of selection covering the newly-inserted text */
 		RSinvText(w, RScurrent->anchor, RScurrent->last, &rect);
 	}
+
 	ValidRect(&rect);
 
-  } /* RSdraw */
+} /* RSdraw */
+
 
 /*
  * ScrollRectInRgn
@@ -693,9 +735,9 @@ void RSdefaultattr(short w)
 	short screenIndex;
 
 	if ( screens[findbyVS(w)].vtemulation < 2 )
-	    RSsetattr(0);
+	    RSsetattr(VSIw->lattrib, 0);
 	else
-	    RSsetattr(VSIw->attrib);
+	    RSsetattr(VSIw->lattrib, VSIw->attrib);
 }
 
 /*
@@ -711,11 +753,20 @@ void RSdelcols
 	specified number of columns to the left, blanking out
 	the newly-revealed area. */
   {
+	short xw;
     Rect rect;
 
 	if (RSlocal[w].skip)
 		return;
     RSsetwind(w);
+
+	xw = RScurrent->fwidth;
+/*
+	if ((la & 3)) {
+		// double width
+		xw <<= 1;
+	}
+*/
     MYSETRECT /* bounds of entire text area, for scrolling */
 	  (
 		rect,
@@ -725,11 +776,11 @@ void RSdelcols
 		RScurrent->height
 	  );
 
-	ScrollRectInRgn(RScurrent->window, &rect, - (n * RScurrent->fwidth), 0);
+	ScrollRectInRgn(RScurrent->window, &rect, - (n * xw), 0);
 
 	if ( RScurrent->selected ) {
 		/* bounds of newly-revealed area */
-		rect.left = RScurrent->width - (n * RScurrent->fwidth);
+		rect.left = RScurrent->width - (n * xw);
 		/* highlight any newly-revealed part of the current selection */
 		RSinvText(w, RScurrent->anchor, RScurrent->last, &rect);
     }
@@ -743,6 +794,7 @@ void RSdelcols
 void RSdelchars
   (
 	short w, /* affected window */
+	short la, /* line attributes */
 	short x, /* column to delete from */
 	short y, /* line on which to do deletion */
 	short n /* number of characters to delete */
@@ -751,28 +803,35 @@ void RSdelchars
 	position to the right, moving the remainder of the line to the
 	left. */
 {
+	short xw;
     Rect rect;
 
 	if (RSlocal[w].skip)
 		return;
     RSsetwind(w);
-//    RSsetattr(0); /* avoid funny pen modes */
+//    RSsetattr(VSIw->lattrib, 0); /* avoid funny pen modes */
 	RSdefaultattr(w);
+
+	xw = RScurrent->fwidth;
+	if ((la & 3)) {
+		// double width
+		xw <<= 1;
+	}
 
     MYSETRECT /* bounds of area from starting column to end of line */
 	  (
 		rect,
-		x * RScurrent->fwidth,
+		x * xw,
 		y * RScurrent->fheight,
 		RScurrent->width,
 		(y + 1) * RScurrent->fheight
 	  );
-	if ((x + n) * RScurrent->fwidth > RScurrent->width) {
+	if ((x + n) * xw > RScurrent->width) {
 		/* deleting to end of line */
 		EraseRect(&rect);
 	} else {
 		/* scroll remainder of line to the left */
-		ScrollRectInRgn(RScurrent->window, &rect, - (n * RScurrent->fwidth), 0);
+		ScrollRectInRgn(RScurrent->window, &rect, - (n * xw), 0);
 		if ( RScurrent->selected ) {
 			HLock((Handle) RSuRgn);
 			RSinvText(w, RScurrent->anchor, RScurrent->last, &((*RSuRgn)->rgnBBox));
@@ -780,22 +839,22 @@ void RSdelchars
 			if ( RScurrent->anchor.v <= y && y <= RScurrent->last.v ) {
 				if ( x <= RScurrent->anchor.h ) {
 					// deselect left part
-			    	rect.left = (RScurrent->anchor.h + 1 - n) * RScurrent->fwidth;
-			    	rect.right = (RScurrent->anchor.h + 1) * RScurrent->fwidth;
+			    	rect.left = (RScurrent->anchor.h + 1 - n) * xw;
+			    	rect.right = (RScurrent->anchor.h + 1) * xw;
 					DoHiliteMode();
 					InvertRect(&rect);
 				}
 				if ( x <= RScurrent->last.h ) {
 					// select right part
-			    	rect.left = (RScurrent->last.h + 1 - n) * RScurrent->fwidth;
-			    	rect.right = (RScurrent->last.h + 1) * RScurrent->fwidth;
+			    	rect.left = (RScurrent->last.h + 1 - n) * xw;
+			    	rect.right = (RScurrent->last.h + 1) * xw;
 					DoHiliteMode();
 					InvertRect(&rect);
 				}
 			}
 		}
 	}
-    RSsetattr(VSIw->attrib); /* restore mode for text drawing */
+    RSsetattr(VSIw->lattrib, VSIw->attrib); /* restore mode for text drawing */
 } /* RSdelchars */
 
 void RSdellines
@@ -822,7 +881,7 @@ void RSdellines
 
     RSsetwind(w);
 	RSsetConst(w);
-//    RSsetattr(0); /* avoid funny pen modes */
+//    RSsetattr(VSIw->lattrib, 0); /* avoid funny pen modes */
 	RSdefaultattr(w);
 
 	if (scrolled)
@@ -850,7 +909,7 @@ void RSdellines
 
 	ScrollRectInRgn(RScurrent->window, &rect, 0, -RScurrent->fheight * n);
 
-    RSsetattr(VSIw->attrib); /* restore mode for text drawing */
+    RSsetattr(VSIw->lattrib, VSIw->attrib); /* restore mode for text drawing */
   } /* RSdellines */
 
 void RSerase
@@ -870,7 +929,7 @@ void RSerase
 		return;
     RSsetwind(w);
 
-//    RSsetattr(0); /* avoid funny pen modes */
+//    RSsetattr(VSIw->lattrib, 0); /* avoid funny pen modes */
 	RSdefaultattr(w);
 
     MYSETRECT
@@ -893,7 +952,7 @@ void RSerase
 	  /* highlight any part of the selection within the cleared area */
 		RSinvText(w, RScurrent->anchor, RScurrent->last, &rect);
 
-    RSsetattr(VSIw->attrib); /* restore mode for text drawing */
+    RSsetattr(VSIw->lattrib, VSIw->attrib); /* restore mode for text drawing */
 
   } /* RSerase */
 
@@ -914,7 +973,7 @@ void RSinslines
 		return;
     RSsetwind(w);
 	RSsetConst(w);
-//    RSsetattr(0); /* avoid funny pen modes */
+//    RSsetattr(VSIw->lattrib, 0); /* avoid funny pen modes */
 	RSdefaultattr(w);
 
 	if (RScurrent->selected && (scrolled < 0))
@@ -934,7 +993,7 @@ void RSinslines
 
 	ScrollRectInRgn(RScurrent->window, &rect, 0, RScurrent->fheight * n);
 
-    RSsetattr(VSIw->attrib); /* restore mode for text drawing */
+    RSsetattr(VSIw->lattrib, VSIw->attrib); /* restore mode for text drawing */
   } /* RSinslines */
 
 void RSinscols
@@ -952,6 +1011,14 @@ void RSinscols
 	if (RSlocal[w].skip)
 		return;
     RSsetwind(w);
+
+/*
+	if ((VSIw->lattrib & 3)) {
+		// double width
+		xw <<= 1;
+	}
+*/
+
     MYSETRECT /* bounds of entire text area */
 	  (
 		rect,
@@ -975,6 +1042,7 @@ void RSinsstring
 	short w, /* affected window */
 	short x, /* starting column at which to insert */
 	short y, /* line on which to insert */
+	short la, /* line attribute */
 	VSAttrib a, /* attributes for inserted text */
 	short len, /* length of inserted text */
 	char *ptr /* pointer to inserted text */
@@ -983,33 +1051,54 @@ void RSinsstring
 	the rest of the line to the right. Highlights any part of the newly-
 	inserted text lying within the current selection. */
 {
+	short xw;
+	short ys;
     Rect rect;
     RgnHandle oldClip;
 
 	if (RSlocal[w].skip)
 		return;
     RSsetwind(w);
+
+	xw = RScurrent->fwidth;
+	if ((la & 3)) {
+		// double width
+		xw <<= 1;
+	}
+
+	ys = y * RScurrent->fheight;
+
     MYSETRECT /* bounds of part of line from specified position to end of line */
 	  (
 		rect,
-		x * RScurrent->fwidth,
-		y * RScurrent->fheight,
+		x * xw,
+		ys,
 		RScurrent->width,
 		(y + 1) * RScurrent->fheight
 	  );
 
     /* scroll remainder of line to the right */
-	ScrollRectInRgn(RScurrent->window, &rect, len * RScurrent->fwidth, 0);
+	ScrollRectInRgn(RScurrent->window, &rect, len * xw, 0);
+
+	RSsetattr(la, a);
 
 	/* bounds area to contain inserted string */
-	rect.right = (x + len) * RScurrent->fwidth;
+	rect.right = (x + len) * xw;
+
+	if (rect.left <= 0)						/* little buffer strip on left */
+		rect.left = CHO;
+
     EraseRect(&rect); /* erase area to appropriate background */
-    MoveTo
-	  (
-		rect.left,
-		rect.top + RScurrent->fascent
-	  );
-	RSsetattr(a);
+
+	if (rect.left <= 0)
+		rect.left = 0;
+
+	if ((la & 1)) {
+		// Upper part
+		ys += RScurrent->fheight;
+	}
+
+    MoveTo( rect.left, ys + RScurrent->fascent );
 
 	oldClip = NewRgn();
 	GetClip(oldClip);
@@ -1020,20 +1109,13 @@ void RSinsstring
 	SetClip(oldClip);
 	DisposeRgn(oldClip);
 
-/*
-	if ( rect.bottom < RScurrent->height || !VSisundl(a) ) {
-   		DrawText(ptr, 0, len);
-   	} else {
-		++rect.right;
-		TETextBox(ptr, len, &rect, teJustLeft);
-		--rect.right;
-	}
-*/
-	if (RScurrent->selected)
+	if (RScurrent->selected) {
 		/* highlight any part of selection covering the newly-inserted text */
 		RSinvText(w, RScurrent->anchor, RScurrent->last, &rect);
+	}
 
 	ValidRect(&rect);
+
 } /* RSinsstring */
 
 

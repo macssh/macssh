@@ -33,6 +33,7 @@ short VSscrolforward(short w, short n);
 short VSsetrgn(short w, short x1, short y1, short x2, short y2);
 short VSscrolcontrol(short w, short scrolon, short offtop);
 void VSbeepcontrol(short, short);
+void VSenableblink(short w, Boolean enableBlink);
 short VSgetrgn(short w, short *x1, short *y1, short *x2, short *y2);
 short VSsnapshot(short w);
 short VSmaxwidth(short w);

@@ -167,36 +167,41 @@ void VSIcurson
 		y2,
 		n = 1,
 		offset;
+	short lattr;
 
 	if (!VSIw->DECCM) return; // Bri 970610
 	if (VSIw->disableCursor) return; // RAB BetterTelnet 2.0b4
 
-	if (!VSIclip(&x, &y, &x2, &y2, &n, &offset))
-	  /* cursor already lies within visible region */
-		RScurson(w, x, y); /* just make it visible */
-	else if (ForceMove)
-	  {
+	if (VSIw->oldScrollback) {
+		lattr = VSIw->attrst[y]->lattr;
+	} else {
+		lattr = VSIw->linest[y]->lattr;
+	}
+
+	if (!VSIclip(&x, &y, &x2, &y2, &n, &offset)) {
+		/* cursor already lies within visible region */
+		RScurson(w, lattr, x, y); /* just make it visible */
+	} else if (ForceMove) {
 	  /* scroll to make cursor visible */
 		x2 = VSIw->Rbottom - VSIw->Rtop;
-		if (x2 >= VSIw->lines)
-		  /* visible region is big enough to show entire screen--
+		if (x2 >= VSIw->lines) {
+			/* visible region is big enough to show entire screen--
 			make sure I don't scroll off the bottom of the screen.
 			This call will also do any appropriate scrolling and
 			redisplaying of the cursor. */
 			VSsetrgn(VSIwn, VSIw->Rleft, VSIw->lines - x2,
 				VSIw->Rright, VSIw->lines);
-		else
-		  {
-		  /* x & y have been normalized relative to left & top
+		} else {
+			/* x & y have been normalized relative to left & top
 			of current visible region. Just call the appropriate scroll
 			routine, which will also redisplay the cursor. */
 			if (y > 0)
 				VSscrolforward(VSIwn, y);
 			else
 				VSscrolback(VSIwn, -y);
-		  } /* if */
-	  } /* if */
-  } /* VSIcurson */
+		} /* if */
+	} /* if */
+} /* VSIcurson */
 
 void VSIcuroff
   (
@@ -305,6 +310,7 @@ VSlinePtr VSInewlines
 
 	// Loop through the elements, initializing each one.
 	for(i = 0; i < nlines; i++) {
+		linePtr->lattr = 0;
 		linePtr->mem = 0;
 		linePtr->text = textPtr;
 		linePtr->attr = attrPtr;
@@ -373,6 +379,7 @@ VSlinePtr VSOnewlines
 	for (i = 1; i < nlines; i++)
 	  {
 		t += (VSIw->allwidth + 1)* elementSize;		/* inc to next text space for a line */
+		t2[i].lattr = 0;
 		t2[i].mem = 0;					/* don't DisposePtr any of these */
 		t2[i].text = t;
 		t2[i].prev = t2 + i - 1;		/* point back one */
@@ -622,10 +629,13 @@ void VSIelo
 	if (s < 0)
 		s = VSIw->y;
 
-	if (VSIw->oldScrollback)
+	if (VSIw->oldScrollback) {
+		VSIw->attrst[s]->lattr = 0;
 		ta = &VSIw->attrst[s]->text[0];
-	else
+	} else {
+		VSIw->linest[s]->lattr = 0;
 		ta = &VSIw->linest[s]->attr[0];
+	}
 	tt = &VSIw->linest[s]->text[0];
 	for (i = 0; i <= VSIw->allwidth; i++)
 	  {
@@ -808,6 +818,7 @@ void VSIdellines
 
 	for (i = 0; i < n; i++)
 	  {
+	    itt->lattr = 0;
 		ta = itt->attr;
 		tt = itt->text;
 		for (j = 0; j <= VSIw->allwidth; j++)
@@ -890,6 +901,8 @@ void VSOdellines
 	for (i = 0; i < n; i++)
 	  {
 		ta = ((VSattrlinePtr)ita)->text;
+		ita->lattr = 0;
+		itt->lattr = 0;
 		tt = itt->text;
 		for (j = 0; j <= VSIw->allwidth; j++)
 		  {
@@ -1048,6 +1061,8 @@ void VSOinslines
 	  {
 		tt = itt->text;
 		ta = ita->text;
+		itt->lattr = 0;
+		ita->lattr = 0;
 		for (j = 0; j <= VSIw->allwidth; j++)
 		  {
 			*tt++ = ' ';
@@ -1297,6 +1312,8 @@ void VSOscroll
 		else
 			VSIw->vistop = VSIw->vistop->next; /* consistent with changed display */
 	  /* blank out newly-revealed bottom line */
+		VSIw->attrst[VSIw->lines]->lattr = 0;
+		VSIw->linest[VSIw->lines]->lattr = 0;
 		tempa = VSIw->attrst[VSIw->lines]->text;
 		temp = VSIw->linest[VSIw->lines]->text;
 		for (i = 0; i <= VSIw->allwidth; i++)
@@ -1369,7 +1386,10 @@ void VSIindex
 	}
 	else if (VSIw->y < VSIw->lines) 	/* BYU  - added "if ... " */
 		VSIw->y++;
-  } /* VSIindex */
+
+	VSIw->lattrib = 0;
+
+} /* VSIindex */
 
 void VSIwrapnow(short *xp, short *yp)
   /* checks current cursor position for VSIw to see if
@@ -1377,7 +1397,14 @@ void VSIwrapnow(short *xp, short *yp)
 	Returns correct cursor position in either case in *xp
 	and *yp. */
   {
-	if (VSIw->x > VSIw->maxwidth) 
+	short mw = VSIw->maxwidth;
+
+	if ((VSIw->lattrib & 3)) {
+		mw >>= 1;
+		if ( !(VSIw->maxwidth & 1) )
+			mw -= 1;
+	}
+	if (VSIw->x > mw) 
 	  {
 		VSIw->x = 0;
 		VSIindex();
@@ -1421,10 +1448,13 @@ void VSIeeol
 		}
 		savedTextPtr = savedTextBlock;
 		for (i = 0; i <= VSIw->lines; i++) {
-			if (VSIw->oldScrollback)
+			if (VSIw->oldScrollback) {
+				savedTextPtr->lattr = VSIw->attrst[i]->lattr;
 				BlockMoveData(VSIw->attrst[i]->text, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
-			else
+			} else {
+				savedTextPtr->lattr = VSIw->linest[i]->lattr;
 				BlockMoveData(VSIw->linest[i]->attr, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
+			}
 			if (savedTextPtr->next) savedTextPtr = savedTextPtr->next;
 		}
 
@@ -1437,10 +1467,13 @@ void VSIeeol
 		}
 		savedTextPtr = savedTextBlock;
 		for (i = 0; i <= VSIw->lines; i++) {
-			if (VSIw->oldScrollback)
+			if (VSIw->oldScrollback) {
+				VSIw->attrst[i]->lattr = savedTextPtr->lattr;
 				BlockMoveData(savedTextPtr->attr, VSIw->attrst[i]->text, (VSIw->allwidth + 1) * sizeof(VSAttrib));
-			else
+			} else {
+				VSIw->linest[i]->lattr = savedTextPtr->lattr;
 				BlockMoveData(savedTextPtr->attr, VSIw->linest[i]->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
+			}
 			if (savedTextPtr->next) savedTextPtr = savedTextPtr->next;
 		}
 		DisposePtr((Ptr) savedTextBlock); // VSIfreelinelist adds un-needed overhead here
@@ -1449,9 +1482,13 @@ void VSIeeol
 	VSIwrapnow(&x1, &y1);
 	y2 = y1;
   /* clear out screen line */
-  	if (VSIw->oldScrollback)
+  	if (VSIw->oldScrollback) {
+  		VSIw->attrst[y1]->lattr = 0;
   		ta = &VSIw->attrst[y1]->text[x1];
-	else ta = &VSIw->linest[y1]->attr[x1];
+	} else {
+  		VSIw->linest[y1]->lattr = 0;
+		ta = &VSIw->linest[y1]->attr[x1];
+	}
 	tt = &VSIw->linest[y1]->text[x1];
 	for (i = VSIw->allwidth - x1 + 1; i > 0; i--)
 	  {
@@ -1483,15 +1520,21 @@ void VSIdelchars
 		*temp;
 	VSAttrib
 		*tempa;
+	short
+		lattr;
 
 	VSIwrapnow(&x1, &y1);
 	y2 = y1;
 
 	if (x > VSIw->maxwidth)
 		x = VSIw->maxwidth;
-	if (VSIw->oldScrollback)
+	if (VSIw->oldScrollback) {
 		tempa = VSIw->attrst[y1]->text;
-	else tempa = VSIw->linest[y1]->attr;
+		lattr = VSIw->attrst[y1]->lattr;
+	} else {
+		tempa = VSIw->linest[y1]->attr;
+		lattr = VSIw->linest[y1]->lattr;
+	}
 	temp = VSIw->linest[y1]->text;
 	for (i = x1; i <= VSIw->maxwidth - x; i++)
 	  {
@@ -1507,7 +1550,7 @@ void VSIdelchars
 	  }
   /* update display */
 	if (!VSIclip(&x1, &y1, &x2, &y2, &n, &offset))
-		RSdelchars(VSIwn, x1, y1, x);
+		RSdelchars(VSIwn, lattr, x1, y1, x);
   } /* VSIdelchars */
 
 void VSIfreelinelist
@@ -1592,10 +1635,13 @@ void VSIebol
 	VSIwrapnow(&x2, &y1);
 	y2 = y1;
   /* clear from beginning of line to cursor */
-	if (VSIw->oldScrollback)
+	if (VSIw->oldScrollback) {
+		//VSIw->attrst[y1]->lattr = 0;
 		ta = &VSIw->attrst[y1]->text[0];
-	else
+	} else {
+		//VSIw->attrst[y1]->lattr = 0;
 		ta = &VSIw->linest[y1]->attr[0];
+	}
 	tt = &VSIw->linest[y1]->text[0];
 	for (i = 0; i <= x2; i++)
 	  {
@@ -1625,9 +1671,13 @@ void VSIel
 		x1 = 0;
 	  } 
   /* clear out line */
-	if (VSIw->oldScrollback)
+	if (VSIw->oldScrollback) {
+		//VSIw->attrst[s]->lattr = 0;
 		ta = &VSIw->attrst[s]->text[0];
-	else ta = &VSIw->linest[s]->attr[0];
+	} else {
+		//VSIw->linest[s]->lattr = 0;
+		ta = &VSIw->linest[s]->attr[0];
+	}
 	tt = &VSIw->linest[s]->text[0];
 	for(i = 0; i <= VSIw->allwidth; i++)
 	  {
@@ -1721,10 +1771,17 @@ void VSIrange
   /* constrains cursor position to valid range (somewhere on the screen). */
   {
 	short wrap = (VSIw->DECAWM) ? 1 : 0;
+	short mw = VSIw->maxwidth;
+
+	if ((VSIw->lattrib & 3)) {
+		mw >>= 1;
+		if ( !(VSIw->maxwidth & 1) )
+			mw -= 1;
+	}
 	if (VSIw->x < 0)
 		VSIw->x = 0;
-	if (VSIw->x > VSIw->maxwidth + wrap)
-		VSIw->x = VSIw->maxwidth + wrap;
+	if (VSIw->x > mw + wrap)
+		VSIw->x = mw + wrap;
 	if (VSIw->y < 0)
 		VSIw->y = 0;
 	if (VSIw->y > VSIw->lines)
@@ -1744,8 +1801,15 @@ void VTsendpos( void )
 	short
 		x = VSIw->x,
 		y = VSIw->y;
+	short mw = VSIw->maxwidth;
 
-	if (x > VSIw->maxwidth) {
+	if ((VSIw->lattrib & 3)) {
+		mw >>= 1;
+		if ( !(VSIw->maxwidth & 1) )
+			mw -= 1;
+	}
+
+	if (x > mw) {
 		/* autowrap pending */
 		x = 0;
 		y++;
@@ -1844,6 +1908,7 @@ void VTalign
 	VSIes();		/* erase the screen */
 	for (j = 0; j < VSIw->lines; j++)
 	  {
+		VSIw->linest[j]->lattr = 0;
 		tt = &VSIw->linest[j]->text[0];
 		for (i = 0; i <= VSIw->maxwidth; i++)
 			*tt++ = 'E';
@@ -1992,7 +2057,7 @@ void VSIinsstring
 	(VSIw->x - len). */
   {
 		RSinsstring(VSIwn, VSIw->x - len, VSIw->y,
-			VSIw->attrib, len, start);
+			VSIw->lattrib, VSIw->attrib, len, start);
   } /* VSIinsstring */
 
 void VSIsave
@@ -2029,6 +2094,7 @@ void VSIdraw
 	short VSIwn, /* window number */
 	short x, /* starting column */
 	short y, /* line on which to draw */
+	short la,
 	VSAttrib a, /* text attributes */
 	short len, /* length of text to draw */
 	char *c /* pointer to text */
@@ -2041,7 +2107,7 @@ void VSIdraw
 	short x2, y2, offset;
 
 	if (!VSIclip(&x, &y, &x2, &y2, &len, &offset))
-		RSdraw(VSIwn, x, y, a, len, (char *) (c + offset));	/* BYU LSC */
+		RSdraw(VSIwn, x, y, la, a, len, (char *) (c + offset));	/* BYU LSC */
   } /* VSIdraw */
 
 short VSIgetblinkflag(void)

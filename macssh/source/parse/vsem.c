@@ -162,7 +162,7 @@ void VSprOFF(void)
 	PrRecHandle = PrintSetupRecord();
 	
 	GetWTitle ((GrafPtr) RSgetwindow(VSIwn),Title);
-	SetCursor(theCursors[normcurs]);
+	setLastCursor(theCursors[normcurs]);
 	
 	if (PrJobDialog(PrRecHandle)) {			/* Cancel the print if FALSE */
 		if ((sts=PrError()) != noErr){
@@ -293,6 +293,7 @@ void VSem
 	short savedY;
 	unsigned char savedChar;
 	long val;
+	short mw;
 
     escflg = VSIw->escflg;
     
@@ -314,7 +315,15 @@ void VSem
 #endif
 	screen = &screens[findbyVS(VSIwn)];
 
+
     while (ctr > 0) {
+
+		mw = VSIw->maxwidth;
+		if ((VSIw->lattrib & 3)) {
+			mw >>= 1;
+			if ( !(VSIw->maxwidth & 1) )
+				mw -= 1;
+		}
 
 		if (VSIw->prredirect)	/* PR - printer redirection? */
 			VSpr(&c,&ctr);		/* PR -if yes, call VSpr */
@@ -423,27 +432,30 @@ void VSem
 			//loop around, printing lines of text one at a time
 			start = &VSIw->linest[VSIw->y]->text[VSIw->x]; /* start of area needing redrawing */
 			current = start; /* where to put next char */
-			if (VSIw->oldScrollback)
+			if (VSIw->oldScrollback) {
 				acurrent = &VSIw->attrst[VSIw->y]->text[VSIw->x];
-			else
+			} else {
 				acurrent = &VSIw->linest[VSIw->y]->attr[VSIw->x]; /* where to put corresponding attribute byte */
+			}
+			
 			attrib = VSIw->attrib; /* current writing attribute */
 			insert = VSIw->IRM; /* insert mode (boolean) */
 			offend = 0; /* wrapped to next line (boolean) */
 			extra = 0; /* overwriting last character of line  */
 			sx = VSIw->x; /* starting column of area needing redrawing */
 
-			if (VSIw->x > VSIw->maxwidth) {
+			if (VSIw->x > mw) {
 				if (VSIw->DECAWM) { // wrap to next line 
 					VSIw->x = 0;
 					VSIindex();
 				} else //stay at right margin 
-					VSIw->x = VSIw->maxwidth;
+					VSIw->x = mw;
 				
 				current = start = &VSIw->linest[VSIw->y]->text[VSIw->x];
 				if (VSIw->oldScrollback)
 					acurrent = &VSIw->attrst[VSIw->y]->text[VSIw->x];
-				else acurrent = &VSIw->linest[VSIw->y]->attr[VSIw->x];
+				else
+					acurrent = &VSIw->linest[VSIw->y]->attr[VSIw->x];
 				sx = VSIw->x;
 			} /* if */
 
@@ -460,7 +472,7 @@ void VSem
 				*acurrent = attrib;
 				c++;
 				ctr--;
-				if (VSIw->x < VSIw->maxwidth) {
+				if (VSIw->x < mw) {
 					//advance the cursor position
 					acurrent++;
 					current++;
@@ -473,7 +485,7 @@ void VSem
 						offend = 1; // terminate inner loop 
 					} else {
 						//stay at right margin
-						VSIw->x = VSIw->maxwidth;
+						VSIw->x = mw;
 						extra = 1; // cursor position doesn't advance 
 					} 
 				} 
@@ -482,12 +494,12 @@ void VSem
 		  	//now update the screen to show what we've done
 		  	extra += VSIw->x - sx;
 			if (insert) {
-				RSinsstring(VSIwn, VSIw->x - extra, VSIw->y,VSIw->attrib, extra, start);
+				RSinsstring(VSIwn, VSIw->x - extra, VSIw->y, VSIw->lattrib, VSIw->attrib, extra, start);
 			} else { 
 				short x2,y2,offset, sxCopy=sx,yCopy = VSIw->y, extraCopy = extra;
-				
-				if (!VSIclip(&sxCopy, &yCopy, &x2, &y2, &extraCopy, &offset))
-					RSdraw(VSIwn, sxCopy,yCopy, VSIw->attrib,extraCopy,(char *) (start + offset));
+				if (!VSIclip(&sxCopy, &yCopy, &x2, &y2, &extraCopy, &offset)) {
+					RSdraw(VSIwn, sxCopy,yCopy, VSIw->lattrib, VSIw->attrib,extraCopy,(char *) (start + offset));
+				}
 			}
 			if (!captured)
 				VScapture((unsigned char *) start, extra);
@@ -566,6 +578,7 @@ void VSem
 		} /* while */
 
 		while ( escflg == 2 && ctr > 0 ) {
+
 			/* "control sequence" processing */
 			switch (*c) {
 				case 0x08:
@@ -666,22 +679,22 @@ void VSem
 				case 'C': /* cursor right */
 					sx = VSIw->parms[0];
 					if (sx < 1) sx = 1;
-					if (VSIw->DECAWM && VSIw->x >= VSIw->maxwidth) {
+					if (VSIw->DECAWM && VSIw->x >= mw) {
 						// autowrap
 						if (VSIw->y >= VSIw->lines)
 							goto ShortCut;
 						VSIw->y++;
-						VSIw->x = (VSIw->x > VSIw->maxwidth) ? 0 : -1;
+						VSIw->x = (VSIw->x > mw) ? 0 : -1;
 					}
 					VSIw->x += sx;
 					VSIrange();
-					if (VSIw->x > VSIw->maxwidth)
-						VSIw->x = VSIw->maxwidth;
+					if (VSIw->x > mw)
+						VSIw->x = mw;
 					goto ShortCut;				/* BYU 2.4.12 */
 
 				case 'd':	/* Y cursor position ? */
 					VSIw->y = VSIw->parms[0] - 1;
-					if (VSIw->DECAWM && VSIw->x > VSIw->maxwidth)
+					if (VSIw->DECAWM && VSIw->x > mw)
 						VSIw->x = 0;
 					if (VSIw->y < 0)
 						VSIw->y = 0;
@@ -697,14 +710,14 @@ void VSem
 						if (VSIw->y <= 0)
 							goto ShortCut;
 						VSIw->y--;
-						VSIw->x = VSIw->maxwidth + 1;
+						VSIw->x = mw + 1;
 					}
 					VSIw->x -= sx;
 					VSIrange();
 					goto ShortCut;				/* BYU 2.4.12 */
 
 				case 'G':	/* X cursor position ? */
-					if (VSIw->DECAWM && VSIw->x > VSIw->maxwidth) {
+					if (VSIw->DECAWM && VSIw->x > mw) {
 						// autowrap
 						if (VSIw->y >= VSIw->lines)
 							goto ShortCut;
@@ -713,8 +726,8 @@ void VSem
 					VSIw->x = VSIw->parms[0] - 1;
 					if (VSIw->x < 0)
 						VSIw->x = 0;
-					if (VSIw->x > VSIw->maxwidth)
-						VSIw->x = VSIw->maxwidth;
+					if (VSIw->x > mw)
+						VSIw->x = mw;
 					goto ShortCut;
 
 				case 'f':
@@ -730,8 +743,8 @@ void VSem
 						we are past screen edge.  This causes "resize" to break */
 					if (VSIw->x < 0)						/* JMB 2.6 */
 						VSIw->x = 0;						/* JMB 2.6 */
-					if (VSIw->x > VSIw->maxwidth)			/* JMB 2.6 */
-						VSIw->x = VSIw->maxwidth;			/* JMB 2.6 */
+					if (VSIw->x > mw)			/* JMB 2.6 */
+						VSIw->x = mw;			/* JMB 2.6 */
 					if (VSIw->y < 0)						/* JMB 2.6 */
 						VSIw->y = 0;						/* JMB 2.6 */
 					if (VSIw->y > VSIw->lines)				/* JMB 2.6 */
@@ -1027,6 +1040,7 @@ VSvalids(sx);
 
 		while ( escflg == 3 && ctr > 0 ) {
 			/* "#" handling */
+			short lattrib = -1;
 			switch (*c) {
 				case 0x08:
 					VSIw->x--;
@@ -1034,19 +1048,36 @@ VSvalids(sx);
 						VSIw->x = 0;
 					break;
 				case '3':	/* Double Height Line (DECDHL) Top Half */
-					goto ShortCut;
+					/* applies to the whole line */
+					lattrib = 1;
+					break;
 				case '4':	/* Double Height Line (DECDHL) Bottom Half */
-					goto ShortCut;
+					/* applies to the whole line */
+					lattrib = 2;
+					break;
 				case '5':	/* Single-Width Line (DECSWL) */
-					goto ShortCut;
+					lattrib = 0;
+					break;
 				case '6':	/* Double-Width Line (DECDWL) */
-					goto ShortCut;
+					lattrib = 4;
+					break;
 				case '8': /* alignment display */
 					VTalign();
-					goto ShortCut;				/* BYU 2.4.12 */
+					goto ShortCut;
 				default:
-					goto ShortCut;				/* BYU 2.4.12 */
+					goto ShortCut;
 			} /* switch */
+			if ( lattrib != -1 ) {
+				VSIw->lattrib = lattrib;
+				if (VSIw->oldScrollback) {
+					VSIw->attrst[VSIw->y]->lattr = lattrib;
+				} else {
+					VSIw->linest[VSIw->y]->lattr = lattrib;
+				}
+				/* refresh line with new width */
+				VSredrawLine(VSIwn);
+				goto ShortCut;
+			}
 			c++;
 			ctr--;
 		} /* while */

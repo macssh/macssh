@@ -32,6 +32,8 @@ typedef struct VSline
 	struct VSline       /* doubly-linked list of lines */
 		*next,          /* Pointer to next line */
 		*prev;          /* Pointer to previous line */
+	short
+		lattr;			/* line attributes */
 	char  	// Text for the line -- may be part of a block 
 		*text;          /* of memory containing more than one line */
 	VSAttrib
@@ -47,6 +49,8 @@ typedef struct VSattrline	//CCP 2.7 ANSI needs shorts
 	  /* doubly-linked list of lines */
 		*next,          /* Pointer to next line */
 		*prev;          /* Pointer to previous line */
+	short
+		lattr;			/* line attributes */
 	VSAttrib            // macblue, now use 16 bit attribute; 8 for normal, 8 for ansi color
 		*text;			/* of memory containing more than one line */
 	char
@@ -76,6 +80,7 @@ struct VSscrn {
  		 forcesave,			/* NCSA 2.5: always force lines to be saved off top */
          possibleForce,		//we have receive a "move to 0,0"; if next is EEOl, forcesave
          ESscroll;			/* Scroll screen when ES received				*/
+	short lattrib;			/* current lineattributes                       */
     VSAttrib attrib;        /* current character writing attributes         */
     short x,y;              /* current cursor positon                       */
     short Px,Py;            /* saved cursor position and writing attributes */
