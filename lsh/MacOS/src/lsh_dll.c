@@ -63,6 +63,7 @@ extern char *defargstr;
 extern void ssh2_init();
 extern void ssh2_terminate();
 extern void ssh2_sched();
+extern void ssh2_doevent(long sleepTime);
 
 extern void close_all_files();
 
@@ -632,6 +633,8 @@ int WriteCharsToTTY(int id, void *ctx, char *buffer, int n)
 	char			*buf = buffer;
 	char			c;
 
+	ssh2_doevent(0L);
+	
 	if ( id == 2 ) {
 		// log stderr to console
 		syslog( 0, "%.*s", n, buffer );
@@ -711,6 +714,8 @@ int ReadCharsFromTTY(int id, void *ctx, char *buffer, int n)
 	long			len = 0;
 	lshcontext		*context = (lshcontext *)ctx;
 
+	ssh2_doevent(0L);
+
 	if ( !context ) {
 		return 0;
 	}
@@ -751,6 +756,8 @@ int AvailableFromTTY(int id, void *ctx)
 {
 #pragma unused (id)
 	lshcontext *context = (lshcontext *)ctx;
+
+	ssh2_doevent(0L);
 
 	if ( !context ) {
 		return 0;
