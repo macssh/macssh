@@ -54,11 +54,6 @@
 #define LF			0x0a	/* the line feed character */
 
 
-/* Now for some event stuff */
-#define	BScode		51		/* This is the Keycode for Backspace */
-#define KPlowest	65		/* This is the last code before the KP */
-#define switchEvt	 1		/* Switching event (suspend/resume )  for app4evt */
-
 /* These next three keep track of the screen windows */
 #define NO_WINDOW	0
 #define DEC_WINDOW	1
