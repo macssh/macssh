@@ -64,6 +64,7 @@ Boolean haveNotifiedLowMemory = FALSE;
 Boolean		gPresentOpenConnectionDialog;
 unsigned long	gPresentOpenConnectionTicks;
 
+extern int gMovableModal;
 
 extern void ssh2_sched();
 extern Boolean gThreadModal;
@@ -112,7 +113,7 @@ void	main(void)
 
 	do {						/* BYU - Do this forever */
 		UnloadSegments();
-		if (!gThreadModal) {
+		if (!gThreadModal && !gMovableModal) {
 			DoEvents(NULL);
 		}
 		ssh2_sched();

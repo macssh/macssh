@@ -66,6 +66,8 @@
 
 extern ApplicationPrefs		*gApplicationPrefs;
 
+extern int gMovableModal;
+
 extern int appl_main(int argc, char **argv);
 extern char *applname;
 extern char *defargstr;
@@ -1007,7 +1009,7 @@ void ssh2_doevent(long sleepTime)
 	extern Boolean haveNotifiedLowMemory;
 
 	if ( key_gen == 0 ) {
-		if (!gThreadModal) {
+		if (!gThreadModal && !gMovableModal) {
 			DoEvents(NULL);
 		}
 		if (!TelInfo->done) {
@@ -1021,7 +1023,7 @@ void ssh2_doevent(long sleepTime)
 			haveNotifiedLowMemory = true;
 		}
 	} else {
-		if (!gThreadModal) {
+		if (!gThreadModal && !gMovableModal) {
 			static unsigned long lastTicks = 0L;
 			if ( (LMGetTicks() - lastTicks) >= 10 ) {
 				EventRecord	myEvent;

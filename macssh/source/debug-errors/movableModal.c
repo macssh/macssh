@@ -21,6 +21,8 @@ extern void ssh2_sched();
 
 extern MenuHandle myMenus[];
 
+int gMovableModal = 0;
+
 pascal void movableModalDialog(ModalFilterUPP filter, short *theItem)
 {
 	EventRecord theEvent;
@@ -31,6 +33,7 @@ pascal void movableModalDialog(ModalFilterUPP filter, short *theItem)
 	GetPort(&oldPort);
 	SetPort(thisDialog);
 	
+	++gMovableModal;
 	for(;;) {
 		WaitNextEvent(everyEvent, &theEvent, gApplicationPrefs->TimeSlice, 0L);
 
@@ -54,6 +57,7 @@ pascal void movableModalDialog(ModalFilterUPP filter, short *theItem)
 				break;
 		
 	}
+	--gMovableModal;
 	SetPort(oldPort);
 }
 
