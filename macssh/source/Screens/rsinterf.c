@@ -169,7 +169,28 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 		while ( StillDown() ) {
 			// wait for mouse position to change
 			do {
+				unsigned long finalTicks;
 				temp = getlocalmouse(tempwndo);
+
+				// FIXME: I'm lazy. this could be tiny.
+				if (temp.v < -30) {
+					// no delay
+				} else if (temp.v < -20 ) {
+					Delay( 2, &finalTicks);
+				} else if (temp.v < -10 ) {
+					Delay( 6, &finalTicks);
+				} else if (temp.v < 0 ) {
+					Delay( 10, &finalTicks);
+				} else if (temp.v > RSlocal[w].height + 30) {
+					// no delay
+				} else if (temp.v > RSlocal[w].height + 20) {
+					Delay( 2, &finalTicks);
+				} else if (temp.v > RSlocal[w].height + 10) {
+					Delay( 6, &finalTicks);
+				} else if (temp.v > RSlocal[w].height) {
+					Delay( 10, &finalTicks);
+				}
+
 				curr = normalize(temp, w,TRUE);
 				if ( curr.h > -1 ) {
 					if (VSgetattr(w, curr.h - 1, curr.v, curr.h, curr.v, &attrib, sizeof(VSAttrib))) {
@@ -178,7 +199,11 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 						}
 					}
 				}
-			} while (StillDown() && (EqualPt(curr, RSlocal[w].last) || EqualPt(pt, temp)));
+
+			} while (StillDown() && (EqualPt(curr, RSlocal[w].last) /*|| EqualPt(pt, temp)*/));
+
+			RSlocal[w].selected = !EqualPt(RSlocal[w].anchor, curr);
+
 			if ( !EqualPt(pt, temp) || RSlocal[w].selected ) {
 				// toggle highlight state of text between current and last mouse positions
 				RSinvText(w, curr, RSlocal[w].last, &noConst);
