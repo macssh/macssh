@@ -479,7 +479,7 @@ short	netread(short pnum, void *buffer, short n)
 
  	/* Decrypt data */
 	if (p->aedata && ((tnParams *)p->aedata)->decrypting)
-		decrypt((tnParams *)p->aedata, buffer, (long)reqdamt);
+		kdecrypt((tnParams *)p->aedata, buffer, (long)reqdamt);
  
 	MyPBreturn(pbp);
 	return(reqdamt);
@@ -654,7 +654,7 @@ short	Rnetwrite(short pnum, void *buffer, short nsend)
 		 * encrypt if encrypting the session
 		 */
 		if (p->aedata && ((tnParams *)p->aedata)->encrypting)
-			encrypt((tnParams *)p->aedata, (unsigned char *)swds[m].ptr, swds[m].length);
+			kencrypt((tnParams *)p->aedata, (unsigned char *)swds[m].ptr, swds[m].length);
 		buffer=(void *)((char *)buffer + swds[m].length);
 		}
 	
