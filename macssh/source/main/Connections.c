@@ -805,6 +805,7 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 
 	theScreen->launchurlesc = SessPtr->launchurlesc;
 	theScreen->x11forward = SessPtr->x11forward;
+	theScreen->autoreconnect = SessPtr->autoreconnect;
 
 /* NONO */
 	theScreen->authentication = SessPtr->authentication;
@@ -884,6 +885,8 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 		flags |= RSWrealBlink;
 	if (TermPtr->vt7bits)
 		flags |= RSWvt7bit;
+	if (TermPtr->hideScrollBars)
+		flags |= RSWHideScroll;
 
 	theScreen->vs = RSnewwindow(&((**Params).WindowLocation), TermPtr->numbkscroll, TermPtr->vtwidth,
 									TermPtr->vtheight, (**Params).WindowName, fontnumber,
