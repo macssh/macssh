@@ -1,0 +1,8 @@
+lsh_new
+lsh_delete
+lsh_yield
+lsh_read
+lsh_write
+lsh_getprefsd
+lsh_current
+lsh_running
