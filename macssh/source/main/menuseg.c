@@ -128,6 +128,7 @@ void switchToShiftMenus(Boolean useShiftStuff)
 	 SetMenuItemText(myMenus[Conn],COnext,theMenuItem);
 		 
 }
+
 void	AdjustMenus(void)
 {
 	short		i;
@@ -137,9 +138,9 @@ void	AdjustMenus(void)
 		return;
 	}
 
-	if ((wind = FrontWindow()) != NULL &&
-			((((WindowPeek)wind)->windowKind >= userKind)
-			|| (((WindowPeek)wind)->windowKind == dialogKind)))
+	if ( (wind = FrontWindow()) != NULL
+	  && ( ((WindowPeek)wind)->windowKind >= userKind
+		|| ((WindowPeek)wind)->windowKind == dialogKind) )
 		EnableItem( myMenus[Fil],FLclose);
 	else
 		DisableItem( myMenus[Fil],FLclose);
