@@ -788,6 +788,9 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 
 	theScreen->sshdata.thread = NULL;
 	theScreen->sshdata.context = NULL;
+	
+	theScreen->vs = -1;
+	theScreen->wind = NULL;
 
 	if (SessPtr->protocol == 4) {
 		memcpy(theScreen->sshdata.host, theScreen->machine, theScreen->machine[0] + 1);
@@ -1299,30 +1302,32 @@ void destroyport(short wind)
 		}
 	}
 
-	if (FrontWindow() == tw->wind)
-		callNoWindow=1;
+	if ( FrontWindow() == tw->wind )
+		callNoWindow = 1;
 
-	if (tw->aedata != NULL) {
+	if ( tw->aedata != NULL ) {
 		auth_encrypt_end((tnParams **)&tw->aedata);
  		DisposePtr((Ptr)tw->aedata);
  		tw->aedata = NULL;
 	}
 
-
 	/*
 	 * Get handle to the WDEF patch block, kill the window, and then
 	 * release the handle.
 	 */
-	h = GetPatchStuffHandle(tw->wind, tw);
+	h = ( tw->wind ) ? GetPatchStuffHandle(tw->wind, tw) : NULL;
 	RSkillwindow( tw->vs);
 	SetDefaultKCHR();
-	if (h)
+	if ( h )
 		DisposeHandle(h);
 	tw->active = CNXN_NOTINUSE;
-	for (i=wind;i<TelInfo->numwindows-1;i++) {
+
+	for (i=wind; i<TelInfo->numwindows-1; i++) {
 		screens[i]=screens[i+1];		/* Bump all of the pointers */
-		RePatchWindowWDEF(screens[i].wind, &screens[i]);	/* hack hack hack */
-		}
+		if (screens[i].wind)
+			RePatchWindowWDEF(screens[i].wind, &screens[i]);	/* hack hack hack */
+	}
+
 	if (scrn>wind) scrn--;				/* Adjust for deleting a lower #ered screen */
 
 	TelInfo->numwindows--;						/* There are now fewer windows */
@@ -1372,9 +1377,11 @@ void removeport(WindRecPtr tw)
 		DestroyTickets();
 		
 	if (!gApplicationPrefs->WindowsDontGoAway) {
-		short sn = findbyVS(tw->vs);
-		if ( sn >= 0 ) {
-			destroyport(sn);
+		if ( tw->vs >= 0 ) {
+			short sn = findbyVS(tw->vs);
+			if ( sn >= 0 ) {
+				destroyport(sn);
+			}
 		}
 	} else {
 		Str255	temp;
