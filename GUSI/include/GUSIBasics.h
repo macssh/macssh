@@ -31,7 +31,7 @@
 // generating CFM code.                                                    
 //                                                                         
 // <Definition of compiler features>=                                      
-#if GENERATINGCFM
+#if TARGET_RT_MAC_CFM
 #define GUSI_COMPLETION_PROC_A0(proc, type) \
 	void (*const proc##Entry)(type * param) 	= 	proc;
 #define GUSI_COMPLETION_PROC_A1(proc, type) \
