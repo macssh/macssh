@@ -7,6 +7,8 @@
 #include <Sound.h>
 #include <TextEdit.h>
 
+#include "url.proto.h"
+
 #define WHITE_ON_BLACK 0
 
 enum  {
@@ -63,7 +65,7 @@ extern "C" {
 #endif
 
 void DoAboutBox();
-OSErr SetUpGraphics(void);
+OSErr SetUpGraphics(Rect *urlBox, Str255 urlString);
 void DoAnimation(void);
 void CleanUpGraphics(void);
 OSErr GetItemRect(short inItem, Rect *outRect);
@@ -85,10 +87,12 @@ static PixMapPtr drawPixMapP = NULL;
 static GWorldPtr backWorldP = NULL;
 static PixMapPtr backPixMapP;
 
-
 void DoAboutBox()
 {
 	long qdVersion;
+	Rect urlBox;
+	Str255 urlString;
+	Point mouseLoc;
 
 	PurgeMem(maxSize);
 	Gestalt(gestaltQuickdrawVersion, &qdVersion);
@@ -98,16 +102,20 @@ void DoAboutBox()
 		GWorldPtr saveWorld;
 		GDHandle saveDevice;
 		GetGWorld(&saveWorld, &saveDevice);
-		if (!SetUpGraphics()) {
+		if (!SetUpGraphics(&urlBox, urlString)) {
 			DoAnimation();
+			GetMouse(&mouseLoc);
 			CleanUpGraphics();
 			PurgeMem(maxSize);
 		}
 		SetGWorld(saveWorld, saveDevice);
+		if (PtInRect(mouseLoc, &urlBox)) {
+			HandleURLString(urlString);
+		}
 	}
 }
 
-OSErr SetUpGraphics(void)
+OSErr SetUpGraphics(Rect *urlBox, Str255 urlString)
 {
 	OSErr err;
 	Rect backRect;
@@ -181,10 +189,12 @@ OSErr SetUpGraphics(void)
 
 	//	Draw info string.
 
-	GetItemRect(ditl_about_infobox, &versionBox);
-	GetIndString(versionString, rSTR_Info, 1);
-	MoveTo( versionBox.left +((versionBox.right-versionBox.left)/2)-(StringWidth(versionString)/2), versionBox.bottom-4);
-	DrawString(versionString);
+	GetItemRect(ditl_about_infobox, urlBox);
+	GetIndString(urlString, rSTR_Info, 1);
+	MoveTo( urlBox->left +((urlBox->right-urlBox->left)/2)-(StringWidth(urlString)/2), urlBox->bottom-4);
+	TextFace( underline);
+	DrawString(urlString);
+	TextFace( 0);
 
 	return noErr;
 failed:
