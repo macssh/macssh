@@ -64,7 +64,7 @@ extern char *defargstr;
 extern void ssh2_init();
 extern void ssh2_terminate();
 extern void ssh2_sched();
-extern void ssh2_doevent(long sleepTime);
+extern void ssh2_doevent(EventRecord *theEvent, long sleepTime);
 
 extern void close_all_files();
 
@@ -634,7 +634,7 @@ int WriteCharsToTTY(int id, void *ctx, char *buffer, int n)
 	char			*buf = buffer;
 	char			c;
 
-	ssh2_doevent(0L);
+	ssh2_doevent(NULL, 0L);
 	
 	if ( id == 2 ) {
 		// log stderr to console
@@ -715,7 +715,7 @@ int ReadCharsFromTTY(int id, void *ctx, char *buffer, int n)
 	long			len = 0;
 	lshcontext		*context = (lshcontext *)ctx;
 
-	ssh2_doevent(0L);
+	ssh2_doevent(NULL, 0L);
 
 	if ( !context ) {
 		return 0;
@@ -758,7 +758,7 @@ int AvailableFromTTY(int id, void *ctx)
 #pragma unused (id)
 	lshcontext *context = (lshcontext *)ctx;
 
-	ssh2_doevent(0L);
+	ssh2_doevent(NULL, 0L);
 
 	if ( !context ) {
 		return 0;
@@ -855,11 +855,11 @@ int yes_or_no(struct lsh_string *s, int def, int free)
  * ssh2_doevent
  */
 
-void ssh2_doevent(long sleepTime)
+void ssh2_doevent(EventRecord *theEvent, long sleepTime)
 {
 	lshctx *ctx = lsh_current();
 	if ( ctx && ctx->hdlevt ) {
-		(*ctx->hdlevt)( ctx->userData, NULL, sleepTime );
+		(*ctx->hdlevt)( ctx->userData, theEvent, sleepTime );
 	}
 }
 
@@ -867,7 +867,7 @@ void ssh2_doevent(long sleepTime)
 /*
  * SIOUXHandleOneEvent
  */
-
+/* moved to lsh_evt.c
 short SIOUXHandleOneEvent(EventRecord *userEvent)
 {
 	lshctx *ctx = lsh_current();
@@ -877,6 +877,7 @@ short SIOUXHandleOneEvent(EventRecord *userEvent)
 	}
 	return 0;
 }
+*/
 
 #pragma mark -
 
