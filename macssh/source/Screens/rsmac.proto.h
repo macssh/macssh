@@ -32,4 +32,3 @@ void RSbackground(short w, short value);
 void RScheckmaxwind(Rect *origRect, short origW, short origH, short *endW, short *endH);
 void RSTextFont(short myfnum, short myfsiz, short myface);
 Boolean SelectURLAroundPoint(Point current);
-void RSvalidateRect(short w);

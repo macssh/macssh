@@ -4,6 +4,7 @@ void	RSunload(void);
 void RSselect(short w, Point pt, EventRecord theEvent);
 void RSzoom(GrafPtr window, short code, short shifted);
 void RSdrawlocker(short w, RgnHandle visRgn);
+short RSupdatecontent(GrafPtr wind, RgnHandle updRgn);
 short RSupdate(GrafPtr wind);
 short RSTextSelected(short w);
 void RSskip(short w, Boolean on);

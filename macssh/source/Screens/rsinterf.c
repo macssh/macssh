@@ -39,6 +39,9 @@ static void calculateWindowPosition(WindRec *theScreen,Rect *whereAt, short cols
 /* wdefpatch.c */
 extern void drawicon (short id, Rect *dest);
 
+#if GENERATINGPOWERPC
+extern Boolean gHasSetWindowContentColor;
+#endif
 
 extern WindRec *screens;
 
@@ -269,32 +272,27 @@ void RSdrawlocker(short w, RgnHandle visRgn)
 	}
 }
 
+short
+RSupdatecontent(
+	GrafPtr wind,
+	RgnHandle updRgn )
+{
+    short x1, x2, y1, y2;
 
-short RSupdate
-  (
-	GrafPtr wind
-  )
-  /* does updating for the specified window, if it's one of mine.
-	Returns zero iff it is. */
-  {
-    short w, x1, x2, y1, y2;
-
-    w = RSfindvwind(wind);
-    if (RSsetwind(w) < 0)
-		return(-1); /* not one of mine */
-    BeginUpdate(wind);
 	RSregnconv /* find bounds of text area needing updating */
 	  (
-		wind->visRgn,
+		updRgn,
 		&x1, &y1, &x2, &y2,
 		RScurrent->fheight, RScurrent->fwidth
 	  );
+
 	if (x2 > x1)
 	{
-		VSredraw(w, x1, y1, x2, y2); /* draw that text */
-	  /* We must reset, less we risk looking UGLY as sin... */
+		VSredraw(RSfindvwind(wind), x1, y1, x2, y2); /* draw that text */
+		// We must reset, less we risk looking UGLY as sin...
 		BackPat(PATTERN(qd.white));
 		PenPat(PATTERN(qd.black));
+
 		if (TelInfo->haveColorQuickDraw)
 		  {
 			PmForeColor(0);
@@ -312,20 +310,38 @@ short RSupdate
 				ForeColor(RScolors[7]);		/* normal foreground */
 				BackColor(RScolors[0]);		/* normal Background */
 		  	}
-		  } /* if */
-    	//now get that annoying strip on the right (CCP)
+		  }
 	    RSa = -1;
-		PenMode(patOr);
-		DrawGrowIcon(wind);
-		PenMode(patCopy);
-		//DrawControls(wind);
 	}
-	UpdateControls(wind, wind->visRgn);
-	RSdrawlocker(w, wind->visRgn);
+	return(0);
+}
+
+
+short RSupdate
+  (
+	GrafPtr wind
+  )
+  /* does updating for the specified window, if it's one of mine.
+	Returns zero iff it is. */
+  {
+    short w, x1, x2, y1, y2;
+
+    w = RSfindvwind(wind);
+    if (RSsetwind(w) < 0)
+		return(-1); /* not one of mine */
+
+    BeginUpdate(wind);
+	if ( !EmptyRgn(wind->visRgn) ) {
+		RSupdatecontent(wind, wind->visRgn);
+		DrawGrowIcon(wind);
+		UpdateControls(wind, wind->visRgn);
+		RSdrawlocker(w, wind->visRgn);
+	}
     EndUpdate(wind);
 	return(0);
+
   } /* RSupdate */
-  
+
 short RSTextSelected(short w) {		/* BYU 2.4.11 */
   return(RSlocal[w].selected);	/* BYU 2.4.11 */
 }								/* BYU 2.4.11 */
@@ -342,11 +358,11 @@ void RSskip
   } /* RSskip */
 
 
-  /*
-*  This routine is called when the user presses the grow icon, or when the size of
-*  the window needs to be adjusted (where==NULL, modifiers==0).
-*  It limits the size of the window to a legal range.
-*/
+/*
+ *  This routine is called when the user presses the grow icon, or when the size of
+ *  the window needs to be adjusted (where==NULL, modifiers==0).
+ *  It limits the size of the window to a legal range.
+ */
 
 short RSsize (GrafPtr window, long *where, long modifiers)
 {
@@ -463,7 +479,6 @@ short RSsize (GrafPtr window, long *where, long modifiers)
 			return(-2);
 			break;
 		default:	//Ok, we can resize; tell host
-/* NONO */
 			cwidth = x2 - x1 + 1;
 			if ( cwidth > 255 ) {
 				cwidth = 255;
@@ -478,18 +493,6 @@ short RSsize (GrafPtr window, long *where, long modifiers)
 					ssh_glue_wresize(&screens[screenIndex]);
 				}
 			}
-/*
-			if ((x2 - x1 + 1) <= 132) { // bug fix from RAB 6/5/97
-				RScalcwsize(w,x2 - x1 +1);
-				if (screenIndexValid && screens[screenIndex].naws)
-					SendNAWSinfo(&screens[screenIndex], (x2-x1+1), (y2-y1+1));
-			} else { // RAB 6/5/97
-				RScalcwsize(w, 132);
-				if (screenIndexValid && screens[screenIndex].naws)
-					SendNAWSinfo(&screens[screenIndex], 132, (y2-y1+1));
-			} // RAB 6/5/97
-*/
-/* NONO */
 			return (0);
 			break;
 		}
@@ -522,7 +525,12 @@ Boolean RSsetcolor
   {
     if ( !(TelInfo->haveColorQuickDraw) || (RSsetwind(w) < 0) || (n > 15) || (n < 0))
 		return(FALSE);
-	
+
+#if GENERATINGPOWERPC
+	if ( n == 1 && gHasSetWindowContentColor ) {
+		SetWindowContentColor(RScurrent->window, &Color);
+	}
+#endif
 	SetEntryColor(RScurrent->pal, n, &Color);
 	SetPort(RScurrent->window);
 	InvalRect(&RScurrent->window->portRect);
@@ -629,17 +637,15 @@ short RSnewwindow
 		if (RScurrent->window == NULL) {
 			VSdestroy(w);
 			return(-2);
-			}
 		}
-	else
-	  {
+	} else {
 		RGBColor scratchRGB;
 		
 		RScurrent->window = NewCWindow(0L, wDims, name, showit, (short)8,kInFront, goaway, (long)w);
 		if (RScurrent->window == NULL) {
 			VSdestroy(w);
 			return(-2);
-			}
+		}
 		//note: the ANSI colors are in the top 8 of the palette.  The four telnet colors (settable
 		//in telnet) are in the lower 4 of the palette.  These 4 are set later by a call from 
 		//CreateConnectionFromParams to RSsetColor (ick, but I am not going to add 4 more params to
@@ -1743,14 +1749,18 @@ void RSUpdatePalette(void)  //called when ANSI colors have changed, and we need 
 				if (RSsetwind(screens[screenIndex].vs) >= 0)
 				{
 					int i;
-					for (i = 0; i < 16; i++)
-					{
+					for (i = 0; i < 16; i++) {
 							RGBColor tempColor;
 							GetEntryColor(TelInfo->AnsiColors, i, &tempColor);
+#if GENERATINGPOWERPC
+							if ( i == 1 && gHasSetWindowContentColor ) {
+								SetWindowContentColor(RScurrent->window, &tempColor);
+							}
+#endif
 							SetEntryColor(RScurrent->pal,i+4, &tempColor); //set the new color
-							SetPort(screens[screenIndex].wind);
-							InvalRect(&(RScurrent->window->portRect));//force a redraw
 					}
+					SetPort(screens[screenIndex].wind);
+					InvalRect(&RScurrent->window->portRect); //force a redraw
 				}
 			}
 		}

@@ -316,30 +316,30 @@ short VSnewscreen
 		return(-1);
 	numLines -= 1;  //correct for internal use
 	
-/*
-*  Fill initial scrollback buffer and screen storage space.
-*
-*  Memory allocation rules:
-*  line->mem == 0 if not a memory allocation, line->mem == 1 if it is the first
-*     VSline in a block (indeterminate size, may be size == 1)
-*  
-*  attributes array is ALWAYS allocated as one block.  Internally represented and
-*  manipulated as a linked list of lines, but only one of the lines will have 
-*  line->mem == 1.  This list is always supposed to be circular (it is never
-*  extended, as attributes are never scrolled back).
-*
-*  scrollback and screen line buffer space is allocated in large blocks.  Each
-*  block will have line->mem == 1 if the pointer to that VSline is "free"able.
-*  This list will either be circular (which means it has reached its full size),
-*  or it will have a NULL next field at the end.  During scrolling, the end may
-*  be augmented until VSIw->numlines > VSIw->maxlines or we run out of memory.
-*  Typically allocate memory 100 lines at a time in two blocks, one is the VSline
-*  list, the other is the mem for the character storage.
-*
-*/
+	/*
+	*  Fill initial scrollback buffer and screen storage space.
+	*
+	*  Memory allocation rules:
+	*  line->mem == 0 if not a memory allocation, line->mem == 1 if it is the first
+	*     VSline in a block (indeterminate size, may be size == 1)
+	*  
+	*  attributes array is ALWAYS allocated as one block.  Internally represented and
+	*  manipulated as a linked list of lines, but only one of the lines will have 
+	*  line->mem == 1.  This list is always supposed to be circular (it is never
+	*  extended, as attributes are never scrolled back).
+	*
+	*  scrollback and screen line buffer space is allocated in large blocks.  Each
+	*  block will have line->mem == 1 if the pointer to that VSline is "free"able.
+	*  This list will either be circular (which means it has reached its full size),
+	*  or it will have a NULL next field at the end.  During scrolling, the end may
+	*  be augmented until VSIw->numlines > VSIw->maxlines or we run out of memory.
+	*  Typically allocate memory 100 lines at a time in two blocks, one is the VSline
+	*  list, the other is the mem for the character storage.
+	*
+	*/
 
-/* All memory allocation for this function is done at once, to help damage control in 
-low memory situations */
+	/* All memory allocation for this function is done at once, to help damage control in 
+	low memory situations */
 
 	if ((VSscreens[VSIwn].loc = VSIw = (VSscrn *) myNewPtr(sizeof(VSscrn))) == 0L)
 		return(-2);
@@ -369,7 +369,7 @@ low memory situations */
 
 /* NONO */
 /*	VSIw->tabs = (char *) myNewPtr(132);*/		/* NCSA: SB - allow 132 column mode */
-	VSIw->tabs = (char *) myNewPtr(255);
+	VSIw->tabs = (char *) myNewPtr(255);	/* up to 255 comumns */
 /* NONO */
 	if (VSIw->tabs == NULL)  /* CCP: Hey?  Why not check if we got it?! */
 	{
@@ -380,7 +380,7 @@ low memory situations */
 	}
 /* NONO */
 /*	VSIw->allwidth = 131;*/				/* NCSA: SB - always allocate max lines */
-	VSIw->allwidth = 255;				/* NCSA: SB - always allocate max lines */
+	VSIw->allwidth = 255;				/* always allocate max lines */
 /* NONO */
 	if (!VSIw->oldScrollback) {
 		if (screensave)
@@ -640,9 +640,9 @@ short VSredraw
 		
 		if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
 
-				ypt = VSIw->vistop;
-				for(y=VSIw->Rtop; y<y1; y++)
-					ypt = ypt->next;		// Get pointer to top line we need
+			ypt = VSIw->vistop;
+			for(y=VSIw->Rtop; y<y1; y++)
+				ypt = ypt->next;		// Get pointer to top line we need
 			
 			for (y=ty1; y<=ty2; y++) {
 				char *pt;
@@ -711,12 +711,6 @@ short VSredraw
 	}
 
 	VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
-/* NONO */
-/* ??? what is this for ???
-	tx1 = ty1 = 0;
-	tn = 132;
-*/
-/* NONO */
 	return(0);
   } /* VSredraw */
 
@@ -828,12 +822,6 @@ short VSOredraw
 
 	VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
 
-/* NONO */
-/* ??? what is this for ???
-	tx1 = ty1 = 0;
-	tn = 132;
-*/
-/* NONO */
 	return(0);
   } /* VSOredraw */
 
@@ -2058,6 +2046,7 @@ short VSPulseOne
 	VSattrlinePtr ypa;
 	short y;
 	short tx1, tx2, ty1, ty2, tn, offset;
+	short cursOff;
 
 	if (VSvalids(w) != 0)
 		return(-3);
@@ -2087,54 +2076,66 @@ short VSPulseOne
 	
 	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
 	
-	VSIcuroff(w); 						// temporarily hide cursor
+	cursOff = 0;
+//	VSIcuroff(w); 						// temporarily hide cursor // Nah [NONO] (flicker)
 //	RSerase(w, tx1, ty1, tx2, ty2);		// Erase the offending area // Nah [DJ] (flicker)
+
 
 	// draw visible part of scrollback buffer
 	
-		tx1 = x1;		// Set up to clip redraw area to visible area of scrollback buffer
-		tx2 = x2;
-		ty1 = y1;
-		ty2 = y2; // RAB
-		tn = -1;
-		
+	tx1 = x1;		// Set up to clip redraw area to visible area of scrollback buffer
+	tx2 = x2;
+	ty1 = y1;
+	ty2 = y2; // RAB
+	tn = -1;
+	
 // RAB BetterTelnet 2.0fc1 - DJ wrote this, but I had to revise it to cover
 // the "new" attributes-in-scrollback scenario
 
-		if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
-			ypt = VSIw->vistop;
-			for(y=VSIw->Rtop; y<y1; y++)
-				ypt = ypt->next;		// Get pointer to top line we need
-	
-			for (y=ty1; y<=ty2; y++) {
-				char *pt;
-				unsigned short *pa;
-				unsigned short lasta;
-				short x, lastx;
+	if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
+		ypt = VSIw->vistop;
+		for(y=VSIw->Rtop; y<y1; y++)
+			ypt = ypt->next;		// Get pointer to top line we need
 
-				pt = ypt->text + VSIw->Rleft;
-				pa = ypt->attr + VSIw->Rleft;
+		for (y=ty1; y<=ty2; y++) {
+			char *pt;
+			unsigned short *pa;
+			unsigned short lasta;
+			short x, lastx;
 
-				lastx = tx1;
-				lasta = pa[tx1];
-				for(x=tx1+1; x<=tx2; x++) {
-					if (pa[x]!=lasta && VSisblnk(lasta)) { // Ahah! [DJ]
-						RSa = 0; // RAB - shouldn't be necessary, but...
-						RSdraw(w, lastx, y, lasta, x-lastx, pt + lastx);
-						lastx = x;
-						lasta = pa[x];
+			pt = ypt->text + VSIw->Rleft;
+			pa = ypt->attr + VSIw->Rleft;
+
+			lastx = tx1;
+			lasta = pa[tx1];
+			for(x=tx1+1; x<=tx2; x++) {
+				if (pa[x]!=lasta && VSisblnk(lasta)) { // Ahah! [DJ]
+					if (!cursOff) {
+						// temporarily hide cursor
+						cursOff = 1;
+						VSIcuroff(w);
 					}
+					RSa = 0; // RAB - shouldn't be necessary, but...
+					RSdraw(w, lastx, y, lasta, x-lastx, pt + lastx);
+					lastx = x;
+					lasta = pa[x];
 				}
-				if (lastx<=tx2 && VSisblnk(lasta)) {			// Ditto [DJ]
-					RSa = 0;
-					RSdraw(w, lastx, y, lasta, tx2-lastx+1, pt + lastx);
-				}
-				ypt = ypt->next;
 			}
+			if (lastx<=tx2 && VSisblnk(lasta)) {			// Ditto [DJ]
+				if (!cursOff) {
+					// temporarily hide cursor
+					cursOff = 1;
+					VSIcuroff(w);
+				}
+				RSa = 0;
+				RSdraw(w, lastx, y, lasta, tx2-lastx+1, pt + lastx);
+			}
+			ypt = ypt->next;
 		}
-
-	VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
-
+	}
+	if ( cursOff ) {
+		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
+	}
 /* NONO */
 /* ??? what is this for ???
 	tx1 = ty1 = 0;
@@ -2157,6 +2158,7 @@ short VSOPulseOne
 	VSattrlinePtr ypa;
 	short y;
 	short tx1, tx2, ty1, ty2, tn, offset;
+	short cursOff;
 
 	if (VSvalids(w) != 0)
 		return(-3);
@@ -2183,7 +2185,8 @@ short VSOPulseOne
 	
 	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
 	
-	VSIcuroff(w); 						// temporarily hide cursor
+	cursOff = 0;
+//	VSIcuroff(w); 						// temporarily hide cursor // Nah [NONO] (flicker)
 //	RSerase(w, tx1, ty1, tx2, ty2);		// Erase the offending area // Nah [DJ] (flicker)
 /*
 	// draw visible part of scrollback buffer
@@ -2236,6 +2239,11 @@ short VSOPulseOne
 				lasta = pa[tx1];
 				for(x=tx1+1; x<=tx2; x++) {
 					if (pa[x]!=lasta && VSisblnk(lasta)) { // Ahah! [DJ]
+						if (!cursOff) {
+							// temporarily hide cursor
+							cursOff = 1;
+							VSIcuroff(w);
+						}
 						RSa = 0;
 						RSdraw(w, lastx, y, lasta, x-lastx, pt + lastx);
 						lastx = x;
@@ -2243,6 +2251,11 @@ short VSOPulseOne
 					}
 				}
 				if (lastx<=tx2 && VSisblnk(lasta)) {		// Ditto [DJ]
+					if (!cursOff) {
+						// temporarily hide cursor
+						cursOff = 1;
+						VSIcuroff(w);
+					}
 					RSa = 0;
 					RSdraw(w, lastx, y, lasta, tx2-lastx+1, pt + lastx);
 				}
@@ -2252,8 +2265,9 @@ short VSOPulseOne
 		}
 	}
 
-	VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
-
+	if ( cursOff ) {
+		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
+	}
 /* NONO */
 /* ??? what is this for ???
 	tx1 = ty1 = 0;

@@ -116,13 +116,20 @@ extern WindRec *screens;
 
 #include "rsmac.proto.h"
 
+#include <CodeFragments.h>
+
 short MaxRS;
 
 RSdata *RSlocal, *RScurrent;
-Rect	noConst,
-		RScur;				/* cursor rectangle */
+Rect	noConst;
 
-RgnHandle RSuRgn;            /* update region */
+static RgnHandle RSuRgn;            /* update region */
+static RgnHandle hiddenRgn;
+static RgnHandle revealedRgn;
+
+#if GENERATINGPOWERPC
+Boolean gHasSetWindowContentColor = 0;
+#endif
 
 short RSw=-1,         /* last window used */
     RSa=0;          /* last attrib used */
@@ -131,6 +138,10 @@ extern long RScolors[];
 // initializes handling of terminal windows
 void RSinitall(short max) //max windows to allow
 {
+#if GENERATINGPOWERPC
+	OSErr theErr;
+	CFragConnectionID connID;
+#endif
 	short i;
 	MaxRS = max;
 	RSlocal = (RSdata *) myNewPtr(MaxRS * sizeof(RSdata));
@@ -144,16 +155,21 @@ void RSinitall(short max) //max windows to allow
 		RScurrent->cursor.right = 0;
 	}
 	RSuRgn = NewRgn();
-	RScur.left = 0;
-	RScur.top = 0;
-	RScur.bottom = 0;
-	RScur.right = 0;
 	if (!TelInfo->haveColorQuickDraw)
 		DisposeHandle((Handle)TelInfo->AnsiColors);
-		
-
+	hiddenRgn = NewRgn();
+	revealedRgn = NewRgn();
+#if GENERATINGPOWERPC
+	// can't use this: updated scrollbars looks ugly.
+/*
+	theErr = GetSharedLibrary("\pWindowsLib", kPowerPCCFragArch, kFindCFrag, &connID, NULL, NULL);
+	if ( !theErr ) {
+		gHasSetWindowContentColor = (FindSymbol( connID, "\pSetWindowContentColor", NULL, NULL ) == noErr);
+	}
+*/
+	gHasSetWindowContentColor = 0;
+#endif
 } // RSinitall
-
 
 void RSsetConst
   (
@@ -193,10 +209,6 @@ short RSsetwind
 	return(0);
   } /* RSsetwind */
 
-void RSvalidateRect(short w)
-{
-	ValidRect(&((RSlocal[w].window)->portRect));
-}
 void RSbell
   (
 	short w
@@ -499,9 +511,9 @@ void RSinvText
 		if (lb.v - ub.v > 1) /* highlight extends across more than two lines */
 		  {
 		  /* highlight complete in-between lines */
-			SetRect
+			MYSETRECT
 			  (
-				&temp,
+				temp,
 				0,
 				(ub.v + 1) * RScurrent->fheight,
 				RScurrent->width,
@@ -514,6 +526,10 @@ void RSinvText
 		  } /* if */
 	  } /* if */
   } /* RSinvText */
+
+/*
+ * RSdraw
+ */
 
 void RSdraw
   (
@@ -530,12 +546,10 @@ void RSdraw
   {
     Rect rect;
 	short ys;
-	RgnHandle oldClip;
 
 	if (RSlocal[w].skip)
 		return;
     RSsetwind(w);
-//    RSsetattr(0);		JMB 2.6.1d4
 
 	ys = y * RScurrent->fheight;
     MYSETRECT /* set up rectangle bounding text being drawn */
@@ -549,44 +563,55 @@ void RSdraw
 
 	RSsetattr(a);
 
-	if (x <= 0)			/* BYU 2.4.12 - Without this, 1 pixel column of reverse */
-	  rect.left = -3;	/* BYU 2.4.12 - video text does not clear at left margin */
- 
-/* NONO */
-	oldClip = NewRgn();
-	if (oldClip) {
-		GetClip(oldClip);
- 		ClipRect(&rect);
- 	}
-/* NONO */
-/*
-	if (rect.bottom == RScurrent->rheight)
-		rect.bottom += 1; //CCP take care of updating problems while scrolling
-*/
-	EraseRect(&rect);
+	if (x <= 0)
+	  rect.left = 0;
 
-	if (x <= 0)			/* BYU 2.4.12 - Okay, just putting it back the way it was */
-	  rect.left = 0;	/* BYU 2.4.12 */
+	EraseRect(&rect);
 
 	MoveTo(x * RScurrent->fwidth, ys + RScurrent->fascent);
 
 	DrawText(ptr, 0, len);
 
-
-
 	if (RScurrent->selected)
 		RSinvText(w, *(Point *) &RScurrent->anchor,
 			*(Point *) &RScurrent->last, &rect);
+
 	ValidRect(&rect);
 
-/* NONO */
-	if (oldClip) {
-		SetClip(oldClip);
-		DisposeRgn(oldClip);
-	}
-/* NONO */
-
   } /* RSdraw */
+
+/*
+ * ScrollRectInRgn
+ */
+
+static void ScrollRectInRgn( WindowPtr window, Rect *inRect, short dh, short dv)
+{
+	/* adjust the update region to track the scrolled window contents */
+
+	/* this is actually wrong, we must offset only the
+	 * scrolled rect, not the whole window's update region */
+
+	/*OffsetRgn(updRgn, dh, dv);*/
+
+	Rect rect = *inRect;
+	RgnHandle updRgn = ((WindowPeek)window)->updateRgn;
+	LocalToGlobal( &rect.top );
+	LocalToGlobal( &rect.bottom );
+	RectRgn( revealedRgn, &rect );
+	SectRgn( updRgn, revealedRgn, revealedRgn );
+	OffsetRgn( revealedRgn, dh, dv );
+	UnionRgn( revealedRgn, updRgn, updRgn );
+    ScrollRect(inRect, dh, dv, RSuRgn);
+    InvalRgn(RSuRgn);
+/* doesn't work...
+	if ( !EmptyRgn(RSuRgn) ) {
+		OffsetRgn( RSuRgn, inRect->left - rect.left, inRect->top - rect.top );
+		RSupdatecontent(window, RSuRgn);
+		DiffRgn( updRgn, RSuRgn, updRgn );
+	}
+*/
+}
+
 
 void RSdelcols
   (
@@ -610,21 +635,16 @@ void RSdelcols
 		RScurrent->width,
 		RScurrent->height
 	  );
-    ScrollRect(&rect, -n * RScurrent->fwidth, 0, RSuRgn);
-    InvalRgn(RSuRgn);
-    ValidRect(&rect); /* any necessary redrawing in newly-revealed area will be done by caller */
-    MYSETRECT /* bounds of newly-revealed area */
-	  (
-		rect,
-		RScurrent->width - (n * RScurrent->fwidth),
-		0,
-		RScurrent->width,
-		RScurrent->height
-	  );
-	if (RScurrent->selected)
-	  /* highlight any newly-revealed part of the current selection */
+
+	ScrollRectInRgn(RScurrent->window, &rect, -n * RScurrent->fwidth, 0);
+
+	if (RScurrent->selected) {
+		/* bounds of newly-revealed area */
+		rect.left = RScurrent->width - (n * RScurrent->fwidth);
+		/* highlight any newly-revealed part of the current selection */
 		RSinvText(w, *(Point *) &RScurrent->anchor,
 			*(Point *) &RScurrent->last, &rect);
+    }
   } /* RSdelcols */
 
 void RSdelchars
@@ -637,7 +657,7 @@ void RSdelchars
   /* deletes the specified number of characters from the specified
 	position to the right, moving the remainder of the line to the
 	left. */
-  {
+{
     Rect rect;
 
 	if (RSlocal[w].skip)
@@ -657,10 +677,9 @@ void RSdelchars
 		EraseRect(&rect);
 	else
 	  {
-	  /* scroll remainder of line to the left */
-    	ScrollRect(&rect, - RScurrent->fwidth * n, 0, RSuRgn);
-    	InvalRgn(RSuRgn);
-   		ValidRect(&rect); /* leave newly-revealed area blank */
+		/* scroll remainder of line to the left */
+		ScrollRectInRgn(RScurrent->window, &rect, - n * RScurrent->fwidth, 0);
+
 		if (RScurrent->selected)
 		  {
 		  /* highlight any part of selection which lies in newly-blanked area */
@@ -669,10 +688,8 @@ void RSdelchars
 			HUnlock((Handle) RSuRgn);
 		  } /* if */
 	  } /* if */
-/* NONO */
     RSsetattr(VSIw->attrib); /* restore mode for text drawing */
-/* NONO */
-  } /* RSdelchars */
+} /* RSdelchars */
 
 void RSdellines
   (
@@ -692,7 +709,6 @@ void RSdellines
 	stuff in between. */
   {
     Rect	rect;
-	short	RSfheightTimesn, RSfheightTimesbplus1;
 
 	if (RSlocal[w].skip)
 		return;
@@ -716,33 +732,18 @@ void RSdellines
 		  } /* if */
 	  } /* if */
 
-/* NONO: scroll 2 pixels more on the left*/
-	/*rect.left = -1;*/						/* BYU 2.4.12 - necessary */
-	rect.left = -3;
-/* NONO */
-    rect.right = RScurrent->width;
-    rect.top = t * RScurrent->fheight;
-    RSfheightTimesbplus1 = (b + 1) * RScurrent->fheight;
-	rect.bottom = RSfheightTimesbplus1;
-  /* adjust the update region to track the scrolled window contents */
-  	RSfheightTimesn = RScurrent->fheight * n;
-	OffsetRgn(((WindowPeek) RScurrent->window)->updateRgn,
-		0, -RSfheightTimesn);
-    ScrollRect(&rect, 0, -RSfheightTimesn, RSuRgn);
-    RSsetattr(VSIw->attrib); /* restore mode for text drawing */
-    InvalRgn(RSuRgn);
-
-  /* validate the area containing the newly-inserted blank lines. */
-  /* any necessary redrawing in newly-revealed area will be done by caller */
 	MYSETRECT
 	  (
 		rect,
-		0,
-		(b - n + 1) * RScurrent->fheight - 1,
+		-3,			/* scroll 3 pixels more on the left */
+		t * RScurrent->fheight,
 		RScurrent->width,
-		RSfheightTimesbplus1 + 1
+		(b + 1) * RScurrent->fheight
 	  );
-  	ValidRect(&rect);
+
+	ScrollRectInRgn(RScurrent->window, &rect, 0, -RScurrent->fheight * n);
+
+    RSsetattr(VSIw->attrib); /* restore mode for text drawing */
   } /* RSdellines */
 
 void RSerase
@@ -762,16 +763,16 @@ void RSerase
 		return;
     RSsetwind(w);
     RSsetattr(0); /* avoid funny pen modes */
-    SetRect
+
+    MYSETRECT
 	  (
-		&rect,
+		rect,
 		x1 * RScurrent->fwidth ,
 		y1 * RScurrent->fheight,
 		(x2 + 1) * RScurrent->fwidth - 1,
-/* NONO removed bottom line from erase */
-		(y2 + 1) * RScurrent->fheight /*+ 1*/
-/* NONO */
+		(y2 + 1) * RScurrent->fheight
 	  );
+
 	if (rect.left <= 0)						/* little buffer strip on left */
 		rect.left = CHO;
 	if (rect.right >= RScurrent->width - 1)
@@ -782,9 +783,9 @@ void RSerase
 	if (RScurrent->selected)
 	  /* highlight any part of the selection within the cleared area */
 		RSinvText(w, *(Point *) &RScurrent->anchor, *(Point *) &RScurrent->last, &rect);
-/* NONO */
+
     RSsetattr(VSIw->attrib); /* restore mode for text drawing */
-/* NONO */
+
   } /* RSerase */
 
 void RSinslines
@@ -812,25 +813,19 @@ void RSinslines
 			*(Point *) &RScurrent->last, &noConst);
 		RScurrent->selected = 0;
 	  } /* if */
-/* NONO: scroll 2 pixels more on the left */
-	/*rect.left = -1;*/						/* BYU 2.4.12 - necessary */
-	rect.left = -3;
-/* NONO */
-    rect.right = RScurrent->width;
-    rect.top = t * RScurrent->fheight;
-    rect.bottom = (b + 1) * RScurrent->fheight;
-  /* adjust the update region to track the scrolled window contents */
-	OffsetRgn(((WindowPeek) RScurrent->window)->updateRgn,
-		0, RScurrent->fheight * n);
-    ScrollRect(&rect, 0, RScurrent->fheight * n, RSuRgn);
-    InvalRgn(RSuRgn);
-  /* newly-inserted area is already blank -- validate it to avoid redrawing. */
-  /* any necessary redrawing will be done by caller */
-	SetRect(&rect, 0, t * RScurrent->fheight /*- 1*/,
-		RScurrent->width, (t + n) * RScurrent->fheight + 1);
-    ValidRect(&rect);
+
+    MYSETRECT
+	  (
+		rect,
+		-3, /* scroll 3 pixels more on the left */
+		t * RScurrent->fheight,
+		RScurrent->width,
+		(b + 1) * RScurrent->fheight
+	  );
+
+	ScrollRectInRgn(RScurrent->window, &rect, 0, RScurrent->fheight * n);
+
     RSsetattr(VSIw->attrib); /* restore mode for text drawing */
-/* NONO */
   } /* RSinslines */
 
 void RSinscols
@@ -848,28 +843,22 @@ void RSinscols
 	if (RSlocal[w].skip)
 		return;
     RSsetwind(w);
-    SetRect /* bounds of entire text area */
+    MYSETRECT /* bounds of entire text area */
 	  (
-		&rect,
+		rect,
 		0,
 		0,
 		RScurrent->width,
 		RScurrent->height
 	  );
-    ScrollRect(&rect, n * RScurrent->fwidth, 0, RSuRgn);
-    InvalRgn(RSuRgn);
-    ValidRect(&rect); /* any necessary redrawing in newly-revealed area will be done by caller */
-    SetRect /* bounds of newly-inserted blank area */
-	  (
-		&rect,
-		0,
-		0,
-		(n + 1) * RScurrent->fwidth - 1,
-		RScurrent->height
-	  );
-	if (RScurrent->selected)
-	  /* highlight any part of the selection in the newly-blanked area */
+
+	ScrollRectInRgn(RScurrent->window, &rect, n * RScurrent->fwidth, 0);
+
+	if (RScurrent->selected) {
+		/* highlight any part of the selection in the newly-blanked area */
+	    rect.right = (n + 1) * RScurrent->fwidth - 1;
 		RSinvText(w, *(Point *) &RScurrent->anchor, *(Point *) &RScurrent->last, &rect);
+    }
   } /* RSinscols */
 
 void RSinsstring
@@ -884,45 +873,39 @@ void RSinsstring
   /* inserts a string of characters at the specified position, scrolling
 	the rest of the line to the right. Highlights any part of the newly-
 	inserted text lying within the current selection. */
-  {
+{
     Rect rect;
 
 	if (RSlocal[w].skip)
 		return;
     RSsetwind(w);
-    SetRect /* bounds of part of line from specified position to end of line */
+    MYSETRECT /* bounds of part of line from specified position to end of line */
 	  (
-		&rect,
+		rect,
 		x * RScurrent->fwidth,
 		y * RScurrent->fheight,
 		RScurrent->width,
 		(y + 1) * RScurrent->fheight
 	  );
-    ScrollRect(&rect, len * RScurrent->fwidth, 0, RSuRgn); /* scroll remainder of line to the right */
-    if (RSa != a)
-		RSsetattr(a);
-    InvalRgn(RSuRgn);
-    ValidRect(&rect); /* any necessary redrawing in newly-revealed area will be done by caller */
-    SetRect /* bounds area to contain inserted string */
-	  (
-		&rect,
-		x * RScurrent->fwidth,
-		y * RScurrent->fheight,
-		(x + len) * RScurrent->fwidth,
-		(y + 1) * RScurrent->fheight
-	  );
+
+    /* scroll remainder of line to the right */
+	ScrollRectInRgn(RScurrent->window, &rect, len * RScurrent->fwidth, 0);
+
+	/* bounds area to contain inserted string */
+	rect.right = (x + len) * RScurrent->fwidth;
     EraseRect(&rect); /* erase area to appropriate background */
     MoveTo
 	  (
-		x * RScurrent->fwidth,
-		y * RScurrent->fheight + RScurrent->fascent
+		rect.left,
+		rect.top + RScurrent->fascent
 	  );
+	RSsetattr(a);
     DrawText(ptr, 0, len);
 	if (RScurrent->selected)
-	  /* highlight any part of selection covering the newly-inserted text */
+		/* highlight any part of selection covering the newly-inserted text */
 		RSinvText(w, *(Point *) &RScurrent->anchor,
 			*(Point *) &RScurrent->last, &rect);
-  } /* RSinsstring */
+} /* RSinsstring */
 
 
 void RSmargininfo
@@ -1074,13 +1057,13 @@ Point normalize(Point in, short w, Boolean autoScroll)
 		if (autoScroll)
 			VSscrolright(w, 1);
 	  } /* if */
-  /* in.h = (in.h + Fwidthhalf) / FWidth - 1; */
-  /* the MPW C 3.0 compiler has a bug in its register allocation */
-  /* which keeps the above line from working. So, replace it with this: */
+  	/* in.h = (in.h + Fwidthhalf) / FWidth - 1; */
+	/* the MPW C 3.0 compiler has a bug in its register allocation */
+	/* which keeps the above line from working. So, replace it with this: */
 	in.h = in.h + Fwidthhalf;
 	in.h = in.h / FWidth - 1;
-  /* note the bug has been fixed in the 3.1 compiler. */
-  /* convert to virtual screen coordinates */
+	/* note the bug has been fixed in the 3.1 compiler. */
+	/* convert to virtual screen coordinates */
 	in.v += RSlocal[w].topline;
 	in.h += RSlocal[w].leftmarg;
 	return(in);
@@ -1114,10 +1097,10 @@ void	RSsetsize( short w, short v, short h, short screenIndex)
 	RSlocal[w].rheight = v - 16;
 	RSlocal[w].rwidth = h - 16;
 
-/*
-*  Get rid of the scroll bars which were in the old size.
-*  Hiding them causes the region to be updated later.
-*/
+	/*
+	*  Get rid of the scroll bars which were in the old size.
+	*  Hiding them causes the region to be updated later.
+	*/
 	if (RSlocal[w].scroll != NULL )
 		HideControl(RSlocal[w].scroll);
 	if (RSlocal[w].left != NULL ) 
@@ -1125,8 +1108,7 @@ void	RSsetsize( short w, short v, short h, short screenIndex)
 
 	 DrawGrowIcon(RSlocal[w].window);			/* Draw in the necessary bugger */
 
-/*	move the scroll bars to their new positions and sizes, and redisplay them */	
-
+	/*	move the scroll bars to their new positions and sizes, and redisplay them */
 	SetControlValue(RSlocal[w].scroll, RSlocal[w].current); //because we dont always have this
 	if (RSlocal[w].scroll != NULL ) {
 		SizeControl(RSlocal[w].scroll, 16, (v - 13));
@@ -1147,8 +1129,7 @@ void	RSsetsize( short w, short v, short h, short screenIndex)
 		ShowControl(RSlocal[w].left);
 	}
 
-/* draw the locker once the scrollbars has moved */
-
+	/* draw the locker once the scrollbars has moved */
 	RSdrawlocker(w, RSlocal[w].window->visRgn);
 
 	SetRect(&RSlocal[w].textrect, 0, 0, RSlocal[w].rwidth, RSlocal[w].rheight);
@@ -1179,11 +1160,10 @@ void RSbackground(short w, short value)
 			SetEntryColor(RSlocal[w].pal,0,&temp2);
 			SetEntryColor(RSlocal[w].pal,1,&temp1);
 		}
-		SetPort(RSlocal[w].window);
 		InvalRect(&RSlocal[w].window->portRect);
-		
 	}
 }
+
 void RScheckmaxwind(Rect *origRect,short origW, 
 			short origH, short *endW, short *endH)
 {

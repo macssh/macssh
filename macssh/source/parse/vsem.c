@@ -455,17 +455,14 @@ void VSem
 			} //we've got a line full of text in the virtual screen
 		  	//now update the screen to show what we've done
 		  	extra += VSIw->x - sx;
-			if (insert)
+			if (insert) {
 				RSinsstring(VSIwn, VSIw->x - extra, VSIw->y,VSIw->attrib, extra, start);
-			else
-			{ 
+			} else { 
 				short x2,y2,offset, sxCopy=sx,yCopy = VSIw->y, extraCopy = extra;
 				
 				if (!VSIclip(&sxCopy, &yCopy, &x2, &y2, &extraCopy, &offset))
 					RSdraw(VSIwn, sxCopy,yCopy, VSIw->attrib,extraCopy,(char *) (start + offset));
 			}
-			//if (RSisInFront(VSIwn)) //CCP if we are front window, validate the screen
-			//	RSvalidateRect(VSIwn);
 			VScapture((unsigned char *) start, extra);
 		  } /* while */
 

@@ -1186,9 +1186,6 @@ void VSIscroll
 
 	  } /* if */
 
-	//	if (RSisInFront(VSIwn))
-	//		RSvalidateRect(VSIwn);
-
   } /* VSIscroll */
   
 void VSOscroll
@@ -1322,8 +1319,6 @@ void VSOscroll
 		}
 
 	  } /* if */
-	//	if (RSisInFront(VSIwn))
-	//		RSvalidateRect(VSIwn);
 
 } /* VSOscroll */
 
