@@ -1890,6 +1890,11 @@ void HandleMenuCommand( long mResult, short modifiers)
 			
 			RSchangefont( screens[scrn].vs, itemFontNum, 0);
 			screens[scrn].cachedFontNum = theItem;
+
+			/* use the same font for bold */
+			RSchangeboldfont( screens[scrn].vs, itemFontNum);
+			screens[scrn].cachedBoldFontNum = theItem;
+
 			CheckFonts();
 			}
 		break;
