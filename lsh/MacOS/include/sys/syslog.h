@@ -43,6 +43,9 @@
 #include <stdarg.h>
 */
 
+#ifndef __const
+#define __const const
+#endif
 
 #define	_PATH_LOG	"/dev/log"
 
