@@ -147,7 +147,7 @@ typedef	struct {
 		authenticate,			// Kerberos authentication
 		encrypt,				// Encrypted session
 		localecho,				// Force local echo on?
-		reserved1;				// Reserved by JMB - NCSA
+		forward;				// Reserved by JMB - NCSA
 	
 	short
 		NetBlockSize,			// Size of read buffer (2.7 CCP)

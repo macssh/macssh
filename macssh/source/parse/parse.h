@@ -60,7 +60,13 @@
 #define	N_XDISPLOC			35
 #define N_AUTHENTICATION	37			/* Authentication */
 #define N_ENCRYPT			38			/* Encryption */
+#define N_NEW_ENVIRON		39
 
+/* values for NEW ENVIRON */
+#define NEW_ENV_VAR    0
+#define NEW_ENV_VALUE  1
+#define ENV_ESC        2
+#define ENV_USERVAR    3
 
 /* Values for LINEMODE MODE */
 #define L_EDIT    	1

@@ -49,7 +49,9 @@
 #define NCencrypt		9
 #define NCfavoritename	10
 #define NCssh2			11
-#define NCtermpopup		12
+//#define NCtermpopup		12
+#define NCforward		12
+#define NCusername		13
 
 #define TermPopupMenu	1004	
 #define SessPopupMenu	1005	

@@ -102,7 +102,9 @@ enum {
 	TNFUNC_ENCRYPT_SB,					/* process encryption sub-options */
 	TNFUNC_DECRYPT,						/* decrypt data */
 	TNFUNC_ENCRYPT,						/* encrypt data */
-	TNFUNC_END_SESSION					/* cleanup session data */
+	TNFUNC_END_SESSION,					/* cleanup session data */
+	TNFUNC_DESTROY_CREDS,				/* destroy credentials */
+	TNFUNC_DECRYPT2						/* more efficient decrypt data */
 };
 
 
@@ -141,11 +143,16 @@ typedef struct tnParams_ {
 	Boolean encrypting;					/* we are encrypting */
 	Boolean startencrypting;			/* time to start encrypting */
 	Boolean decrypting;					/* we are decrypting */
+	char forward;					/* forward credentials, -1 = don't forward */
 	long data;							/* for encrypt/decrypt */
 	unsigned char *ebuf;				/* encrypt buf */
 
 	unsigned char	ipaddr[4];			/* for authentication forwarding in kerberos5 */
 	unsigned short	port;				/* for authentication forwarding in kerberos5 */
+
+	char *username;					/* alternate username */
+	unsigned char padding[8];			/* for the future... */
+	OSType encrType;				/* internal only: type from code struct */
 } tnParams;
 
 #if PRAGMA_ALIGN_SUPPORTED

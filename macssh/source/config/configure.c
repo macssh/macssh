@@ -1751,6 +1751,7 @@ void ShowSessPanel(DialogPtr dptr, short panel)
 		case 4:
 		ShowDialogItemRange(dptr, 15, 16);
 		ShowDialogItemRange(dptr, 53, 61);
+		ShowDialogItem(dptr, 92);
 		break;
 
 		case 5:
@@ -1810,6 +1811,7 @@ void HideSessPanel(DialogPtr dptr, short panel)
 		case 4:
 		HideDialogItemRange(dptr, 15, 16);
 		HideDialogItemRange(dptr, 53, 61);
+		HideDialogItem(dptr, 92);
 		break;
 
 		case 5:
@@ -1906,6 +1908,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	SetCntrl(dptr, SessHalfDuplex, SessPrefsPtr->halfdup);
 	SetCntrl(dptr, SessAuthenticate, SessPrefsPtr->authenticate);
 	SetCntrl(dptr, SessEncrypt, SessPrefsPtr->encrypt);
+	SetCntrl(dptr, 92, SessPrefsPtr->forward);
 	SetCntrl(dptr, SessLocalEcho, SessPrefsPtr->localecho);
 	SetCntrl(dptr, 46, SessPrefsPtr->otpauto);
 	SetCntrl(dptr, 47, SessPrefsPtr->otpmulti);
@@ -1941,14 +1944,18 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	if (!authOK) {
 		Hilite( dptr, SessAuthenticate, 255);
 		Hilite( dptr, SessEncrypt, 255);
+		Hilite( dptr, 92, 255);
 	} else if (!encryptOK) {
 		Hilite( dptr, SessEncrypt, 255);
 	}
 	if (GetCntlVal(dptr, SessAuthenticate)) {
 		Hilite(dptr, SessEncrypt, (encryptOK)? 0 : 255);
+		Hilite(dptr, 92, 0);
 	} else {
 		Hilite(dptr, SessEncrypt, 255);
+		Hilite( dptr, 92, 255);
 		SetCntrl(dptr, SessEncrypt, false);
+		SetCntrl(dptr, 92, false);
 	}
 
 	configPassword[0] = 0;
@@ -2097,9 +2104,12 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 					FlipCheckBox(dptr, ditem);
 					if (GetCntlVal(dptr, SessAuthenticate)) {
 						Hilite(dptr, SessEncrypt, (encryptOK)? 0 : 255);
+						Hilite(dptr, 92, 0);
 					} else {
 						Hilite(dptr, SessEncrypt, 255);
+						Hilite(dptr, 92, 255);
 						SetCntrl(dptr, SessEncrypt, false);
+						SetCntrl(dptr, 92, false);
 					}
 					break;
 
@@ -2127,6 +2137,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 				case	78:
 				case	87:
 				case	91:
+				case	92:
 /* NONO */
 					FlipCheckBox(dptr, ditem);
 					break;
@@ -2380,6 +2391,7 @@ void SetSessionData(DialogPtr dptr, SessionPrefs *SessPrefsPtr,
 	SessPrefsPtr->halfdup = GetCntlVal(dptr, SessHalfDuplex);
 	SessPrefsPtr->authenticate = GetCntlVal(dptr, SessAuthenticate);
 	SessPrefsPtr->encrypt = GetCntlVal(dptr, SessEncrypt);
+	SessPrefsPtr->forward = GetCntlVal(dptr, 92);
 	SessPrefsPtr->localecho = GetCntlVal(dptr, SessLocalEcho);
 	SessPrefsPtr->otpauto = GetCntlVal(dptr, 46);
 	SessPrefsPtr->otpmulti = GetCntlVal(dptr, 47);

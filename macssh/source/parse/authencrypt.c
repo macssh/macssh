@@ -33,7 +33,14 @@ enum {
 	    | STACK_ROUTINE_PARAMETER(1, SIZE_CODE(sizeof(long)))
 		| STACK_ROUTINE_PARAMETER(2, SIZE_CODE(sizeof(Ptr)))
 };
-#endif
+
+#define PluginProc(userRoutine, code, pointer)		\
+			CallUniversalProc((UniversalProcPtr)(userRoutine), uppModule, code, pointer)
+#else /* powerc */
+
+#define PluginProc(userRoutine, code, pointer)		\
+		(*(userRoutine))(code, pointer)
+#endif /* powerc */
 
 #ifdef __MWERKS__
 #pragma profile off
@@ -90,13 +97,9 @@ void auth_encrypt_end(tnParams **aedata)
 	int i;
 	OSErr s;
 	tnParams *tn = *aedata;		
-	
-#ifdef powerc
-		s = CallUniversalProc((UniversalProcPtr)tn->entry, uppModule, 
-								  TNFUNC_END_SESSION, tn);
-#else
-		s = (tn->entry)(TNFUNC_END_SESSION, tn);
-#endif
+
+	if (tn->entry)
+		s = PluginProc(tn->entry, TNFUNC_END_SESSION, tn);
 }
 
 static	void	scanFolder(short vRef, long dirID)
@@ -161,15 +164,10 @@ void loadCode (HParamBlockRec *pb, long dirid, Str255 name, OSType type, codemod
 			 * It should preset the type/pairs list and return the number of
 			 * pairs entered.
 			 */
-#ifdef powerc
-			code->npairs = CallUniversalProc((UniversalProcPtr)code->entry, uppModule, 
-											 TNFUNC_INIT_CODE, &code->pairs);
-			code->encryptok = CallUniversalProc((UniversalProcPtr)code->entry, uppModule, 
-												TNFUNC_QUERY_ENCRYPT, 0);
-#else
-			code->npairs = (*code->entry)(TNFUNC_INIT_CODE, &code->pairs);
-			code->encryptok = (*code->entry)(TNFUNC_QUERY_ENCRYPT, 0);
-#endif
+
+			code->npairs = PluginProc(code->entry, TNFUNC_INIT_CODE, &code->pairs);
+			code->encryptok = PluginProc(code->entry, TNFUNC_QUERY_ENCRYPT, 0);
+
 			qlink((void **)header, code);
 		} else
 			ReleaseResource(h);
@@ -187,7 +185,7 @@ void loadCode (HParamBlockRec *pb, long dirid, Str255 name, OSType type, codemod
  */
 void auth_suboption (tnParams **aedata, unsigned char *subbuffer, long sublength,
 	unsigned char *sendbuffer, unsigned long *sendlength, char *cname, Boolean hisencrypt,
-	Boolean myencrypt, unsigned short port)
+	Boolean myencrypt, unsigned short port, Boolean forward, char *username)
 {
 	int i;
 	OSErr s;
@@ -252,34 +250,23 @@ void auth_suboption (tnParams **aedata, unsigned char *subbuffer, long sublength
 		 * If no auth data, initialize it now.
 		 */
 		if (!(tn->authdata)) {
-			netgetip(tn->ipaddr);
-			tn->port = netgetport(port);
 			switch (code->authType) {
 			case 'TNae':
-#ifdef powerc
-				s = CallUniversalProc((UniversalProcPtr)code->entry, uppModule, 
-									  TNFUNC_INIT_SESSION_AUTH, &tn->authdata);
-				if ((s == 0) && !tn->encryptdata)
-					s = CallUniversalProc((UniversalProcPtr)code->entry, uppModule, 
-										  TNFUNC_INIT_SESSION_ENCRYPT, &tn->encryptdata);
-#else
-				s = (*code->entry)(TNFUNC_INIT_SESSION_AUTH, &tn->authdata);
-				if ((s == 0) && !tn->encryptdata)
-					s = (*code->entry)(TNFUNC_INIT_SESSION_ENCRYPT, &tn->encryptdata);
-#endif
-			break;
+				s = PluginProc(code->entry, TNFUNC_INIT_SESSION_AUTH, &tn->authdata);
+				if ((s == 0) && !tn->encryptdata) {
+					s = PluginProc(code->entry, TNFUNC_INIT_SESSION_ENCRYPT, &tn->encryptdata);
+					tn->encrType = code->authType;
+				}
+				break;
 			default:
-#ifdef powerc
-				s = CallUniversalProc((UniversalProcPtr)code->entry, uppModule, 
-								  TNFUNC_INIT_SESSION_AUTH, tn);
-				if ((s == 0) && !tn->encryptdata)
-					s = CallUniversalProc((UniversalProcPtr)code->entry, uppModule, 
-									  TNFUNC_INIT_SESSION_ENCRYPT, tn);
-#else
-				s = (*code->entry)(TNFUNC_INIT_SESSION_AUTH, tn);
-				if ((s == 0) && !tn->encryptdata)
-					s = (*code->entry)(TNFUNC_INIT_SESSION_ENCRYPT, tn);
-#endif
+				netgetip(tn->ipaddr);
+				tn->port = netgetport(port);
+				tn->username = username;
+				s = PluginProc(code->entry, TNFUNC_INIT_SESSION_AUTH, tn);
+				if ((s == 0) && !tn->encryptdata) {
+					s = PluginProc(code->entry, TNFUNC_INIT_SESSION_ENCRYPT, tn);
+					tn->encrType = code->authType;
+				}
 			}
 
 			if (s) {					/* if no memory, etc */
@@ -300,12 +287,7 @@ void auth_suboption (tnParams **aedata, unsigned char *subbuffer, long sublength
 		tn->cname = cname;
 		tn->hisencrypt = hisencrypt;
 		tn->myencrypt = myencrypt;
-#ifdef powerc
-		s = CallUniversalProc((UniversalProcPtr)tn->entry, uppModule, 
-							  TNFUNC_AUTH_SEND, tn);		
-#else
-		s = (*tn->entry)(TNFUNC_AUTH_SEND, tn);
-#endif
+		s = PluginProc(tn->entry, TNFUNC_AUTH_SEND, tn);		
 		if (s) {
 			/* ddd null probably wrong here ??? */
 			BlockMoveData((Ptr)nullbuf, (Ptr)sendbuffer, sizeof(nullbuf));
@@ -326,14 +308,10 @@ void auth_suboption (tnParams **aedata, unsigned char *subbuffer, long sublength
 		tn->sendbuffer = sendbuffer;
 		tn->sendlength = sendlength;
 		tn->cname = cname;
+		tn->forward = forward ? 1 : -1;
 		tn->hisencrypt = hisencrypt;
 		tn->myencrypt = myencrypt;
-#ifdef powerc
-		s = CallUniversalProc((UniversalProcPtr)tn->entry, uppModule, 
-							  TNFUNC_AUTH_REPLY, tn);
-#else
-		s = (*tn->entry)(TNFUNC_AUTH_REPLY, tn);
-#endif
+		s = PluginProc(tn->entry, TNFUNC_AUTH_REPLY, tn);
 		switch (s) {
 		case TNREP_OK:
 			return;
@@ -379,34 +357,25 @@ short encrypt_suboption (tnParams **aedata, unsigned char *subbuffer, long suble
 				break;
 		}
 		if (!code) {
-			DisposePtr(*aedata);
-			*aedata = NULL;
+			//DisposePtr(*aedata);
+			//*aedata = NULL;
 			return 0;
 		}
 
 		switch (code->authType)
 		{
 		case 'TNae':
-#ifdef powerc
-			s = CallUniversalProc((UniversalProcPtr)code->entry, uppModule, 
-								  TNFUNC_INIT_SESSION_ENCRYPT, &tn->encryptdata);
-#else
-			s = (*code->entry)(TNFUNC_INIT_SESSION_ENCRYPT, &tn->encryptdata);
-#endif
-		break;
+			s = PluginProc(code->entry, TNFUNC_INIT_SESSION_ENCRYPT, &tn->encryptdata);
+			break;
 		default:
-#ifdef powerc
-			s = CallUniversalProc((UniversalProcPtr)code->entry, uppModule, 
-								  TNFUNC_INIT_SESSION_ENCRYPT, tn);
-#else
-			s = (*code->entry)(TNFUNC_INIT_SESSION_ENCRYPT, tn);
-#endif
+			s = PluginProc(code->entry, TNFUNC_INIT_SESSION_ENCRYPT, tn);
 		}
 
 		if (s)
 			return TNREP_ERROR;
 
 		tn->entry = code->entry;
+		tn->encrType = code->authType;
 	}
 
 	tn->subbuffer = subbuffer;
@@ -416,26 +385,30 @@ short encrypt_suboption (tnParams **aedata, unsigned char *subbuffer, long suble
 	tn->cname = cname;
 	tn->hisencrypt = hisencrypt;
 	tn->myencrypt = myencrypt;
-#ifdef powerc
-	s = CallUniversalProc((UniversalProcPtr)tn->entry, uppModule, 
-						  TNFUNC_ENCRYPT_SB, tn);
-#else
-	s = (*tn->entry)(TNFUNC_ENCRYPT_SB, tn);
-#endif
+	s = PluginProc(tn->entry, TNFUNC_ENCRYPT_SB, tn);
 	return s;
 }
 
 
-unsigned char decrypt (tnParams *tn, long value)
+void decrypt (tnParams *tn, unsigned char *buf, long len)
 {
-	tn->data = value;
-#ifdef powerc
-	CallUniversalProc((UniversalProcPtr)tn->entry, uppModule, 
-						  TNFUNC_DECRYPT, tn);
-#else
-	(*tn->entry)(TNFUNC_DECRYPT, tn);
-#endif
-	return (unsigned char)tn->data;
+	short s;
+	
+	tn->data = len;
+	tn->ebuf = buf;
+	if (tn->encrType == 'TNae')
+		s = TNREP_ERROR;
+	else
+	s = PluginProc(tn->entry, TNFUNC_DECRYPT2, tn);
+	if (s == TNREP_ERROR)		// plugin must not support TNFUNC_DECRYPT2
+	{
+		while (len-- > 0) {
+ 			tn->data = (long)*buf;
+ 			PluginProc(tn->entry, TNFUNC_DECRYPT, tn);
+ 			*buf = (unsigned char)tn->data;
+			buf++;
+		}
+	}
 }
 
 
@@ -443,12 +416,7 @@ void encrypt (tnParams *tn, unsigned char *buf, long len)
 {
 	tn->data = len;
 	tn->ebuf = buf;
-#ifdef powerc
-	CallUniversalProc((UniversalProcPtr)tn->entry, uppModule, 
-						  TNFUNC_ENCRYPT, tn);
-#else
-	(*tn->entry)(TNFUNC_ENCRYPT, tn);
-#endif
+	PluginProc(tn->entry, TNFUNC_ENCRYPT, tn);
 }
 
 
@@ -528,18 +496,30 @@ short hicall (long cscode, krbHiParmBlock *khipb, short kdriver)
 
 void	DestroyTickets(void)
 {
+	struct codemodule *code = NULL;
 	OSErr			err;
 	//short authRefNumkrb;
 	krbHiParmBlock khpb, *khipb = &khpb;
 	short kdriver;
 
-	if (!(err = OpenDriver("\p.Kerberos", &kdriver)))
+	for (code = authmodules; code; code = code->next)
 	{
-		WriteZero((Ptr)khipb, sizeof(krbHiParmBlock));
-		if (err = hicall(cKrbDeleteAllSessions, khipb, kdriver))
-			return;
+		switch(code->authType)
+		{
+			case 'TNae':
+			
+				if (!(err = OpenDriver("\p.Kerberos", &kdriver)))
+				{
+					WriteZero((Ptr)khipb, sizeof(krbHiParmBlock));
+					if (err = hicall(cKrbDeleteAllSessions, khipb, kdriver))
+					return;
+				}
+				//else if (!(err=openAuthMan(&authRefNum,&authAPIversion)))
+				//	if (err=expireV4Ticket(authRefNum,NULL,NULL,NULL))
+				//		return;
+				break;
+			default:
+				PluginProc(code->entry, TNFUNC_DESTROY_CREDS, 0);
+		}
 	}
-	//else if (!(err=openAuthMan(&authRefNum,&authAPIversion)))
-	//	if (err=expireV4Ticket(authRefNum,NULL,NULL,NULL))
-	//		return;
 }

@@ -142,6 +142,10 @@ pascal short POCdlogfilter( DialogPtr dptr, EventRecord *evt, short *item)
 				*item = NCssh2;
 				return -1;
 			}
+			if ( key == 'F' || key == 'f' ) {
+				*item = NCforward;
+				return -1;
+			}
 		}
 	}
 	if ((evt->what == keyDown) || (evt->what == autoKey)) {
@@ -223,6 +227,7 @@ static void SetCurrentSession(DialogPtr dptr, Str255 scratchPstring)
 		SelectDialogItemText(dptr, NChostname, 0, 32767);
 		SetCntrl(dptr, NCauthenticate, (**tempSessHdl).authenticate);//update the auth status
 		SetCntrl(dptr, NCencrypt, (**tempSessHdl).encrypt);
+		SetCntrl(dptr, NCforward, (**tempSessHdl).forward);
 		SetCntrl(dptr, NCssh2, (**tempSessHdl).protocol == 4);
 		setSessStates(dptr);//encrypt cant be on w/o authenticate
 		ReleaseResource((Handle)tempSessHdl);
@@ -316,6 +321,7 @@ Boolean PresentOpenConnectionDialog(void)
 	if (!authOK) {
 		Hilite( dptr, NCauthenticate, 255);
 		Hilite( dptr, NCencrypt, 255);
+		Hilite( dptr, NCforward, 255);
 	} else if (!encryptOK) {
 		Hilite( dptr, NCencrypt, 255);
 	}
@@ -344,6 +350,7 @@ Boolean PresentOpenConnectionDialog(void)
 		{
 			case	NCauthenticate:
 			case	NCencrypt:
+			case	NCforward:
 				GetDialogItem(dptr, ditem, &scratchshort, &ItemHandle, &scratchRect);
 				if ((**(ControlHandle)ItemHandle).contrlHilite == 0) {	// if control not disabled
 					FlipCheckBox(dptr, ditem);
@@ -509,6 +516,7 @@ Boolean PresentOpenConnectionDialog(void)
 
   	(**(**InitParams).session).authenticate = GetCntlVal(dptr, NCauthenticate);
   	(**(**InitParams).session).encrypt = GetCntlVal(dptr, NCencrypt);
+  	(**(**InitParams).session).forward = GetCntlVal(dptr, NCforward);
 
  	if ( GetCntlVal(dptr, NCssh2) ) {
 		if ((**(**InitParams).session).protocol != 4) {
@@ -559,9 +567,12 @@ static	void setSessStates (DialogPtr dptr)
 {		
 	if (GetCntlVal(dptr, NCauthenticate)) {
 		Hilite(dptr, NCencrypt, (encryptOK)? 0 : 255);
+		Hilite(dptr, NCforward, 0);
 	} else {
 		Hilite(dptr, NCencrypt, 255);
 		SetCntrl(dptr, NCencrypt, false);
+		Hilite(dptr, NCforward, 255);
+		SetCntrl(dptr, NCforward, false);
 	}
 }
 
@@ -721,6 +732,7 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 
   	theScreen->authenticate = SessPtr->authenticate;
   	theScreen->encrypt = SessPtr->encrypt;
+  	theScreen->forward = SessPtr->forward;
  
     theScreen->aedata = NULL;
  	

@@ -63,6 +63,10 @@ static	void	telnet_do(struct WindRec *tw, short option);
 static	void	telnet_dont(struct WindRec *tw, short option);
 static	void	telnet_will(struct WindRec *tw, short option);
 static	void	telnet_wont(struct WindRec *tw, short option);
+static void		env_opt_start(void);
+static void		env_opt_add(char *, char *);
+static void		env_opt_end(void);
+static int		opt_welldefined(char *);
 
 void	Parseunload(void) {}
 
@@ -575,9 +579,81 @@ void	SendNAWSinfo(WindRec *s, short horiz, short vert)
 }
 
 /*
- * Implementation specific Kerberos routines
+ * telnet environment passing routines
  */
 
+#define OPT_REPLY_SIZE  256
+unsigned char opt_reply[OPT_REPLY_SIZE];
+unsigned char *opt_replyp;
+
+void
+env_opt_start(void)
+{
+        opt_replyp = opt_reply;
+
+        *opt_replyp++ = IAC;
+        *opt_replyp++ = SB;
+        *opt_replyp++ = N_NEW_ENVIRON;
+        *opt_replyp++ = TNQ_IS;
+}
+
+void
+env_opt_add(char *ep, char *vp)
+{
+        unsigned char c;
+
+        if (opt_welldefined(ep))
+                *opt_replyp++ = NEW_ENV_VAR;
+        else
+                *opt_replyp++ = ENV_USERVAR;
+
+        for (;;) {
+                while (c = *ep++) {
+                        switch(c&0xff) {
+                        case IAC:
+                                *opt_replyp++ = IAC;
+                                break;
+                        case NEW_ENV_VAR:
+                        case NEW_ENV_VALUE:
+                        case ENV_ESC:
+                        case ENV_USERVAR:
+                                *opt_replyp++ = ENV_ESC;
+                                break;
+                        }
+                        *opt_replyp++ = c;
+                }
+
+                if (ep = vp) {
+                        *opt_replyp++ = NEW_ENV_VALUE;
+                        vp = NULL;
+                } else
+                        break;
+        }
+}
+
+int
+opt_welldefined(char *ep)
+{
+        if ((strcmp(ep, "USER") == 0) ||
+            (strcmp(ep, "DISPLAY") == 0) ||
+            (strcmp(ep, "PRINTER") == 0) ||
+            (strcmp(ep, "SYSTEMTYPE") == 0) ||
+            (strcmp(ep, "JOB") == 0) ||
+            (strcmp(ep, "ACCT") == 0))
+                return(1);
+        return(0);
+}
+
+void
+env_opt_end()
+{
+        *opt_replyp++ = IAC;
+        *opt_replyp++ = SE;
+}
+
+/*
+ * Implementation specific Kerberos routines
+ */
 
 /*
  * getcname
@@ -739,11 +815,7 @@ static	void	process_suboption(struct WindRec *tw, unsigned char *start, unsigned
 				 * If we turned on encryption, we must decrypt the rest of the buffer.
 				 */
 				if (s == TNREP_START_DECRYPT) {
-					unsigned char *cp = start;
-					while (cp < end) {
-						*cp = decrypt((tnParams *)tw->aedata, (long)(*cp));
-						cp++;
-					}
+					decrypt((tnParams *)tw->aedata, start, (long)(end-start));
 				}
 
 				if (sizeof(sendbuffer) - sendlength)
@@ -771,7 +843,7 @@ static	void	process_suboption(struct WindRec *tw, unsigned char *start, unsigned
 						   sendbuffer, &sendlength, getcname(tw), 
 						   tw->hisopts[OPT_ENCRYPT-MHOPTS_BASE], 
 						   tw->myopts[OPT_ENCRYPT-MHOPTS_BASE],
-						   tw->port);
+						   tw->port, tw->forward, tw->username);
 			if (sizeof(sendbuffer) - sendlength) {
 				netwrite(tw->port, sendbuffer, sizeof(sendbuffer)-sendlength);
 				}
@@ -827,6 +899,41 @@ static	void	process_suboption(struct WindRec *tw, unsigned char *start, unsigned
 				default:
 				break;	
 			}
+ 			break;
+         /*------------------------------------------------------------------------------*
+         *       SUBNegotiate Environment:  pass username as USER
+         *
+         *------------------------------------------------------------------------------*/
+                 case N_NEW_ENVIRON:
+                         switch (tw->parsedat[1])
+                         {
+                                 case TNQ_SEND:
+#ifdef OPTS_DEBUG
+                                         sprintf(munger, "RECV: SB NEW_ENVIRON SEND");
+                                         opts_debug_print(munger);
+#endif
+                                         env_opt_start();
+ 
+ 										p2cstr((unsigned char *)tw->username);
+ 										env_opt_add("USER", tw->username);
+ 										c2pstr(tw->username);
+ 
+                                         env_opt_end();
+ 
+                                         netwrite(tw->port, opt_reply, opt_replyp - opt_reply);
+                                         netpush(tw->port);
+#ifdef OPTS_DEBUG
+                                         sprintf(munger, "SENT: SB NEW_ENVIRON IS USER <value>");
+                                         opts_debug_print(munger);
+#endif
+                                         break;
+                                 default:
+#ifdef OPTS_DEBUG
+                                         sprintf(munger, "RECV: SB NEW_ENVIRON unsupported suboption");
+                                         opts_debug_print(munger);
+#endif
+                         }
+                         break;
 		
 		default: //dont know this subnegotiation!!
 			break;
@@ -897,6 +1004,13 @@ static	void	telnet_do(struct WindRec *tw, short option)
 			}
 			break;
 		
+ 		case N_NEW_ENVIRON:
+ 			if (tw->username[0])
+ 				send_will(tw->port, N_NEW_ENVIRON);
+ 			else
+ 				send_wont(tw->port, option);
+ 			break;
+ 
 		case N_REMOTEFLOW:
 			if (!tw->remote_flow)
 			{

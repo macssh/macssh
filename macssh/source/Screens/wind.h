@@ -233,7 +233,8 @@ char
 
 Boolean
 	authenticate,	// true if authenticating connection wanted
-	encrypt;		// true if encrypting connection wanted
+	encrypt,		// true if encrypting connection wanted
+	forward;                // true if fowarding wanted
 
 NewMacroInfo sessmacros;
 

@@ -478,15 +478,8 @@ short	netread(short pnum, void *buffer, short n)
 	}
 
  	/* Decrypt data */
-	if (p->aedata && ((tnParams *)p->aedata)->decrypting) {
- 		unsigned char *cp = (unsigned char *)buffer;
- 		short len = reqdamt;
- 		
- 		while (len-- > 0) {
-			*cp = decrypt((tnParams *)p->aedata, (long)(*cp));
-			cp++;
-		}
-	}
+	if (p->aedata && ((tnParams *)p->aedata)->decrypting)
+		decrypt((tnParams *)p->aedata, buffer, (long)reqdamt);
  
 	MyPBreturn(pbp);
 	return(reqdamt);
