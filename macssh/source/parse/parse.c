@@ -662,11 +662,11 @@ void	telnet_send_initial_options(WindRec *tw)
 		return;
 	}
 
-	if (tw->authenticate) {
+	if (tw->authenticate && authOK) {
 		send_will(tw->port, OPT_AUTHENTICATION);
 		(tw->myopts)[OPT_AUTHENTICATION-MHOPTS_BASE] = 1;
 
-		if (tw->encrypt) {
+		if (tw->encrypt && encryptOK) {
 			send_will(tw->port, OPT_ENCRYPT);		/* will encrypt */
 			(tw->myopts)[OPT_ENCRYPT-MHOPTS_BASE] = 1;
 		}
@@ -976,11 +976,10 @@ static	void	telnet_will(struct WindRec *tw, short option)
         
 		case N_AUTHENTICATION:		/* will auth */
 			if (!tw->hisopts[OPT_AUTHENTICATION-MHOPTS_BASE]) {
-				if (tw->authenticate) {
+				if (tw->authenticate && authOK) {
 					(tw->hisopts)[OPT_AUTHENTICATION-MHOPTS_BASE] = 1;
 					send_do(tw->port, N_AUTHENTICATION);
-					}
-				else {
+				} else {
 					send_dont(tw->port, N_AUTHENTICATION);
 				}
 			}

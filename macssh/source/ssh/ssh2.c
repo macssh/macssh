@@ -842,13 +842,13 @@ char *getpass( const char *prompt )
 		strncat(cprompt, (char *)wind->sshdata.host + 1, wind->sshdata.host[0]);
 
 		index = context->_pindex;
-		if ( gApplicationPrefs->cachePassphrase
+		if ( gApplicationPrefs->cachePassphrase && !wind->sshdata.password[0]
 		  && getnextcachedpassphrase(cprompt, password, &context->_pindex) ) {
 			return password;
 		}
 		LockDialog();
 		context->_pindex = index;
-		if ( gApplicationPrefs->cachePassphrase
+		if ( gApplicationPrefs->cachePassphrase && !wind->sshdata.password[0]
 		  && getnextcachedpassphrase(cprompt, password, &context->_pindex) ) {
 			UnlockDialog();
 			return password;

@@ -192,10 +192,7 @@ typedef	struct {
 		sockshost[256];
 
 /* NONO */
-/* added fields below...
-	short
-		padding[100];			// Disk space is cheap.... (used to be [98])
-*/
+/* added fields below... */
 	short
 		authentication,
 		compression,
@@ -209,6 +206,13 @@ typedef	struct {
 		remoteport;
 	char
 		remotehost[180];
+
+	Boolean
+		launchurlesc,
+		unused1;
+
+	short
+		padding[100];			// Disk space is cheap.... (used to be [98])
 /* NONO */
 
 }	SessionPrefs;

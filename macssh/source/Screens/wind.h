@@ -263,7 +263,9 @@ unsigned char
 TECObjectRef
 	fromconverter,
 	toconverter;
-	
+
+Boolean
+	launchurlesc;	// true if we accept to process 'launchurl' escape sequences
 /* NONO */
 
 };

@@ -49,6 +49,7 @@
 #include "printing.proto.h"
 #include "event.proto.h"
 #include "menuseg.proto.h"
+#include "url.proto.h"
 
 #include "vsem.proto.h"
 
@@ -379,7 +380,8 @@ enum {
 	esc_G3,
 	esc_G0j,
 	esc_G2j,
-	esc_XTerm
+	esc_XTerm,
+	esc_url
 };
 
 
@@ -515,8 +517,8 @@ void VSem
 					}
 					break;
 			} 
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		}
 		if ( escflg == esc_root && ctr > 0
 		 && (*c & 0x80) && *c < 0xA0 && VSIw->vtemulation != 0 && VSIw->vteightbits ) {
@@ -541,8 +543,8 @@ void VSem
 					VSIapclear();			
 					escflg = esc_csi;			
 					escflags = 0;
-					c++;			//CCP			
-					ctr--;					
+					++c;			//CCP			
+					--ctr;					
 					break;						
 				case 0x86: /* ssa */			// - same as ESC 'F'
 				case 0x87: /* esa */			// - same as ESC 'G'
@@ -870,11 +872,17 @@ void VSem
 					// switch to charset
 					// FIXME
 					goto ShortCut;
+
+				case '&':	// URL processing
+					escflg = esc_url;
+					escflags = 0;
+					break;
+
 				default:
 					goto ShortCut;
 			} /* switch */
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		} /* while */
 
 		while ( escflg == esc_csi && ctr > 0 ) {
@@ -1115,7 +1123,7 @@ void VSem
 
 		        case 'i':											/* PR: media copy */
 					if (VSIw->parms[VSIw->parmptr]==5) {			/* PR */
-						/*c++; ctr--; */							/* PR */			
+						/*++c; --ctr; */							/* PR */			
 						VSprON();	/* PR - set status and open temp file etc */
 									/* PR - chars will be redirected at top of loop É */
 									/* PR - É in this procedure */
@@ -1303,8 +1311,8 @@ void VSem
 //					VSprintf( "unknown csi : 0x%x\n", *c );
 					goto ShortCut;
 			} /* switch */
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		} /* while */
 
 		while ( escflg == esc_decl && ctr > 0 ) {
@@ -1342,8 +1350,8 @@ void VSem
 				VSredrawLine(VSIwn);
 				goto ShortCut;
 			}
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		} /* while */
 
 		while ( escflg == esc_descl && ctr > 0 ) {
@@ -1374,8 +1382,8 @@ void VSem
 				default:
 					goto ShortCut;
 			} /* switch */
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		} /* while */
 
 		while ( escflg == esc_G0 && ctr > 0 ) {
@@ -1422,8 +1430,8 @@ void VSem
 				default:
 					goto ShortCut;
 			} /* switch */
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		} /* while */
 
 		while ( escflg == esc_G1 && ctr > 0 ) {
@@ -1451,8 +1459,8 @@ void VSem
 				default:
 					goto ShortCut;
 			} /* switch */
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		} /* while */
 
 		while ( escflg == esc_G2 && ctr > 0 ) {
@@ -1466,8 +1474,8 @@ void VSem
 					// FIXME...
 					goto ShortCut;
 			}
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		} /* while */
 
 		while ( escflg == esc_G3 && ctr > 0 ) {
@@ -1481,8 +1489,8 @@ void VSem
 					// FIXME...
 					goto ShortCut;
 			}
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		} /* while */
 
 		while ( escflg == esc_G0j && ctr > 0 ) {
@@ -1559,8 +1567,8 @@ void VSem
 				default:
 					goto ShortCut;
 			} /* switch */
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		} /* while */
 	
 		while ( escflg == esc_G2j && ctr > 0 ) {
@@ -1581,23 +1589,22 @@ void VSem
 				default:
 					goto ShortCut;
 			}
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		} /* while */
 
         // Handle XTerm rename functions, code contributed by Bill Rausch
         // Modified by JMB to handle ESC]2; case as well.
 		if ( escflg == esc_XTerm && ctr > 0 ) {
-			static Str255 newname;
 			if ( escflags == 0 ) {
 				if ( *c == '0' || *c == '2') {
 					escflags = 1;
-	            	c++;
-	            	ctr--;
+	            	++c;
+	            	--ctr;
 				} else if ( *c == 'P') { /* palette escape sequence */
 					escflags = 3;
-	            	c++;
-	            	ctr--;
+	            	++c;
+	            	--ctr;
 				} else if ( *c == 'R') { /* reset palette */
 					RSresetcolors( VSIwn );
 					goto ShortCut;
@@ -1606,20 +1613,20 @@ void VSem
 				}
 			}
 			if ( escflags == 1 && ctr > 0 && *c == ';' ) {
-				c++;
-				ctr--;
+				++c;
+				--ctr;
 				escflags = 2;
-				newname[0] = 0;
+				*VSIw->tempstr = 0;
 			}
 			while ( escflags == 2 && ctr > 0 && *c != 7 && *c != 033) {
-	        	if (*newname < 255) {
-	        		newname[++(*newname)] = *c;
+	        	if (*VSIw->tempstr < sizeof(VSIw->tempstr) - 1) {
+	        		VSIw->tempstr[++(*VSIw->tempstr)] = *c;
 	            }
-	            c++;
-	            ctr--;
+	            ++c;
+	            --ctr;
 			}
 	        if ( escflags == 2 && ctr > 0 && (*c == 7 || *c == 033) ) {
-	        	set_new_window_name( newname, RSgetwindow(VSIwn) );
+	        	set_new_window_name( VSIw->tempstr, RSgetwindow(VSIwn) );
 	           	if (*c != 07) {
 					/* This will be undone in the ShortCut below. */
 	            	c--;
@@ -1644,14 +1651,43 @@ void VSem
 			}
 		}
 
+		while ( escflg == esc_url && ctr > 0 ) {
+			if ( (escflags == 0 && *c == '&')
+			  || (escflags == 1 && *c == 'B')
+			  || (escflags == 2 && *c == 'u')
+			  || (escflags == 3 && *c == 'r')
+			  || (escflags == 4 && *c == 'l') ) {
+				++escflags;
+            	if ( escflags == 5 ) {
+					*VSIw->tempstr = 0;
+            	}
+			} else if ( escflags == 5 ) {
+				if ( *c == 0x0d || *c == 0x0a ) {
+					// completed. process url.
+					Boolean result = (tw && tw->launchurlesc) ? HandleURLString(VSIw->tempstr) : false;
+					RSsendstring( VSIwn, result ? "S" : "F", 1 );
+					escflg = 0;
+				} else if (*VSIw->tempstr < sizeof(VSIw->tempstr) - 1) {
+	        		VSIw->tempstr[++(*VSIw->tempstr)] = *c;
+	            } else {
+	            	// too big...
+            		goto ShortCut;
+	            }
+			} else {
+            	goto ShortCut;
+			}
+			++c;
+			--ctr;
+		}
+
 		if ( escflg > esc_csi && ctr > 0 ) {
 ShortCut:						/* BYU 2.4.12 - well, sacrificing style for speed */
 			if ( VSIw->possibleForce && *c != 'H' ) //CCP better forcesave
 				VSIw->possibleForce = FALSE;
 			escflg = 0;
 			escflags = 0;
-			c++;
-			ctr--;
+			++c;
+			--ctr;
 		}
 
 	} /* while (ctr > 0) */

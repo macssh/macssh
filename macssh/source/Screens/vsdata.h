@@ -125,6 +125,8 @@ struct VSscrn {
 	short trinx;           /* number of characters to draw at left of cursor */
 	short trintag;         /* true if waiting for a second multi-byte character */
 	unsigned char trinbuf[4];
+	Str255 tempstr;        /* buffer to keep partial new window name/url in vsem */
+
 };
 
 

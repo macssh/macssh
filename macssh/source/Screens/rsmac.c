@@ -50,7 +50,7 @@
  *  	RSupdate(wind)				- Handle updates on WIND, return 0 if not an RS
  *		RSactivate(w)				- Handle activate events 
  *		RSdeactivate(w)				- Handle deactivate events 
- *		RSGetTextSel(w,table)		- Returns handle to text selection of window w, table->tabs
+ *		RSGetTextSel(w,table,clipspaces) - Returns handle to text selection of window w, table->tabs
  *		RSnewwindow( wDims, sb, wid, lines
  *			name,wrap,fnum,fsiz,
  *			showit, goaway)			- Returns VS # of newly created text window -
