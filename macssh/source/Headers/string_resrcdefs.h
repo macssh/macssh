@@ -76,5 +76,7 @@
 #define CACHE_PASSPHRASE_FOR_TITLE	36
 #define PREFS_FOLDER_NAME		37
 #define PASSPHRASE_PROMPT		38
+#define SHOW_LOG				39
+#define HIDE_LOG				40
 
 #define	DNR_MESSAGES_ID			2004		// DNR error messages
