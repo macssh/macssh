@@ -70,8 +70,10 @@
 
 #define kInFront	(WindowPtr) -1
 
+#define NUM_MACROS		120
+
 typedef struct NewMacroInfo {
-	short index[110];
+	short index[NUM_MACROS];
 	char *macros, **handle;
 } NewMacroInfo;
 
