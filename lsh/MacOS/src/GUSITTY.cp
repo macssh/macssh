@@ -97,6 +97,11 @@ extern "C" void GUSIwithTTYSockets()
 	GUSIDeviceRegistry::Instance()->AddDevice(GUSITTYDevice::Instance());
 }
 
+extern "C" void GUSIwithoutTTYSockets()
+{
+	GUSIDeviceRegistry::Instance()->RemoveDevice(GUSITTYDevice::Instance());
+}
+
 
 
 /*

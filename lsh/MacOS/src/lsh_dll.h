@@ -144,11 +144,19 @@ int lsh_read(lshctx *ctx, void *buffer, long inbytes);
 
 long lsh_write(lshctx *ctx, const void *buffer, long inbytes);
 
+int lsh_canread(lshctx *ctx);
+
+int lsh_canwrite(lshctx *ctx);
+
 char *lsh_getprefsd();
 
 lshctx *lsh_current();
 
 Boolean lsh_running(lshctx *ctx);
+
+void lsh_init(void);
+
+void lsh_terminate(void);
 
 #ifdef __cplusplus
 }

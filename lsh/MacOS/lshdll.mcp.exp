@@ -2,7 +2,11 @@ lsh_new
 lsh_delete
 lsh_yield
 lsh_read
+lsh_canread
 lsh_write
+lsh_canwrite
 lsh_getprefsd
 lsh_current
 lsh_running
+lsh_init
+lsh_terminate

@@ -16,8 +16,10 @@ extern "C" {
 #endif
 
 void GUSIwithTTYSockets();
+void GUSIwithoutTTYSockets();
 
 void ssh2_init();
+void ssh2_terminate();
 
 void add_one_file(struct lshcontext *context, int fd);
 void remove_one_file(struct lshcontext *context, int fd);
@@ -27,9 +29,13 @@ void remove_one_file(struct lshcontext *context, int fd);
 #endif
 
 /*
-GusiMSLWriteConsole sWriteConsole = 0L;
-GusiMSLWriteConsole sInConsole = 0L;
-*/
+ * - This project is intended to work with MacCvs (http://www.cvsgui.org)
+ * - It exports the lsh program as a shared library, thanks to Jean-Pierre.
+ * - The lsh API is hooked up to the cvs shared library of cvs and provide
+ * the SSH2 authentication.
+ *
+ * Questions : alexandre parenteau (aubonbeurre@hotmail.com)
+ */
 
 static void myGusiMSLAddFile(int fd)
 {
@@ -51,9 +57,10 @@ static void myGusiMSLRemoveFile(int fd)
  * ssh2_init
  */
 
+static Boolean		sGUSISetup = false;
+
 void ssh2_init()
 {
-	static Boolean		sGUSISetup = false;
 
 	if ( !sGUSISetup ) {
 
@@ -61,13 +68,22 @@ void ssh2_init()
 
 		GusiMSLSetAddFile(myGusiMSLAddFile);
 		GusiMSLSetRemoveFile(myGusiMSLRemoveFile);
-/*
-		sWriteConsole = GusiMSLGetWriteConsole();
-		sInConsole = GusiMSLGetInConsole();
 
-		GusiMSLSetWriteConsole(WriteCharsToConsole);
-		GusiMSLSetInConsole(ReadCharsFromConsole);
-*/
+		sGUSISetup = true;
 	}
 }
 
+void ssh2_terminate()
+{
+	static Boolean		sGUSISetup = false;
+
+	if ( sGUSISetup ) {
+
+		GUSIwithoutTTYSockets();
+
+		GusiMSLSetAddFile(0L);
+		GusiMSLSetRemoveFile(0L);
+
+		sGUSISetup = false;
+	}
+}

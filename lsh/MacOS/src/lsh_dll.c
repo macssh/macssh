@@ -61,6 +61,7 @@ extern char *applname;
 extern char *defargstr;
 
 extern void ssh2_init();
+extern void ssh2_terminate();
 extern void ssh2_sched();
 
 extern void close_all_files();
@@ -555,7 +556,7 @@ int InstallTTY(int id, void *ctx)
  */
 void RemoveTTY(int fd, void *ctx)
 {
-#pragma unused (id, ctx)
+#pragma unused (fd, ctx)
 }
 
 /*
@@ -1236,6 +1237,19 @@ int lsh_read(lshctx *ctx, void *buffer, long inbytes)
 }
 
 
+int lsh_canread(lshctx *ctx)
+{
+	lshcontext *context = (lshcontext *)ctx->context;
+	long outbytes = 0;
+
+	if ( context && context->_gConsoleOutBufLen )
+	{
+		outbytes = context->_gConsoleOutBufLen;
+	}
+	return outbytes;
+}
+
+
 /*
  * lsh_write
  */
@@ -1265,6 +1279,19 @@ long lsh_write(lshctx *ctx, const void *buffer, long inbytes)
 	}
 	return outbytes;
 }
+
+int lsh_canwrite(lshctx *ctx)
+{
+	lshcontext *context = (lshcontext *)ctx->context;
+	long outbytes = 0;
+
+	if ( context && context->_gConsoleInBufLen )
+	{
+		outbytes = context->_gConsoleInBufLen;
+	}
+	return outbytes;
+}
+
 
 /*
  * lsh_getprefsd
@@ -1303,6 +1330,16 @@ lshctx *lsh_current()
 Boolean lsh_running(lshctx *ctx)
 {
 	return ctx->pthread != NULL;
+}
+
+void lsh_init(void)
+{
+	ssh2_init();
+}
+
+void lsh_terminate(void)
+{
+	ssh2_terminate();
 }
 
 /*
