@@ -378,8 +378,11 @@ short encrypt_suboption (tnParams **aedata, unsigned char *subbuffer, long suble
 			if (code->encryptok)
 				break;
 		}
-		if (!code)
+		if (!code) {
+			DisposePtr(*aedata);
+			*aedata = NULL;
 			return 0;
+		}
 
 		switch (code->authType)
 		{
