@@ -128,7 +128,7 @@ void	SendStringAsIfTyped(struct WindRec *tw, char *string, short len)
 					// translation ok, or no data yet
 					if ( inlen ) {
 						// keep a few chars
-						for (j = inlen; j <= tw->troutcount; j++)
+						for (j = inlen; j < tw->troutcount; j++)
 							pbuf[j - inlen] = pbuf[j];
 						tw->troutcount -= inlen;
 					}
@@ -260,7 +260,7 @@ void parse (struct WindRec *tw, unsigned char *st, short cnt)
 								detachGraphics(tw->curgraph);
 
 							if (tw->curgraph <=  -1) {		// No current TEK window
-								temptw = VGnewwin(TEK_DEVICE_WINDOW,tw->vs);
+								temptw = VGnewwin(TEK_DEVICE_WINDOW, tw->vs, tw->tektype, tw->tekclear);
 
 								if (temptw > -1) {
 									Str255	scratchPstring;
