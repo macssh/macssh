@@ -545,6 +545,8 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 	Cell tempCell;
 	static unsigned long lastTime = 0;
 	static char shortcut[] = {0,0,0,0,0,0,0,0,0,0,0};
+	Str255 tempString;
+
 	SetPort(dptr);
 	if ((evt->what == keyDown)||(evt->what == autoKey)) 
 	{
@@ -562,6 +564,7 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 			switch(evt->message & charCodeMask)
 			{
 				case 'e':
+				case 'E':
 					if (GetCurrentSelection(currentList, NULL, NULL)) {
 						*item = kChange;
 					} else {
@@ -570,7 +573,9 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 					}
 					break;
 				case 'r':
-					if (!IsDefaultSelected(currentList)) {
+				case 'R':
+					if ( GetCurrentSelection(currentList, NULL, tempString)
+					  && !IsDefaultLabel(tempString) ) {
 						*item = kRemove;
 					} else {
 						evt->what == nullEvent;
@@ -578,9 +583,11 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 					}
 					break;
 				case 'n':
+				case 'N':
 					*item = kNew;
 					break;
 				case 'd':
+				case 'D':
 					if (GetCurrentSelection(currentList, NULL, NULL)) {
 						*item = kDuplicate;
 					} else {
@@ -589,11 +596,12 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 					}
 					break;
 				default:
-					return(FALSE);
+					evt->what == nullEvent;
+					return FALSE;
 					break;
 			}
 			FlashButton(dptr, *item);
-			return (-1);
+			return -1;
 
 		}
 		else // a normal key
@@ -637,6 +645,7 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 				LAutoScroll(currentList);
 				Hilite(dptr, kRemove, IsDefaultSelected(currentList) ? 255 : 0);
 				Hilite(dptr, kChange, 0);
+				Hilite(dptr, kDuplicate, 0);
 				return(FALSE);
 			}
 			else  //CCP go to right list item based on keystroke
@@ -656,6 +665,7 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 
 				Hilite(dptr, kRemove, IsDefaultSelected(currentList) ? 255 : 0);
 				Hilite(dptr, kChange, 0);
+				Hilite(dptr, kDuplicate, 0);
 			}	
 		}
 	}
@@ -802,9 +812,14 @@ void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPt
 	if (numberofitems) LSetSelect(1, theCell, thelist);
 	LSetDrawingMode(1, thelist);
 
-	/* first item is always <default> can't be deleted */
+	/* item <default> can't be deleted */
 	if ( IsDefaultSelected(thelist) ) {
 		Hilite(dptr, kRemove, 255);
+	}
+	if (!GetCurrentSelection(thelist, NULL, NULL)) {
+		Hilite(dptr, kRemove, 255);
+		Hilite(dptr, kChange, 255);
+		Hilite(dptr, kDuplicate, 255);
 	}
 
 	currentHead = theHead; //let dialog filter know about the list
@@ -814,7 +829,8 @@ void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPt
 		switch(ditem) 
 		{
 			case kRemove:
-				if ( GetCurrentSelection(thelist, &theCell, ItemName) && !IsDefaultLabel(ItemName) ) {
+				if ( GetCurrentSelection(thelist, &theCell, ItemName)
+				  && !IsDefaultLabel(ItemName) ) {
 					deleteItem(&theHead,ItemName);//delete it from the linked list
 					LDelRow(1,theCell.v,thelist);
 					theCell.v--;
