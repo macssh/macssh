@@ -114,7 +114,7 @@ unsigned char kpxlate[2][62] =
 		VSK9,	/* $5C */
 		0,		/* $5D */
 		0,		/* $5E */
-		0,		/* $5F */
+		VSF5,	/* $5F */
 		VSF10,	/* $60 */	/* BYU 2.4.12 */
 		VSF11,	/* $61 */	/* BYU 2.4.12 */
 		VSF12,	/* $62 */	/* BYU 2.4.12 */
@@ -178,7 +178,7 @@ unsigned char kpxlate[2][62] =
 		VSK9,	/* $5C */
 		0,		/* $5D */
 		0,		/* $5E */
-		0,		/* $5F */
+		VSF5,		/* $5F */
 		VSF10,	/* $60 */	/* BYU 2.4.12 */
 		VSF11,	/* $61 */	/* BYU 2.4.12 */
 		VSF12,	/* $62 */	/* BYU 2.4.12 */
@@ -381,6 +381,21 @@ Boolean CheckPageKeys(short code)											/* NCSA: SB */
 }																			/* NCSA: SB */
 
 
+/*  translatekey --
+		returns ascii code for input code, using only the shift modifier.	*/	
+
+static unsigned char translatekey(unsigned char code, long modifiers)
+{
+	Ptr				KCHRPtr;
+	unsigned long	state = 0;
+
+	KCHRPtr = (Ptr)GetScriptManagerVariable(smKCHRCache);
+	if ( KCHRPtr ) {
+		return KeyTranslate(KCHRPtr, code | (modifiers & shiftKey), &state);
+	}
+	return 0;
+}
+
 /*  HandleKeyDown --
 		By now, we have already gotten a keypress signal from the event handler, so we
 		just need to interpret it.  Get the	raw code and ascii value, and then decide
@@ -401,8 +416,12 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 	optiondown = ((theEvent.modifiers & optionKey) != 0);
 	controldown = ((theEvent.modifiers & controlKey) != 0);
 	shifted = ((theEvent.modifiers & shiftKey) != 0);
+
 	if (DebugKeys(commanddown, ascii, tw->vs))
 		return;
+
+/* NONO : looks like this attempt is more a bug than a fix, and
+   a goto is maybe not very clean, but in such a code anyway...
 
 // RAB BetterTelnet 2.0b4 - ha ha, no hack hack
 // fixed emacs metakey so it works for special keys
@@ -415,10 +434,10 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 			return;
 
 		optiondown = 0; // pretend we didn't see option
-/* NONO : was wrong !*/
-		/*theEvent.modifiers &= (!optionKey);*///since we have a valid ASCII anyway from the KCHR
+// NONO : was wrong !
+		//theEvent.modifiers &= (!optionKey);//since we have a valid ASCII anyway from the KCHR
 		theEvent.modifiers &= ~optionKey;//since we have a valid ASCII anyway from the KCHR
-/* NONO */
+// NONO 
 		// now we fix a couple of broken items in the emacs KCHR
 		if (code == 0x31) ascii = 32; // space fix
 		if ((code == 0x32) && !shifted) ascii = 0x60; // backquote fix
@@ -434,6 +453,12 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 		netwrite(tw->port, &temp, 1); // send an escape, and deal with the char itself below
 	}
 //		goto emacsHack;  //ha ha hack hack
+*/
+	if ( tw->emacsmeta == 2 && optiondown ) {
+		ascii = translatekey( code, theEvent.modifiers );
+		goto emacsHack;  //ha ha hack hack
+	}
+/* NONO */
 
 	if ((code == 0x34)&&(ascii == 3)) //fix for PowerBook 540  bad KCHR
 		ascii = 13; 				//(map control-c to return)
@@ -449,21 +474,7 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 			//if optioned, retranslate so we can do menu commands
 			if (optiondown)
 			{
-				short virtualCode = 0;
-				Ptr KCHRPtr;
-				long newStuff;
-				unsigned long state = 0;
-				short modifiersCopy;
-				modifiersCopy = theEvent.modifiers;
-				virtualCode = (short)(code);
-				
-				theEvent.modifiers &= (shiftKey); //turn off option
-				virtualCode |= theEvent.modifiers;  
-				KCHRPtr  = (Ptr)GetScriptManagerVariable(smKCHRCache);
-				newStuff = KeyTranslate(KCHRPtr,virtualCode,&state);
-				newStuff &= 0xFF; //only look at bottom byte
-				ascii = (unsigned char) newStuff;
-				theEvent.modifiers = modifiersCopy; //reset option state
+				ascii = translatekey( code, theEvent.modifiers );
 			}
 
 			menuEquiv = MenuKey(ascii); //handle menu keys first
@@ -482,19 +493,9 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 					ascii |= 0x40; //move back to a non-control
 				if ((shifted)||(ascii == 0x5f)) //so we can get meta -
 				{
-					short virtualCode = 0;
-					Ptr KCHRPtr;
-					long newStuff;
-					unsigned long state = 0;
-					virtualCode = (short)(code);
-					theEvent.modifiers &= (shiftKey); //turn of command
-					virtualCode |= theEvent.modifiers;  
-					KCHRPtr  = (Ptr)GetScriptManagerVariable(smKCHRCache);
-					newStuff = KeyTranslate(KCHRPtr,virtualCode,&state);
-					newStuff &= 0xFF; //only look at bottom byte
-					ascii = (unsigned char) newStuff;
+					ascii = translatekey( code, theEvent.modifiers );
 				}
-//	emacsHack: //if the option key KCHR is installled, we will get the right ascii value
+emacsHack:		//if the option key KCHR is installled, we will get the right ascii value
 				if ((tw->clientflags & PASTE_IN_PROGRESS)&&(tw->pastemethod)) //queue this
 				{
 					tw->kbbuf[tw->kblen++] = ESC;
@@ -515,7 +516,6 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 //				netwrite(tw->port,temp,2);
 				netwrite(tw->port,temp,1); // RAB BetterTelnet 2.0b4
 				controldown = 0;
-				theEvent.modifiers &= shiftKey;
 //				return;					RAB BetterTelnet 2.0b4 - deal with key below
 			}
 			else if (ascii >='0' && ascii <='9' )  //now look for macros
@@ -862,7 +862,7 @@ void	HandleMouseDown(EventRecord myEvent)
 }
 
 #pragma profile off
-void	DoEvents( void)
+void	DoEvents( EventRecord* theEvent)
 {
 	Boolean		gotOne;			/* Did we get an event */
 	short		vs;
@@ -872,13 +872,17 @@ void	DoEvents( void)
 
 	static	long	blinkTicks = 0; /* DJ: The last time we toggled.  Static in case of long delays when we aren't called. */
 
-	gotOne = WaitNextEvent(everyEvent, &myEvent, gApplicationPrefs->TimeSlice, 0L);
-
+	if ( theEvent == NULL ) {
+		theEvent = &myEvent;
+		gotOne = WaitNextEvent(everyEvent, &myEvent, gApplicationPrefs->TimeSlice, 0L);
+	} else {
+		gotOne = true;
+	}
 	if (!gotOne) { // RAB BetterTelnet 1.2 - null events to dialogs
 		if (TelInfo->macrosModeless) {
-			if (!CallStdFilterProc(TelInfo->macrosModeless, &myEvent, &scratchshort))
-				if (IsDialogEvent(&myEvent))
-					DialogSelect(&myEvent, &dlogp, &scratchshort);
+			if (!CallStdFilterProc(TelInfo->macrosModeless, theEvent, &scratchshort))
+				if (IsDialogEvent(theEvent))
+					DialogSelect(theEvent, &dlogp, &scratchshort);
 		}
 	}
 
@@ -894,7 +898,7 @@ void	DoEvents( void)
 					else								
 						RScursblinkoff(vs);				
 		}
-		HandleEvent(&myEvent);
+		HandleEvent(theEvent);
 	}
 	else if (gApplicationPrefs->BlinkCursor && !TelInfo->suspended) 
 	{	/* BYU 2.4.11 */
