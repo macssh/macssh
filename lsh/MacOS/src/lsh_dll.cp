@@ -23,7 +23,7 @@ char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *dirID)
 
 void ssh2_sched();
 
-void ssh2_doevent(long sleepTime);
+void ssh2_doevent(EventRecord *theEvent, long sleepTime);
 
 #ifdef __cplusplus
 }
@@ -306,5 +306,5 @@ void ssh2_sched()
 
 void GUSIHandleNextEvent(long sleepTime)
 {
-	ssh2_doevent(sleepTime);
+	ssh2_doevent(NULL, sleepTime);
 }
