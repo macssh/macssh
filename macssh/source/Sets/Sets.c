@@ -1115,12 +1115,15 @@ void SaveSet(short doSaveMacros, short dontSaveTitle)
 			CStringToFile(fn, (unsigned char *)temp2);
 		}
 
-		if (screens[i].national) {						// Don't do this if using default translation table
+//		if (screens[i].national) {						// Don't do this if using default translation table
+// TranslationTable
 			GetMenuItemText(myMenus[National], screens[i].national+1, scratchPstring);
+			//pstrcpy(scratchPstring, (unsigned char *)TranslationTable);
 			PtoCstr(scratchPstring);
 			sprintf(temp2, "translation= \"%s\"\015", scratchPstring);
 			CStringToFile(fn, (unsigned char *)temp2);
-			}
+//		}
+
 		BlockMoveData(screens[i].answerback, scratchPstring, *(screens[i].answerback)+1);
 		PtoCstr(scratchPstring);
 		sprintf(temp2, "answerback= \"%s\"\015", scratchPstring);
