@@ -72,7 +72,7 @@ extern char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long 
 
 extern const struct exception *write_raw(int fd, UINT32 length, const UINT8 *data);
 
-typedef void(*hdlevtfunc)( long userData, long sleepTime);
+typedef void(*hdlevtfunc)( long userData, EventRecord *userEvent, long sleepTime);
 typedef void(*logfunc)( long userData, const char *message);
 typedef char *(*getpassfunc)( long userData, const char *prompt);
 typedef int (*yesornofunc)( long userData, const char *prompt, int def);
@@ -859,10 +859,24 @@ void ssh2_doevent(long sleepTime)
 {
 	lshctx *ctx = lsh_current();
 	if ( ctx && ctx->hdlevt ) {
-		(*ctx->hdlevt)( ctx->userData, sleepTime );
+		(*ctx->hdlevt)( ctx->userData, NULL, sleepTime );
 	}
 }
 
+
+/*
+ * SIOUXHandleOneEvent
+ */
+
+short SIOUXHandleOneEvent(EventRecord *userEvent)
+{
+	lshctx *ctx = lsh_current();
+	if ( ctx && ctx->hdlevt ) {
+		(*ctx->hdlevt)( ctx->userData, userEvent, 0L );
+		return 1;
+	}
+	return 0;
+}
 
 #pragma mark -
 

@@ -34,7 +34,7 @@ struct tctx {
 
 char password[64];
 
-void my_hdlevt(long userData, long sleepTime)
+void my_hdlevt(long userData, EventRecord *userEvent, long sleepTime)
 {
 	EventRecord	theEvent;
 	lshctx		*lsh_ctx = ((struct tctx *)userData)->lsh_ctx;
@@ -42,15 +42,25 @@ void my_hdlevt(long userData, long sleepTime)
 	int			count;
 	char		c;
 
-	if ( SIOUXUseWaitNextEvent ) {
-		WaitNextEvent(everyEvent & (~keyDownMask), &theEvent, 0, NULL);
-	} else {
-		#if TARGET_API_MAC_OS8
-		SystemTask();
-		#endif
-		GetNextEvent(everyEvent & (~keyDownMask), &theEvent);
+	if ( userEvent == NULL ) {
+		if ( SIOUXUseWaitNextEvent ) {
+			WaitNextEvent( everyEvent, &theEvent, 0, NULL );
+		} else {
+			#if TARGET_API_MAC_OS8
+			SystemTask();
+			#endif
+			GetNextEvent( everyEvent, &theEvent );
+		}
+		userEvent = &theEvent;
 	}
-	SIOUXHandleOneEvent(&theEvent);
+
+	/* something to send ? */
+	if ( (userEvent->what != keyDown && userEvent->what != autoKey) && !(userEvent->modifiers & cmdKey) ) {
+		SIOUXHandleOneEvent( userEvent );
+	} else {
+		c = userEvent->message & charCodeMask;
+		lsh_write( lsh_ctx, &c, 1 );
+	}
 
 	/* something received ? */
 	while ((count = lsh_read(lsh_ctx, buf, 4096)) != 0) {
@@ -58,12 +68,6 @@ void my_hdlevt(long userData, long sleepTime)
 		fflush(stdout);
 	}
 
-	/* something to send ? */
-	if ( kbhit() ) {
-		if ((c = getch()) != 0) {
-			lsh_write(lsh_ctx, &c, 1);
-		}
-	}
 }
 
 void my_log(long userData, const char *message)
@@ -130,6 +134,7 @@ int main(void)
 
 	strcat(argstr, " -call -zzlib");
 
+	//strcat(argstr, " --verbose --trace --debug");
 	strcat(argstr, " --verbose");
 
 	strcat(argstr, " --stdin dev:ttyin --stdout dev:ttyout --stderr dev:ttyerr");
@@ -154,7 +159,7 @@ int main(void)
 
 			lsh_yield();
 
-			my_hdlevt((long)&my_ctx, 0L);
+			my_hdlevt((long)&my_ctx, NULL, 0L);
 
 		}
 

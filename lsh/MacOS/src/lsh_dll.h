@@ -19,9 +19,11 @@
 #ifndef LSH_DLL_H_
 #define LSH_DLL_H_
 
+#include <Events.h>
+
 typedef void *lshctx;
 
-typedef void (*hdlevtfunc)(long userData, long sleepTime);
+typedef void (*hdlevtfunc)(long userData, EventRecord *userEvent, long sleepTime);
 typedef void (*logfunc)(long userData, const char *message);
 typedef char *(*getpassfunc)(long userData, const char *prompt);
 typedef int (*yesornofunc)(long userData, const char *prompt, int def);
