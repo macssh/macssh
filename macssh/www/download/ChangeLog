@@ -2,6 +2,7 @@
 
 - Updated with lsh 1.3.4. which adds X11 forwarding and
   aes256 encryption support.
+- Updated with GUSI 2.1.9.
 - Fixed ignored Apple menu in moveable modal dialogs.
 - Fixed a few ANSI colors.
 - Fixed a crash in 'clear saved lines' when memory is full.
