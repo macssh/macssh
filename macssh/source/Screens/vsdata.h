@@ -75,9 +75,11 @@ struct VSscrn {
          linest;             /* pointer to array of screen text lines        */
     VSattrlineArray
     	 attrst;			// RAB BetterTelnet 1.2.1 - added this again, too
-    short lines,				/* How many lines are in the screen arrays      */
+    short
+    	 lines,				/* How many lines are in the screen arrays      */
 		 maxlines,          /* maximum number of lines to save off top      */
-         numlines,          /* number of lines currently saved off top      */
+         numlines;          /* number of lines currently saved off top      */
+	short
          allwidth,          /* allocated width of screen lines              */
          maxwidth,          /* current screen width setting (<= allwidth)   */
          savelines,         /* save lines off top? 0=no                     */

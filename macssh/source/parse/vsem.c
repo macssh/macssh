@@ -388,8 +388,6 @@ enum {
 /* LU - that is the end of the new routines needed for printer redirection 	*/
 /* LU - now we just patch up VSem() to use this code, and were done! 		*/
 
-unsigned char	vsoutbuf[512];
-
 void VSem
   (
 	unsigned char *c, /* pointer to character string */
