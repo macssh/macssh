@@ -465,27 +465,33 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 	}
 
 	if ( commanddown ) {
-		if (gApplicationPrefs->CommandKeys) {
+		if ( gApplicationPrefs->CommandKeys || tw->emacsmeta == 3 ) {
 			//if optioned, retranslate so we can do menu commands
-			if ( optiondown ) {
-				ascii = translatekeycode( code, (theEvent.modifiers & shiftKey) );
-			}
-			menuEquiv = MenuKey(ascii); //handle menu keys first
-			if ( (menuEquiv & 0xFFFF0000) != 0 ) {
-				HandleMenuCommand(menuEquiv,theEvent.modifiers);
-				return;
+			if ( tw->emacsmeta != 3 ) {
+	 			if ( optiondown ) {
+					ascii = translatekeycode( code, (theEvent.modifiers & shiftKey) );
+				}
+				menuEquiv = MenuKey(ascii); //handle menu keys first
+				if ( (menuEquiv & 0xFFFF0000) != 0 ) {
+					HandleMenuCommand(menuEquiv,theEvent.modifiers);
+					return;
+				}
 			}
 			if ( TelInfo->numwindows < 1 || tw->active != CNXN_ACTIVE ) 
 				return;
 			//	Check for EMACS meta key.  
-			if ( tw->emacsmeta && controldown ) {
-				if ( ascii <= 32 ) {
-					// control changed the ascii value
-					ascii |= 0x40;	// move back to a non-control
-				}
-				if ( shifted || ascii == 0x5f ) {
-					//so we can get meta -
-					ascii = translatekeycode( code, (theEvent.modifiers & shiftKey) );
+			if ( tw->emacsmeta == 3 || (tw->emacsmeta == 1 && controldown) ) {
+				if ( tw->emacsmeta != 3 ) {
+					if ( ascii <= 32 ) {
+						// control changed the ascii value
+						ascii |= 0x40;	// move back to a non-control
+					}
+					if ( shifted || ascii == 0x5f ) {
+						//so we can get meta -
+						ascii = translatekeycode( code, (theEvent.modifiers & shiftKey) );
+					}
+				} else {
+					ascii = translatekeycode( code, theEvent.modifiers & ~cmdKey );
 				}
 emacsHack:
 				trbuf[0] = ESC;
@@ -505,6 +511,7 @@ emacsHack:
 //				return;					RAB BetterTelnet 2.0b4 - deal with key below
 			} else if ( ascii >= '0' && ascii <= '9' ) {
 				// now look for macros
+				kbflush( tw );
 				sendmacro(tw, ascii - '0' + ((shifted) ? 10 : 0));
 				return;
 			} else if (!((ascii == '`' && gApplicationPrefs->RemapTilde) || code == BScode )) {
@@ -747,11 +754,14 @@ emacsHack:
 		}
 	} //end if klude-linemode
 
+
 	if (ascii == '\015') {
 		// CR. If crmap is on, send CR-NULL instead of CR-LF.
 		SendCRAsIfTyped(tw);
 		return;
 	}
+
+	kbflush( tw );
 
 	if (tw->echo && tw->halfdup) 
 		parse( tw, pbuf, trlen );
