@@ -131,6 +131,16 @@ short doMouseDialog(DialogPtr d, EventRecord *theEvent)
 			HiliteMenu(0);
 			theMenu = mResult >> 16;
 			theItem = mResult & 0xFFFF;
+			if ( theMenu == appleMenu ) {
+				if (theItem == 1) {
+					applAbout();
+				} else {
+					Str255 name;
+					GetMenuItemText(myMenus[0], theItem, name);
+					OpenDeskAcc(name);
+				}
+				break;
+			}
 
 			if ((theMenu != editMenu) && (theMenu != NeditMenu)) break;
 
