@@ -250,10 +250,20 @@ parse_next_atom(struct simple_buffer *buffer, int *result)
     }
 
   /* No empty atoms. */
+/*C+ NONO: fix attempt from Niels for SSH-1.99-2.0.13 */
+/*
   if (!i)
     return 0;
-
   *result = lookup_atom(i, HERE);
+*/
+
+  if (!i)
+    /* Treat empty atoms as unknown */
+    *result = 0;
+  else
+    *result = lookup_atom(i, HERE);
+/*C- NONO: fix attempt from Niels for SSH-1.99-2.0.13 */
+
   ADVANCE(i+1);  /* If the atom was terminated at the end of the
 		  * buffer, rather than by a comma, this points beyond
 		  * the end of the buffer */
