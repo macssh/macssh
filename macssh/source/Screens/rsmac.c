@@ -330,15 +330,16 @@ void RSsetattr(short a)
     TextFace(face);
 
 	if (VSisansifg(a)) {
-		fg = 4 +((a>>8)&0x7);
-		if (RScurrent->colorBold && VSisbold(a)) fg += 8;
-    }
-	else
-		if (RScurrent->colorBold && VSisbold(a)) fg = gApplicationPrefs->defaultBoldColor + 4;
-		else fg = 0;
-	
+		fg = 4 + ((a>>8)&0x7);
+		if (RScurrent->colorBold && VSisbold(a))
+			fg += 8;
+    } else if (RScurrent->colorBold && VSisbold(a)) {
+		fg = gApplicationPrefs->defaultBoldColor + 4;
+	} else
+		fg = 0;
+
 	if (VSisansibg(a))
-		bg = 4+ ((a>>12)&0x7);
+		bg = 4 + ((a>>12)&0x7);
 	else
 		bg = 1;
   
@@ -346,14 +347,14 @@ void RSsetattr(short a)
 
 	if (TelInfo->haveColorQuickDraw)
 	{
-		if (VSisrev(a) || ((a & bold) && RScurrent->bfstyle))
+		if (VSisrev(a) || (VSisbold(a) && RScurrent->bfstyle))
 			TextMode(notSrcCopy);
 		else
 			TextMode(srcCopy);
 	}
 	else
 	{
-		if (VSisrev(a) || ((a & bold) && RScurrent->bfstyle))
+		if (VSisrev(a) || (VSisbold(a) && RScurrent->bfstyle))
 		{
         	BackPat(PATTERN(qd.black));	/* Reverses current attributes regard */
         	PenPat(PATTERN(qd.white));	/* less of the color, etc.... */
@@ -1170,6 +1171,28 @@ void RSbackground(short w, short value)
 		InvalRect(&RSlocal[w].window->portRect);
 	}
 }
+
+
+void RSdefaultForeColor(short w)
+{
+	RSsetwind(w);
+	if (TelInfo->haveColorQuickDraw) {
+		PmForeColor(0);
+	} else {
+		ForeColor(RScolors[0]);
+	}
+}
+
+void RSdefaultBackColor(short w)
+{
+	RSsetwind(w);
+	if (TelInfo->haveColorQuickDraw) {
+		PmBackColor(1);
+	} else {
+		BackColor(RScolors[7]);
+	}
+}
+
 
 void RScheckmaxwind(Rect *origRect,short origW, 
 			short origH, short *endW, short *endH)

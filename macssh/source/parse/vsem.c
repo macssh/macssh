@@ -254,11 +254,8 @@ void VSpr(unsigned char **pc, short *pctr)
 /* LU - that is the end of the new routines needed for printer redirection 	*/
 /* LU - now we just patch up VSem() to use this code, and were done! 		*/
 
-
-
-
-
-
+extern void RSdefaultForeColor(short w);
+extern void RSdefaultBackColor(short w);
 
 void VSem
   (
@@ -722,29 +719,39 @@ void VSem
 				  /* set/clear attributes */
 				  {
 					short temp = 0;
+
+					if (VSIw->parms[VSIw->parmptr] < 0)
+						VSIw->parms[VSIw->parmptr] = 0;
+
 					while (temp <= VSIw->parmptr)
 					  {
-						short p;
-						
-						if (VSIw->parms[VSIw->parmptr] < 0)
-							VSIw->parms[VSIw->parmptr] = 0;
-      					
-      					p = VSIw->parms[temp];
+						short p = VSIw->parms[temp];
       					if (p == 0) {
       						VSIw->attrib &= 0x80; //all off
-      					} else if (p<8) {
+      					} else if (p > 0 && p < 8 ) {
       						if (notyet) {
       							notyet = 0;
-//      							VSIw->attrib &= 0x80;
+      							//VSIw->attrib &= 0x80;
       						}
       						VSIw->attrib |= VSa(p);//set an attribute
-      					} else if (p>21 && p<28) {
+      					} else if (p > 20 && p < 28) {
 							VSIw->attrib &= ~VSa(p-20); //clear an attribute
               			} else if (screens[findbyVS(VSIwn)].ANSIgraphics) {
- 							if (p>=30 && p<38)
-								VSIw->attrib = (VSIw->attrib&~0x0700) | ((p-30)<<8) | 0x0800;
-							else if (p>=40 && p<48)
-								VSIw->attrib = (VSIw->attrib&~0x7000) | ((p-40)<<12) | 0x8000;
+ 							if (p >= 30 && p < 38) {
+								VSIw->attrib = (VSIw->attrib & 0xf8ff) | ((p-30)<<8) | 0x0800;
+							} else if (p == 39) {
+								/* 1rst half op: Set default pair to its original value */
+								// should we clear ANSI foreground ?
+								VSIw->attrib &= 0xf0ff;
+								RSdefaultForeColor(VSIwn);
+							} else if (p >= 40 && p < 48) {
+								VSIw->attrib = (VSIw->attrib & 0x8fff) | ((p-40)<<12) | 0x8000;
+							} else if (p == 49) {
+								/* 2nd half op: Set default pair to its original value */
+								// should we clear ANSI background ?
+								VSIw->attrib &= 0x0fff;
+								RSdefaultBackColor(VSIwn);
+							}
 						}
 						temp++;
 					  } /* while */
