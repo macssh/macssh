@@ -9,6 +9,18 @@ typedef unsigned char   cc_t;
 typedef unsigned int    speed_t;
 typedef unsigned int    tcflag_t;
 
+/* Return the output baud rate stored in *TERMIOS_P.  */
+extern speed_t cfgetospeed __P ((__const struct termios *__termios_p));
+
+/* Return the input baud rate stored in *TERMIOS_P.  */
+extern speed_t cfgetispeed __P ((__const struct termios *__termios_p));
+
+/* Set the output baud rate stored in *TERMIOS_P to SPEED.  */
+extern int cfsetospeed __P ((struct termios *__termios_p, speed_t __speed));
+
+/* Set the input baud rate stored in *TERMIOS_P to SPEED.  */
+extern int cfsetispeed __P ((struct termios *__termios_p, speed_t __speed));
+
 /* Put the state of FD into *TERMIOS_P.  */
 extern int tcgetattr __P ((int __fd, struct termios *__termios_p));
 
