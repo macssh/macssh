@@ -847,29 +847,36 @@ char *getpass( const char *prompt )
 			return password;
 		}
 		LockDialog();
-		context->_pindex = index;
-		if ( gApplicationPrefs->cachePassphrase && !wind->sshdata.password[0]
-		  && getnextcachedpassphrase(cprompt, password, &context->_pindex) ) {
-			UnlockDialog();
-			return password;
-		}
-		if ( wind->sshdata.password[0] ) {
-			memcpy(password, wind->sshdata.password + 1, wind->sshdata.password[0]);
-			password[wind->sshdata.password[0]] = '\0';
-			wind->sshdata.password[0] = '\0';
-			valid = 1;
-		} else {
-			ppassword[0] = 0;
-			valid = SSH2PasswordDialog(prompt, ppassword, wind->wind);
+		/* may need to reload the window... */
+		wind = ssh2_window();
+		if ( wind ) {
+			context->_pindex = index;
+			if ( gApplicationPrefs->cachePassphrase && !wind->sshdata.password[0]
+			  && getnextcachedpassphrase(cprompt, password, &context->_pindex) ) {
+				UnlockDialog();
+				return password;
+			}
+			if ( wind->sshdata.password[0] ) {
+				memcpy(password, wind->sshdata.password + 1, wind->sshdata.password[0]);
+				password[wind->sshdata.password[0]] = '\0';
+				wind->sshdata.password[0] = '\0';
+				valid = 1;
+			} else {
+				ppassword[0] = 0;
+				valid = SSH2PasswordDialog(prompt, ppassword, wind->wind);
+				if (valid) {
+					memcpy(password, ppassword + 1, ppassword[0]);
+					password[ppassword[0]] = '\0';
+				}
+			}
 			if (valid) {
-				memcpy(password, ppassword + 1, ppassword[0]);
-				password[ppassword[0]] = '\0';
+				if ( gApplicationPrefs->cachePassphrase ) {
+					addcachedpassphrase(context, cprompt, password);
+				}
 			}
-		}
-		if (valid) {
-			if ( gApplicationPrefs->cachePassphrase ) {
-				addcachedpassphrase(context, cprompt, password);
-			}
+		} else {
+			// terminal has been closed
+			valid = 0;
 		}
 
 	} else {
@@ -883,23 +890,28 @@ char *getpass( const char *prompt )
 			return context->_kpassword;
 		}
 		LockDialog();
-		context->_kindex = index;
-		if ( gApplicationPrefs->cachePassphrase
-		  && getnextcachedpassphrase(prompt, context->_kpassword, &context->_kindex) ) {
-			UnlockDialog();
-			return context->_kpassword;
-		}
-		term = ( wind ) ? wind->wind : NULL;
-		context->_kpassword[0] = 0;
-		valid = SSH2PasswordDialog(prompt, (StringPtr)context->_kpassword, term);
-		if (valid) {
-			plen = context->_kpassword[0];
-			password = (wind != NULL) ? wind->sshdata.currentpass : context->_kpassword;
-			memcpy(password, context->_kpassword + 1, plen);
-			password[plen] = '\0';
-			if ( gApplicationPrefs->cachePassphrase ) {
-				addcachedpassphrase(context, prompt, password);
+		if (wind == ssh2_window()) {
+			context->_kindex = index;
+			if ( gApplicationPrefs->cachePassphrase
+			  && getnextcachedpassphrase(prompt, context->_kpassword, &context->_kindex) ) {
+				UnlockDialog();
+				return context->_kpassword;
 			}
+			term = ( wind ) ? wind->wind : NULL;
+			context->_kpassword[0] = 0;
+			valid = SSH2PasswordDialog(prompt, (StringPtr)context->_kpassword, term);
+			if (valid) {
+				plen = context->_kpassword[0];
+				password = (wind != NULL) ? wind->sshdata.currentpass : context->_kpassword;
+				memcpy(password, context->_kpassword + 1, plen);
+				password[plen] = '\0';
+				if ( gApplicationPrefs->cachePassphrase ) {
+					addcachedpassphrase(context, prompt, password);
+				}
+			}
+		} else {
+			// terminal has been closed
+			valid = 0;
 		}
 	}
 	UnlockDialog();
