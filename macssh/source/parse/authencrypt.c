@@ -390,7 +390,7 @@ short encrypt_suboption (tnParams **aedata, unsigned char *subbuffer, long suble
 }
 
 
-void decrypt (tnParams *tn, unsigned char *buf, long len)
+void kdecrypt (tnParams *tn, unsigned char *buf, long len)
 {
 	short s;
 	
@@ -412,7 +412,7 @@ void decrypt (tnParams *tn, unsigned char *buf, long len)
 }
 
 
-void encrypt (tnParams *tn, unsigned char *buf, long len)
+void kencrypt (tnParams *tn, unsigned char *buf, long len)
 {
 	tn->data = len;
 	tn->ebuf = buf;
