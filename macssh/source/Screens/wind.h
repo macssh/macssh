@@ -252,6 +252,8 @@ short
 	remoteport;
 char
 	remotehost[180];
+char
+	display[64];	// x11 display
 
 short
 	incharset,		// current translation state for multi-byte translation
@@ -266,7 +268,8 @@ TECObjectRef
 	toconverter;
 
 Boolean
-	launchurlesc;	// true if we accept to process 'launchurl' escape sequences
+	launchurlesc,	// true if we accept to process 'launchurl' escape sequences
+	x11forward;
 /* NONO */
 
 };

@@ -796,6 +796,7 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 		initLinemode(&screens[cur]);
 
 	theScreen->launchurlesc = SessPtr->launchurlesc;
+	theScreen->x11forward = SessPtr->x11forward;
 
 /* NONO */
 	theScreen->authentication = SessPtr->authentication;
@@ -809,6 +810,17 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	theScreen->localport = SessPtr->localport;
 	memcpy(theScreen->remotehost, SessPtr->remotehost, SessPtr->remotehost[0] + 1);
 	theScreen->remoteport = SessPtr->remoteport;
+	
+	//FIXME: user configurable display...
+
+	pstrcpy((unsigned char *)theScreen->display, "\p127.0.0.1:0.0");
+/*
+	theScreen->display[0] = 4;
+	theScreen->display[1] = ':';
+	theScreen->display[2] = '0';
+	theScreen->display[3] = '.';
+	theScreen->display[4] = '0';
+*/
 
 	theScreen->sshdata.thread = NULL;
 	theScreen->sshdata.context = NULL;
@@ -1506,6 +1518,7 @@ ConnInitParams	**NameToConnInitParams(StringPtr InputString, Boolean useDefaultT
 		}
 	}
 
+	HLock((Handle)theHdl);
 	(**theHdl).session = sessHdl;
 	
 	UseResFile(TelInfo->SettingsFile);

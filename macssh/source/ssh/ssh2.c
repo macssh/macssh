@@ -22,6 +22,7 @@
 #include "io.h"
 #include "xalloc.h"
 #include "werror.h"
+#include "tty.h"
 
 #include "ssh2.h"
 #include "MemPool.h"
@@ -94,8 +95,8 @@ void *lshmalloc( unsigned long size );
 void *lshcalloc( unsigned long items, unsigned long size );
 void *lshrealloc( void *addr, unsigned long size );
 void lshfree( void *addr );
-int tty_getwinsize( int fd, UINT32 *w, UINT32 *h, UINT32 *wp, UINT32 *hp );
-int tty_setwinsize( int fd, UINT32 w, UINT32 h, UINT32 wp, UINT32 hp );
+int tty_getwinsize( int fd, struct terminal_dimensions *dims );
+int tty_setwinsize( int fd, const struct terminal_dimensions *dims );
 
 char *strtoxor(char *dst, const char *src, char xormask);
 char *strfromxor(char *dst, const char *src, char xormask);
@@ -106,8 +107,8 @@ void addcachedpassphrase(lshcontext *context, const char *prompt, const char *pa
 Boolean getnextcachedpassphrase(const char *prompt, char *password, int *pindex);
 void clearcachedpassphrase();
 
-short save_once_cancel1(char *fingerprint);
-short save_once_cancel2(char *fingerprint);
+short save_once_cancel1(const char *fingerprint);
+short save_once_cancel2(const char *fingerprint);
 int yes_or_no(struct lsh_string *s, int def, int free);
 
 void add_one_file(struct lshcontext *context, int fd);
@@ -169,7 +170,15 @@ static char gmessage[512];
 static char *envp[] = {
 	"HOME",
 	"LOGNAME",
-	"TERM"
+	"TERM",
+	"DISPLAY"
+};
+
+enum {
+	kEnvHome = 0,
+	kEnvLogName,
+	kEnvTerm,
+	kEnvDisplay
 };
 
 struct CachedPass {
@@ -535,15 +544,15 @@ void lshfree( void *addr )
  */
 
 int
-tty_getwinsize( int fd, UINT32 *w, UINT32 *h, UINT32 *wp, UINT32 *hp )
+tty_getwinsize( int fd, struct terminal_dimensions *dims )
 {
 	WindRec		*wind = ssh2_window();
 
 	if ( wind ) {
-		*w = VSgetcols( wind->vs ) + 1;
-		*h = VSgetlines( wind->vs );
-		*wp = RSlocal[wind->vs].fwidth * (*w);
-		*hp = RSlocal[wind->vs].fheight * (*h);
+		dims->char_width = VSgetcols( wind->vs ) + 1;
+		dims->char_height = VSgetlines( wind->vs );
+		dims->pixel_width = RSlocal[wind->vs].fwidth * (dims->char_width);
+		dims->pixel_height = RSlocal[wind->vs].fheight * (dims->char_height);
 		return 1;
 	}
 	return 0;
@@ -555,17 +564,15 @@ tty_getwinsize( int fd, UINT32 *w, UINT32 *h, UINT32 *wp, UINT32 *hp )
  */
 
 int
-tty_setwinsize( int fd, UINT32 w, UINT32 h, UINT32 wp, UINT32 hp )
+tty_setwinsize( int fd, const struct terminal_dimensions *dims )
 {
 	WindRec		*wind = ssh2_window();
-	short		oldlines;
-	short		oldcols;
 
 	if ( wind ) {
-		if ( VSsetlines( wind->vs, h) < 0 ) {
+		if ( VSsetlines( wind->vs, dims->char_height) < 0 ) {
 			OutOfMemory(-4);
 		} else {
-			RScalcwsize( wind->vs, w );
+			RScalcwsize( wind->vs, dims->char_width );
 	 	}
 		return 1;
 	}
@@ -939,7 +946,7 @@ char *getctxprompt()
  * save_once_cancel1
  */
 
-short save_once_cancel1(char *fingerprint)
+short save_once_cancel1(const char *fingerprint)
 {
 	short		result;
 
@@ -953,7 +960,7 @@ short save_once_cancel1(char *fingerprint)
  * save_once_cancel2
  */
 
-short save_once_cancel2(char *fingerprint)
+short save_once_cancel2(const char *fingerprint)
 {
 	short		result;
 
@@ -969,15 +976,15 @@ short save_once_cancel2(char *fingerprint)
 
 int yes_or_no(struct lsh_string *s, int def, int free)
 {
-	struct lsh_string *prompt;
+	const char *prompt;
 
-	prompt = make_cstring(s, free);
+	prompt = lsh_get_cstring(s);
 	if ( prompt ) {
 		if (!quiet_flag) {
 			Str255 pprompt;
 			int i;
-			pprompt[0] = strlen((const char *)prompt->data);
-			memcpy(pprompt + 1, (const char *)prompt->data, pprompt[0]);
+			pprompt[0] = strlen(prompt);
+			memcpy(pprompt + 1, prompt, pprompt[0]);
 			for (i = 1; i <= pprompt[0]; i++) {
 				if (pprompt[i] == 0x0a) {
 					pprompt[i] = 0x0d;
@@ -987,7 +994,6 @@ int yes_or_no(struct lsh_string *s, int def, int free)
 			def = YesNoDialog( pprompt );
 			UnlockDialog();
 		}
-		lsh_string_free(prompt);
 	}
 	return def;
 }
@@ -1315,7 +1321,7 @@ void make_env( lshcontext *context, WindRec *w )
 	if ( !buf ) {
  		buf = getcwd(homepath, sizeof(homepath));
 	}
-  	context->_envv[0] = buf;	/* set home pathname */
+  	context->_envv[kEnvHome] = buf;	/* set home pathname */
 
 	/*hstr = GetString( -16413 );*/ /* get computer name */
 	hstr = GetString( -16096 ); /* get user name */
@@ -1324,18 +1330,27 @@ void make_env( lshcontext *context, WindRec *w )
 		BlockMoveData( *hstr + 1, username, i );
 		username[i] = 0;
 		ReleaseResource( (Handle)hstr );
-  		context->_envv[1] = username;	/* set user name */
+  		context->_envv[kEnvLogName] = username;	/* set user name */
   	} else {
-  		context->_envv[1] = NULL;
+  		context->_envv[kEnvLogName] = NULL;
   	}
 
 	/* set TERM variable from prefs */
 	if ( w && (i = w->answerback[0]) != 0 ) {
 		memcpy(context->_term, (char *)w->answerback + 1, i);
 		context->_term[i] = '\0';
-		context->_envv[2] = context->_term;
+		context->_envv[kEnvTerm] = context->_term;
   	} else {
-  		context->_envv[2] = "vt220";
+  		context->_envv[kEnvTerm] = "vt220";
+	}
+
+	/* set DISPLAY variable from prefs (for x11 forwarding) */
+	if ( w && (i = w->display[0]) != 0 ) {
+		memcpy(context->_display, (char *)w->display + 1, i);
+		context->_display[i] = '\0';
+		context->_envv[kEnvDisplay] = context->_display;
+  	} else {
+  		context->_envv[kEnvDisplay] = NULL;
 	}
 }
 
@@ -1410,7 +1425,8 @@ static int build_cmdline(WindRec*w, char *argstr)
 		case 2: strcat(argstr, " -ctwofish"); break;
 		case 3: strcat(argstr, " -ccast128"); break;
 		case 4: strcat(argstr, " -cserpent"); break;
-		case 5: strcat(argstr, " -crijndael"); break;
+		/*case 5: strcat(argstr, " -crijndael"); break;*/
+		case 5: strcat(argstr, " -caes"); break;
 		/* case xx: strcat(argstr, " -cidea"); break; */
 		case 6: strcat(argstr, " -cblowfish"); break;
 		case 7: strcat(argstr, " -carcfour"); break;
@@ -1457,6 +1473,11 @@ static int build_cmdline(WindRec*w, char *argstr)
 			/* don't close the listener in close_all_files() */
 			remove_one_file( context, context->_listener );
 		}
+	}
+
+	if ( w->x11forward ) {
+		/* x11 forwarding */
+		strcat(argstr, " -x");
 	}
 
 	/* add 'command' field AFTER stdio redirection */

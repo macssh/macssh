@@ -1070,6 +1070,7 @@ void SaveSet(short doSaveMacros, short dontSaveTitle)
 		PStringItemToFile(fn, 86, tw->username );			// username
 		//PStringItemToFile(fn, 87, tw->password );			// password
 		PStringItemToFile(fn, 88, tw->command );			// command
+		BoolItemToFile(fn, 93, tw->x11forward );			// x11forward
 /* NONO */
 
 	} /* for i */
@@ -1237,6 +1238,7 @@ void SaveSetFromSession(SessionPrefs* setSession, TerminalPrefs* setTerminal, sh
 	PStringItemToFile(fn, 86, setSession->username );		// username
 	//PStringItemToFile(fn, 87, setSession->password );		// password
 	PStringItemToFile(fn, 88, setSession->command );		// command
+	BoolItemToFile(fn, 93, setSession->x11forward );		// x11forward
 /* NONO */
 
   	FSClose(fn);

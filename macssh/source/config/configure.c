@@ -350,11 +350,13 @@ void Cenviron( void)
 		RSUpdatePalette(); //reflects any ANSI change
 									 
 		UseResFile(TelInfo->SettingsFile);
-		toSave = (PaletteHandle) Get1Resource('pltt', 10001);
+		toSave = (PaletteHandle)Get1Resource('pltt', 10001);
 		if (toSave == NULL)//this shouldnt happen; make a new copy
 		{
 			UseResFile(TelInfo->ApplicationFile);
-			toSave = (PaletteHandle)GetNewPalette(9999);
+			//toSave = (PaletteHandle)GetNewPalette(9999);
+			toSave = (PaletteHandle)Get1Resource('pltt', 9999);
+			DetachResource((Handle)toSave);
 			UseResFile(TelInfo->SettingsFile);
 			AddResource((Handle)toSave, 'pltt', 10001, "\pANSI Colors");//make the new resource
 			UpdateResFile(TelInfo->SettingsFile);
@@ -1703,6 +1705,13 @@ static void CheckSSH2Method(DialogPtr dptr, short method)
 			HideDialogItemRange(dptr, 85, 86);
 			ShowDialogItemRange(dptr, 87, 88);
 			HideDialogItem(dptr, 89);
+		} else if ( method == 4 ) {
+			ShowDialogItem(dptr, 81);
+			HideDialogItemRange(dptr, 82, 83);
+			ShowDialogItem(dptr, 84);
+			HideDialogItemRange(dptr, 85, 86);
+			ShowDialogItemRange(dptr, 87, 88);
+			HideDialogItem(dptr, 89);
 		} else {
 			ShowDialogItemRange(dptr, 81, 89);
 		}
@@ -1715,7 +1724,7 @@ static void CheckSSH2Method(DialogPtr dptr, short method)
 void ShowSessPanel(DialogPtr dptr, short panel)
 {
 	switch (panel) {
-		case 1:
+		case 1:	// general
 		ShowDialogItemRange(dptr, 19, 20);
 		ShowDialogItemRange(dptr, 25, 27);
 		ShowDialogItem(dptr, 29);
@@ -1727,7 +1736,7 @@ void ShowSessPanel(DialogPtr dptr, short panel)
 		ShowDialogItem(dptr, 90);
 		break;
 
-		case 2:
+		case 2: // network
 		ShowDialogItemRange(dptr, 6, 7);
 		ShowDialogItemRange(dptr, 21, 24);
 		ShowDialogItem(dptr, 12);
@@ -1738,7 +1747,7 @@ void ShowSessPanel(DialogPtr dptr, short panel)
 		ShowDialogItemRange(dptr, 38, 39);
 		break;
 
-		case 3:
+		case 3: // terminal
 		ShowDialogItemRange(dptr, 3, 5);
 		ShowDialogItemRange(dptr, 8, 11);
 		ShowDialogItem(dptr, 13);
@@ -1748,25 +1757,26 @@ void ShowSessPanel(DialogPtr dptr, short panel)
 		ShowDialogItem(dptr, 91);
 		break;
 
-		case 4:
+		case 4: // security
 		ShowDialogItemRange(dptr, 15, 16);
 		ShowDialogItemRange(dptr, 53, 61);
 		ShowDialogItem(dptr, 92);
 		break;
 
-		case 5:
+		case 5: // otp
 		ShowDialogItemRange(dptr, 46, 52);
 		break;
 
-		case 6:
+		case 6: // ssh2
 		ShowDialogItemRange(dptr, 62, 63);
 /* NONO */
 		ShowDialogItemRange(dptr, 73, 80);
 		CheckSSH2Method( dptr, GetCntlVal(dptr, 80) - 1 );
+		ShowDialogItem(dptr, 93);
 /* NONO */
 		break;
 
-		case 7:
+		case 7: // firewall
 		ShowDialogItemRange(dptr, 64, 71);
 		break;
 	}
@@ -1822,6 +1832,7 @@ void HideSessPanel(DialogPtr dptr, short panel)
 		HideDialogItemRange(dptr, 62, 63);
 /* NONO */
 		HideDialogItemRange(dptr, 73, 89);
+		HideDialogItem(dptr, 93);
 /* NONO */
 		break;
 
@@ -1939,6 +1950,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	CheckPortPopup( dptr, SessPrefsPtr->remoteport, 89 );
 	CheckPortPopup( dptr, (unsigned short)SessPrefsPtr->port, 90 );
 	SetCntrl(dptr, 91, SessPrefsPtr->launchurlesc);
+	SetCntrl(dptr, 93, SessPrefsPtr->x11forward);
 /* NONO */
 
 	if (!authOK) {
@@ -2138,6 +2150,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 				case	87:
 				case	91:
 				case	92:
+				case	93:
 /* NONO */
 					FlipCheckBox(dptr, ditem);
 					break;
@@ -2429,6 +2442,8 @@ void SetSessionData(DialogPtr dptr, SessionPrefs *SessPrefsPtr,
 
 	SessPrefsPtr->ssh2guests = GetCntlVal(dptr, 87);
 	SessPrefsPtr->launchurlesc = GetCntlVal(dptr, 91);
+	SessPrefsPtr->x11forward = GetCntlVal(dptr, 93);
+
 /* NONO */
 
 	memset(SessPrefsPtr->otppassword, 0, sizeof(SessPrefsPtr->otppassword));
@@ -2615,13 +2630,12 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 	Point			ColorBoxPoint;
 	DialogPtr		dptr;
 	Boolean			UserLikesNewColor;
-	RGBColorPtr 	scratchRGB;
+	RGBColor	 	scratchRGB;
 	short			itemType;
 	Handle			itemHandle;
 	Rect			itemRect;
 
 	SetUpMovableModalMenus();
-	scratchRGB = (RGBColorPtr) myNewPtr(sizeof(RGBColor));
 	dptr = GetNewMySmallDialog(ANSIColorDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
 	SetDialogDefaultItem(dptr, 1);
 	SetDialogCancelItem(dptr, 2);
@@ -2642,11 +2656,10 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 	for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++) 
 	{
 		BoxColorItems[scratchshort] = ANSIBlack + scratchshort;
-		GetEntryColor(TelInfo->AnsiColors, scratchshort, scratchRGB);
-		BlockMoveData(scratchRGB,&BoxColorData[scratchshort], sizeof(RGBColor));
+		GetEntryColor(TelInfo->AnsiColors, scratchshort, &BoxColorData[scratchshort]);
 		UItemAssign( dptr, scratchshort + ANSIBlack, ColorBoxItemProcUPP);
 	}
-		
+
 	ColorBoxPoint.h = 0;			// Have the color picker center the box on the main
 	ColorBoxPoint.v = 0;			// screen
 	NumOnly[0] = 12; //safe item
@@ -2677,9 +2690,9 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 					Str255 askColorString;
 					GetIndString(askColorString,MISC_STRINGS,PICK_NEW_COLOR_STRING);
 					UserLikesNewColor = GetColor(ColorBoxPoint,askColorString,
-						 &BoxColorData[ditem-ANSIBlack], scratchRGB);
+						 &BoxColorData[ditem-ANSIBlack], &scratchRGB);
 					if (UserLikesNewColor) {
-						BoxColorData[ditem-ANSIBlack] = *scratchRGB;
+						BoxColorData[ditem-ANSIBlack] = scratchRGB;
 						// force refresh
 						GetDialogItem(dptr, ditem, &itemType, &itemHandle, &itemRect);
 						InvalRect(&itemRect);
@@ -2733,7 +2746,7 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 		}
 	}
 	for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++) 
-		SetEntryColor(TelInfo->AnsiColors, scratchshort, &(BoxColorData[scratchshort]));
+		SetEntryColor(TelInfo->AnsiColors, scratchshort, &BoxColorData[scratchshort]);
 
 	DisposeDialog(dptr);
 	ResetMenus();

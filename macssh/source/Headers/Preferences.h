@@ -209,7 +209,7 @@ typedef	struct {
 
 	Boolean
 		launchurlesc,
-		unused1;
+		x11forward;
 
 	short
 		padding[100];			// Disk space is cheap.... (used to be [98])
