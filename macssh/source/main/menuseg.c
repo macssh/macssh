@@ -68,6 +68,7 @@ static short lastMenyCommandKeys = -1; //whether last menu set had command keys
 
 extern int			gMovableModal;
 
+extern Boolean		gTekCopying;
 /*
  * External variable declarations (those which we borrow )
  *
@@ -424,26 +425,25 @@ void setupmenu(short def, DialogPtr startupBox)
 		AppendResMenu(myMenus[Font], 'FONT');				/* Put the fonts in the font menu */
 	else addMonoSpacedFonts(myMenus[Font], startupBox);
 	scratchshort = CountMItems(myMenus[Font]);
-	for (i = 1; i <= scratchshort; i++)					// RAB BetterTelnet 1.0.1
-	{
+	for (i = 1; i <= scratchshort; i++) {
+		// RAB BetterTelnet 1.0.1
 		GetMenuItemText(myMenus[Font],i,scratchPstring);
 /* NONO */
 		//AppendMenu(myMenus[FontOther],scratchPstring);
 		AppendMenu( myMenus[FontOther], "\pempty" );
 		SetMenuItemText( myMenus[FontOther], i, scratchPstring ); 
 /* NONO */
-
 	}
 	SetupOpSpecSubmenu(myMenus[OpSpec]);
 	switchMenus(def, 0);
 
 	GetIndString(stemp, MISC_STRINGS, REBUILDING_FONT_MENU + 2);
 	SetTEText(startupBox, 3, stemp);
-
 }
 
 void addMonoSpacedFonts(MenuHandle theMenu, DialogPtr startupBox)
 {
+	GrafPtr tempPort, savedPort;
 	Boolean doItAll = FALSE;
 	Handle	theGoodFonts, theBadFonts;
 	short	numGoodFonts, numBadFonts,numFontsInMenu;
@@ -452,10 +452,9 @@ void addMonoSpacedFonts(MenuHandle theMenu, DialogPtr startupBox)
 	
 	//here begins the caching of fonts to save time caculating proportionality
 	UseResFile(TelInfo->SettingsFile);
-	
+
 	theGoodFonts = Get1Resource('STR#',4000); //the good fonts
-	if (!theGoodFonts)
-	{
+	if (!theGoodFonts) {
 		UseResFile(TelInfo->ApplicationFile);
 		theGoodFonts = Get1Resource('STR#',4000);
 		theBadFonts = Get1Resource('STR#',5000);
@@ -464,91 +463,101 @@ void addMonoSpacedFonts(MenuHandle theMenu, DialogPtr startupBox)
 		UseResFile(TelInfo->SettingsFile);
 		AddResource(theGoodFonts,'STR#',4000,"\pGood Fonts");
 		AddResource(theBadFonts,'STR#',5000,"\pBad Fonts");
-	}
-	else
+	} else
 		theBadFonts = Get1Resource('STR#',5000);
 
 redoTheList:			
 
 	numGoodFonts = *(short *)(*theGoodFonts);
-	if (numGoodFonts == 0)
-		doItAll = TRUE; //we haven't created a list of fonts yet
+	if ( numGoodFonts == 0 )
+		doItAll = TRUE; // we haven't created a list of fonts yet
 	else
 		numBadFonts = *(short *)(*theBadFonts);
 
-	AppendResMenu(theMenu,'FONT'); //add them all here
+	AppendResMenu(theMenu,'FONT'); // add them all here
 	numFontsInMenu = CountMItems(theMenu);
-	if (numFontsInMenu != (numBadFonts + numGoodFonts))
-	{
+	if ( numFontsInMenu != numBadFonts + numGoodFonts ) {
 		SetHandleSize(theGoodFonts,2);
 		*((short *)*theGoodFonts) = 0; 
 		SetHandleSize(theBadFonts,2);
 		*((short *)*theBadFonts) = 0; 
 		doItAll = TRUE;
 	}
-	if (!doItAll) //we have a list already
-	{
+	if ( !doItAll ) {
+		// we have a list already
 		short goodFontIndex, badFontIndex;
 		goodFontIndex = badFontIndex = 1;
 		
-		for (menuIndex = 1; menuIndex <=  numFontsInMenu; menuIndex++)
-		{	//look at each font, see if its bad, good, or new
+		for ( menuIndex = 1; menuIndex <= numFontsInMenu; menuIndex++ ) {
+			// look at each font, see if its bad, good, or new
 			GetMenuItemText(theMenu,menuIndex,currentFontName);
-			GetIndString(fontListName,5000,badFontIndex);
-			if (EqualString(currentFontName,fontListName,TRUE,FALSE))
-			{
-				DeleteMenuItem(theMenu,menuIndex); //remove the bad font from the menu
+			GetIndString(fontListName, 5000, badFontIndex);
+			if ( EqualString(currentFontName, fontListName, TRUE, FALSE) ) {
+// HACK: ASLFont was improperly rejected as proportional. now
+// that isMonospacedFont() works with other scripts too, rebuild
+// the list if we find it there.
+				if ( !memcmp("\pASLFont+", fontListName, 9) ) {
+					*((short *)*theGoodFonts) = 0; 
+					*((short *)*theBadFonts) = 0; 
+					goto redoTheMenu;
+				}
+//
+				DeleteMenuItem(theMenu, menuIndex); //remove the bad font from the menu
 				numFontsInMenu--; 
 				menuIndex--;
 				badFontIndex++;
-			}
-			else
-			{	
-				GetIndString(fontListName,4000,goodFontIndex);
-				if (EqualString(currentFontName,fontListName,TRUE,FALSE))
+			} else {
+				GetIndString(fontListName, 4000, goodFontIndex);
+				if ( EqualString(currentFontName, fontListName, TRUE, FALSE) ) {
 					goodFontIndex++;
-				else //its a new font, and we didn't expect it; this means there were an equal
-				{	//number of fonts removed and added.  Let's start over. 
+				} else {
+					// its a new font, and we didn't expect it; this means there were an equal
+					// number of fonts removed and added.  Let's start over.
 					short numberInMenu;
+redoTheMenu:
 					numberInMenu = CountMItems(theMenu);
 					for (;numberInMenu > 0; numberInMenu--)
-						DeleteMenuItem(theMenu,numberInMenu);//clear the menu
-					SetHandleSize(theGoodFonts,2);//clear the lists
+						DeleteMenuItem(theMenu,numberInMenu); // clear the menu
+					SetHandleSize(theGoodFonts,2); // clear the lists
 					SetHandleSize(theBadFonts,2);
 					
 					goto redoTheList;
 				}
 			}
 		}
-	}		
-	else //create a new list
-	{
+	} else {
+		// create a new list
 		Str255 stemp;
 //		DialogPtr 	dtemp;
 //		dtemp = GetNewMyDialog(130, NULL, kInFront, (void *)SecondThirdCenterDialog);	/* opening dialog */
 //		DrawDialog(dtemp);
 
+		// first, open a temporary port to test CharWidth
+		tempPort = (GrafPtr)myNewPtrCritical(sizeof(GrafPort));
+		GetPort(&savedPort);
+		OpenPort(tempPort);
+
 		GetIndString(stemp, MISC_STRINGS, REBUILDING_FONT_MENU);
 		SetTEText(startupBox, 3, stemp);
 
-		for (menuIndex = 1; menuIndex <=  numFontsInMenu; menuIndex++)
-		{
+		for (menuIndex = 1; menuIndex <=  numFontsInMenu; menuIndex++) {
 			GetMenuItemText(theMenu,menuIndex,currentFontName);
-			if (!isMonospacedFont(currentFontName))
-			{
-				DeleteMenuItem(theMenu,menuIndex); //remove the bad font from the menu
+			if (!isMonospacedFont(currentFontName)) {
+				DeleteMenuItem(theMenu,menuIndex); // remove the bad font from the menu
 				numFontsInMenu--; 
 				menuIndex--;
-				PtrAndHand(currentFontName,theBadFonts,currentFontName[0]+1);//add it to the bad list
+				PtrAndHand(currentFontName,theBadFonts,currentFontName[0]+1);// add it to the bad list
 				(*(short *)(*theBadFonts))++;
-			}
-			else
-			{
-				PtrAndHand(currentFontName,theGoodFonts,currentFontName[0]+1);//add it to the good list
+			} else {
+				PtrAndHand(currentFontName,theGoodFonts,currentFontName[0]+1);// add it to the good list
 				(*(short *)(*theGoodFonts))++;
 			}
 		}
-		TextFont(1); // reset to application font - RAB BetterTelnet 1.5a1
+
+		SetPort(savedPort);
+		ClosePort(tempPort);
+		DisposePtr((Ptr)tempPort);
+
 //		DisposeDialog(dtemp);	
 	}	
 	ChangedResource(theGoodFonts);
@@ -563,52 +572,38 @@ Boolean isMonospacedFont(Str255 theFont)
 	Boolean haveNonRomanScripts,thisOneIsMonospaced = FALSE, doRomanTest = FALSE;
 	short fond;
 	long tempLong;
-	//GrafPtr tempPort, savedPort;
 
-	//first, open a temporary port to test CharWidth
-	//tempPort = (GrafPtr)myNewPtrCritical(sizeof(GrafPort));
-	//GetPort(&savedPort);
-	//OpenPort(tempPort);
 
 	tempLong = GetScriptManagerVariable(smEnabled);	//this returns number of scripts enable
     haveNonRomanScripts = (tempLong > 1); //if there is one, its roman
 	GetFNum(theFont,&fond);
-	if (haveNonRomanScripts)
-	{
+	if (haveNonRomanScripts) {
 		long thisScriptEnabled;
 		ScriptCode scriptNumber;
-		
 		scriptNumber = FontToScript(fond);
-		if (scriptNumber != 0) //if its non-roman
-		{
+		if ( scriptNumber != 0 ) {
+			// if its non-roman
 			thisScriptEnabled = GetScriptVariable(scriptNumber,smScriptEnabled);
-			if (thisScriptEnabled)
-			{
-				//check if this font is the preferred monospaced font for its script
+			if (thisScriptEnabled) {
+				// check if this font is the preferred monospaced font for its script
 				long theSizeAndFond;
 				short thePreferredFond;
-				
 				theSizeAndFond = GetScriptVariable(scriptNumber, smScriptMonoFondSize);
-				thePreferredFond = theSizeAndFond >> 16; //high word is fond 
-				thisOneIsMonospaced = (thePreferredFond == fond);
-			}
-			else
+				thePreferredFond = theSizeAndFond >> 16; // high word is fond
+				if ( !(thisOneIsMonospaced = (thePreferredFond == fond)) )
+					// not the default doesn't mean it is not proportional...
+					doRomanTest = TRUE;
+			} else
 				thisOneIsMonospaced = FALSE; //this font's script isn't enabled
-		}
-		else
+		} else
 			doRomanTest = TRUE;
-	}
-	else
+	} else
 		doRomanTest = TRUE;
 		
-	if (doRomanTest)
-	{
+	if (doRomanTest) {
 		TextFont(fond);
 		thisOneIsMonospaced = (CharWidth('W') == CharWidth('.'));
 	}
-	//SetPort(savedPort);
-	//ClosePort(tempPort);
-	//DisposePtr((Ptr)tempPort);
 	return(thisOneIsMonospaced);
 } 
 
@@ -774,22 +769,36 @@ short ReallyClose( short scrn)
 
 PicHandle RGtoPICT(short i)
 {
-	short j;
-	PicHandle tpic;
-	Rect trect;
+	GrafPtr		savePort;
+	short		vs;
+	short		j;
+	PicHandle	tpic;
+	Rect		trect;
 
-	SetRect(&trect,0,0,384,384);
-	j=VGnewwin(TEK_DEVICE_PICTURE,VGgetVS(i));			/* NCSA 2.5: get the right VS */
-	RGMPsize( &trect );
-	VGzcpy( i, j);				/* Love dat zm factr */
-	tpic=OpenPicture(&trect);
-	ClipRect(&trect);
-	
-	VGredraw(i,j);
-	ClosePicture();
-	VGclose(j);
+	GetPort(&savePort);
 
-	return(tpic);
+	// get tek type and tekclear values
+	vs = VGgetVS(i);
+	if ( vs < 0 )
+		return NULL;
+
+	j = VGnewwin(TEK_DEVICE_PICTURE, vs, VGgettektype(vs), VGgettekclear(vs));
+	if ( j >= 0 ) {
+		SetRect( &trect, 0, 0, 384, 384 );
+		RGMPsize( &trect );
+		VGzcpy( i, j );				/* Love dat zm factr */
+		RGsetwind( i );
+		ClipRect(&trect);
+		tpic = OpenPicture(&trect);
+		gTekCopying = TRUE;
+		VGredraw(i,j);
+		ClosePicture();
+		gTekCopying = FALSE;
+		VGclose(j);
+	}
+
+	SetPort(savePort);
+	return tpic;
 }
 
 /* 
@@ -798,15 +807,17 @@ PicHandle RGtoPICT(short i)
  */
 void copyGraph( short dnum)
 {
-	long tlong;					/* Temporary Variable */
-	PicHandle tpic;				/* Mental picture of the thing */
+	long tlong;							// Temporary Variable
+	PicHandle tpic;						// Mental picture of the thing
 
-	tpic=RGtoPICT(dnum);			/* Get the picture */
-	tlong=ZeroScrap();				/* Nobody else can live here */
-	HLock((Handle) tpic);					/* Lock it for Puting */
-	tlong=PutScrap(GetHandleSize((Handle) tpic),'PICT', (Ptr) *tpic);	/* Store as a PICT */
-	HUnlock((Handle) tpic);					/* Unlock so we can toss it */
-	KillPicture(tpic);				/* Kill the picture..... */
+	tpic = RGtoPICT(dnum);				// Get the picture
+	if ( tpic != NULL ) {
+		tlong=ZeroScrap();				// Nobody else can live here
+		HLock((Handle) tpic);			// Lock it for Puting
+		tlong=PutScrap(GetHandleSize((Handle) tpic),'PICT', (Ptr) *tpic);	// Store as a PICT
+		HUnlock((Handle) tpic);			// Unlock so we can toss it
+		KillPicture(tpic);				// Kill the picture.....
+	}
 }				
 
 /* 
@@ -883,17 +894,26 @@ void paste( void)
 
 	tw->outhand = myNewHandle(0L);	/* create a handle to put chars in */
 	length = GetScrap(tw->outhand, 'TEXT', &off);
-	if ( GetTranslationIndex(tw->outnational) != kTRJIS )
+	if ( GetTranslationIndex(tw->outnational) != kTRJIS ) {
 		tw->outhand = htrbuf_mac_nat(tw, tw->outhand);
-	HLock(tw->outhand);
-	tw->outptr = *tw->outhand;
-	tw->outlen = GetHandleSize(tw->outhand);
-	tw->clientflags |= PASTE_IN_PROGRESS;
-	tw->isUploading = 0;
-	tw->incount = 0;
-	tw->outcount = 0;
-
-	pasteText( scrn);	/* BYU LSC - routine to paste to net, w/echo if neccessary */
+	}
+	if ( tw->outhand && !(tw->outlen = GetHandleSize(tw->outhand)) ) {
+		DisposeHandle( tw->outhand );
+		tw->outhand = NULL;
+	}
+	if ( tw->outhand ) {
+		HLock(tw->outhand);
+		tw->outptr = *tw->outhand;
+		tw->outlen = GetHandleSize(tw->outhand);
+		tw->clientflags |= PASTE_IN_PROGRESS;
+		tw->isUploading = 0;
+		tw->incount = 0;
+		tw->outcount = 0;
+		pasteText( scrn);	/* BYU LSC - routine to paste to net, w/echo if neccessary */
+	} else {
+		// translation failed...
+		SysBeep(5);
+	}
 }
 
 void uploadFile(void) // RAB: routine added in BetterTelnet 1.0fc9
@@ -907,7 +927,7 @@ void uploadFile(void) // RAB: routine added in BetterTelnet 1.0fc9
 	if (tw->clientflags & PASTE_IN_PROGRESS) {  // One paste at a time, please
 		SysBeep(4);
 		return;
-		}
+	}
 
 	StandardGetFile(0, -1, 0, &sfr);
 	if (!sfr.sfGood) return;
@@ -931,19 +951,28 @@ void uploadFile(void) // RAB: routine added in BetterTelnet 1.0fc9
 	SetHandleSize(tw->outhand, length); // now REALLY set the length
 	if ( GetTranslationIndex(tw->outnational) != kTRJIS )
 		tw->outhand = htrbuf_mac_nat(tw, tw->outhand);
-	HLock(tw->outhand);
-	tw->outptr = *tw->outhand;
-	tw->outlen = GetHandleSize(tw->outhand);
-	tw->clientflags |= PASTE_IN_PROGRESS;
-	if (length == 16384) {
-		tw->isUploading = 1;
-		tw->uploadRefNum = refNum;
-	} else {
-		FSClose(refNum);
+	if ( tw->outhand && !(tw->outlen = GetHandleSize(tw->outhand)) ) {
+		DisposeHandle( tw->outhand );
+		tw->outhand = NULL;
 	}
-	tw->incount = 0;
-	tw->outcount = 0;
-	pasteText(scrn);	/* BYU LSC - routine to paste to net, w/echo if neccessary */
+	if ( tw->outhand ) {
+		HLock(tw->outhand);
+		tw->outptr = *tw->outhand;
+		tw->outlen = GetHandleSize(tw->outhand);
+		tw->clientflags |= PASTE_IN_PROGRESS;
+		if (length == 16384) {
+			tw->isUploading = 1;
+			tw->uploadRefNum = refNum;
+		} else {
+			FSClose(refNum);
+		}
+		tw->incount = 0;
+		tw->outcount = 0;
+		pasteText(scrn);	/* BYU LSC - routine to paste to net, w/echo if neccessary */
+	} else {
+		// translation failed...
+		SysBeep(5);
+	}
 }
 
 
@@ -962,21 +991,32 @@ void autoPaste(short vs) // RAB: routine added in BetterTelnet 1.0fc6
 
 	charh = RSGetTextSel(vs,0);		/* Get the text selection */
 
-	if (charh == (char **)-1L)
+	if (charh == (char **)-1L) {
 		OutOfMemory(400);
-	else if (charh != (char **)0L) {	/* BYU LSC - Can't do anything without characters */
+	} else if (charh != (char **)0L) {	/* BYU LSC - Can't do anything without characters */
 		if ( GetTranslationIndex(tw->outnational) != kTRJIS )
 			tw->outhand = htrbuf_mac_nat(tw, charh);
-		HLock(tw->outhand);
-		tw->outptr = *tw->outhand;
-		tw->outlen = GetHandleSize(tw->outhand);
-		tw->clientflags |= PASTE_IN_PROGRESS;
-		tw->isUploading = 0;
-		tw->incount = 0;
-		tw->outcount = 0;
-		pasteText( scrn);	/* BYU LSC - routine to paste to net, w/echo if neccessary */
+		if ( tw->outhand && !(tw->outlen = GetHandleSize(tw->outhand)) ) {
+			DisposeHandle( tw->outhand );
+			tw->outhand = NULL;
+		}
+		if ( tw->outhand ) {
+			HLock(tw->outhand);
+			tw->outptr = *tw->outhand;
+			tw->outlen = GetHandleSize(tw->outhand);
+			tw->clientflags |= PASTE_IN_PROGRESS;
+			tw->isUploading = 0;
+			tw->incount = 0;
+			tw->outcount = 0;
+			pasteText( scrn);	/* BYU LSC - routine to paste to net, w/echo if neccessary */
+		} else {
+			// translation failed...
+			SysBeep(5);
+		}
 	}
 }
+
+
 void displayStatus(short n)
 {
 	DialogPtr		dptr;
@@ -1252,11 +1292,11 @@ void HandleMenuCommand( long mResult, short modifiers)
 				if (i >= 0)
 					MacRGcopy(FrontWindow());		/* copy the ICR window */
 				else {
-					i=RGgetdnum(FrontWindow());
-					if (i>-1)						/* Copy Graphics */
+					i = RGgetdnum(FrontWindow());
+					if (i >= 0)						/* Copy Graphics */
 						copyGraph( i);
 					else							/* Copy Text */
-						if ( (i=RSfindvwind(FrontWindow())) >-1)
+						if ( (i=RSfindvwind(FrontWindow())) >= 0)
 							copyText( i);
 				}
 				break;
