@@ -526,8 +526,8 @@ short netwrite(short pnum, void *buffer, short nsend)
 		//TRACEN(DUMP("netwrite\n", buffer, nsend));
 		nsend = 0;
 		if (context) {
-			while (n) {
-				if ( context->_gConsoleInBufLen < context->_gConsoleInBufMax ) {
+			while (n > 0) {
+				if ( context->_gConsoleInBufMax - context->_gConsoleInBufLen > 0  ) {
 					long len = n;
 					if ( len > context->_gConsoleInBufMax - context->_gConsoleInBufLen )
 						len = context->_gConsoleInBufMax - context->_gConsoleInBufLen;

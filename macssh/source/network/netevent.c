@@ -254,18 +254,19 @@ void pasteText(short scrn)
 		return;										/* BYU 2.4.16 */
 	}												/* BYU 2.4.16 */
 
-	if (!tw->pastemethod) {	// Do this all at once?
-		amount = netwrite(tw->port, tw->outptr,
-							tw->outlen);
-		}
-	else {		// Nope, do it in blocks
-		if (tw->pastesize <= tw->outlen)
+	// netwrite cannot send blocks larger than 32767...
+	if ( !tw->pastemethod && tw->outlen < 32768 ) {	// Do this all at once?
+		amount = netwrite(tw->port, tw->outptr, tw->outlen);
+	} else { // Nope, do it in blocks
+		if ( tw->pastemethod && tw->outlen > tw->pastesize )
 			amount = tw->pastesize;
+		else if ( tw->outlen > 32767 )
+			amount = 32767;
 		else
 			amount = tw->outlen;
 		amount = netwrite(tw->port, tw->outptr, amount);
-		}
-		
+	}
+
 	if (tw->echo)	
 		parse( tw,(unsigned char *) tw->outptr,amount);
 	

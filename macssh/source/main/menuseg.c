@@ -749,23 +749,24 @@ short ReallyClose( short scrn)
 	short		item;
 	Str255		scratchPstring;
 	
-	setLastCursor(theCursors[normcurs]);
+	if (!gApplicationPrefs->dontWarnOnClose) {
+		setLastCursor(theCursors[normcurs]);
 
-	GetWTitle(screens[scrn].wind, scratchPstring);
-	ParamText(scratchPstring, NULL, NULL, NULL);
-	
-	dtemp = GetNewMyDialog( CloseDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
+		GetWTitle(screens[scrn].wind, scratchPstring);
+		ParamText(scratchPstring, NULL, NULL, NULL);
+		
+		dtemp = GetNewMyDialog( CloseDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
 
-	item = DLOGCancel +1;
-	while (item> DLOGCancel)
-		ModalDialog(DLOGwOK_CancelUPP, &item);
+		item = DLOGCancel +1;
+		while (item> DLOGCancel)
+			ModalDialog(DLOGwOK_CancelUPP, &item);
 
-	DisposeDialog( dtemp);
+		DisposeDialog( dtemp);
 
-	updateCursor(1);
-	
-	if (item == DLOGCancel) return(0);
-
+		updateCursor(1);
+		
+		if (item == DLOGCancel) return(0);
+	}
 	return(1);
 }
 
@@ -1113,6 +1114,7 @@ Boolean	HandleQuit(void)
 {
 	short	i;
 	Boolean liveConnections = FALSE, die = TRUE;
+	short	kcount = 0;
 	
 	if (TelInfo->numwindows>0) 
 	{
@@ -1128,6 +1130,8 @@ Boolean	HandleQuit(void)
 		{
 			for (i = TelInfo->numwindows - 1; i >= 0; i--) 
 			{
+				if (screens[i].authenticate)
+					++kcount;
 				netclose(screens[i].port);
 				destroyport(i);
 			}
@@ -1135,7 +1139,7 @@ Boolean	HandleQuit(void)
 		else
 			return (TRUE);
 	 }
-	if (gApplicationPrefs->destroyKTickets)
+	if (gApplicationPrefs->destroyKTickets && kcount)
 		DestroyTickets();
 	quit();
 	return (FALSE);

@@ -178,8 +178,9 @@ Str32
 	answerback;		// Message to send when server sends TERMTYPE Telnet option 
 
 // 	The following are used during paste operations 
+long
+	outlen;			// Length of text remaining to be pasted (can be > 32K)
 short
-	outlen,			// Length of text remaining to be pasted 
 	pastemethod,	// 0 = All at once, 1 = in blocks of size pasteblock 
 	pastesize;		// Size of paste "blocks" 
 	
