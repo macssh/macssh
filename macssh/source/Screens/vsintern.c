@@ -2045,12 +2045,7 @@ void VTsendstat( void )
 
 void VTsendident( void )
 {
-	short sn = findbyVS(VSIwn);
-
-	if ( sn < 0 )
-		return;
-
-	if (screens[sn].vtemulation)
+	if (VSIw->vtemulation)
 		//RSsendstring(VSIwn, "\033[?62;1;6c", 10);			// VT200-series
 		RSsendstring(VSIwn, "\033[?62;1;2;6;7;8c", 16);		// VT200-series
 	else

@@ -1864,8 +1864,8 @@ void HandleMenuCommand( long mResult, short modifiers)
 			switchintranslation(&screens[scrn], theItem-1, 0);
 			switchouttranslation(&screens[scrn], theItem-1, 0);
 			// and redraw the screen
-			VSredraw(screens[scrn].vs,0,0,VSmaxwidth(screens[scrn].vs),VSgetlines(screens[scrn].vs)-1);	/* LU */
-			screens[scrn].outnational = theItem-1;
+			//VSredraw(screens[scrn].vs,0,0,VSmaxwidth(screens[scrn].vs),VSgetlines(screens[scrn].vs)-1);	/* LU */
+			//screens[scrn].outnational = theItem-1;
 			}
 		break;
 	case keyMenu:

@@ -953,7 +953,7 @@ void SaveSet(short doSaveMacros, short dontSaveTitle)
 
 	if (doSaveMacros) {
 		// save all macros
-		for (i = 0; i < 110; i++) {
+		for (i = 0; i < NUM_MACROS; i++) {
 			getmacro(&TelInfo->newMacros, i, temp, sizeof(temp));
 			if (*temp) {
 				sprintf(temp2, "%d %s", i, temp);
@@ -1127,7 +1127,7 @@ void SaveSetFromSession(SessionPrefs* setSession, TerminalPrefs* setTerminal, sh
 
 	if (doSaveMacros) {
 		// save all macros
-		for (i = 0; i < 110; i++) {
+		for (i = 0; i < NUM_MACROS; i++) {
 			getmacro(&TelInfo->newMacros, i, temp, sizeof(temp));
 			if (*temp) {
 				sprintf(temp2, "%d %s", i, temp);
