@@ -875,6 +875,8 @@ static OSErr CStringItemToFile(short refNum, short index, char *value)
 				theErr = FSWrite( refNum, &count, "\"\015" );
 			}
 		}
+	} else {
+		theErr = noErr;
 	}
 	return theErr;
 }
@@ -885,7 +887,7 @@ static OSErr CStringItemToFile(short refNum, short index, char *value)
 static OSErr PStringItemToFile(short refNum, short index, StringPtr value) 
 {	
 	long		count;
-	OSErr		theErr = noErr;
+	OSErr		theErr;
 	Str255		tempStr;
 	Str32		numStr;
 
@@ -902,6 +904,8 @@ static OSErr PStringItemToFile(short refNum, short index, StringPtr value)
 				theErr = FSWrite( refNum, &count, "\"\015" );
 			}
 		}
+	} else {
+		theErr = noErr;
 	}
 	return theErr;
 }
