@@ -711,7 +711,8 @@ short netpush(short pnum)
 		lshcontext *context = (lshcontext *)wind->sshdata.context;
 		TRACEN(PRINTF("netpush\n"));
 		if (context) {
-			if (context->_gConsoleInBufLen) {
+			unsigned long startTicks = LMGetTicks();
+			while ( context->_gConsoleInBufLen && LMGetTicks() - startTicks < 15 ) {
 				ssh2_sched();
 			}
 			return context->_gConsoleInBufLen;
