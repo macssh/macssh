@@ -1066,12 +1066,18 @@ void HandleEvent(EventRecord *myEvent) //CCP split this from DoEvents so we can 
 			//this next bit takes care of setting the KCHR based on the EMACS hack pref
 			if ((currentScript == smRoman)&&(screens[i].emacsmeta == 2))
 			{
+/* NONO */
+/* why changing current script ?
+   this forced keymap to 'US' whatever the keyboard is really.
+   looks like I could get rid of all this haveChangedKCHR stuff, no ?
 				if (!haveChangedKCHR) //if we haven't already done this
 				{
 					SetScriptVariable(currentScript,smScriptKeys,502); //set the KCHR for EMACS
 					KeyScript(smRoman);	//Make it active
 					haveChangedKCHR = TRUE;
 				}
+*/
+/* NONO */
 			}
 			else if (haveChangedKCHR) //new active window doesnt want EMACS hack
 			{
