@@ -1913,7 +1913,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	SetTEText(dptr, SessBlockSize, scratchPstring);
 
 	if (!SessPrefsPtr->socksport) SessPrefsPtr->socksport = 1080;
-	NumToString(SessPrefsPtr->socksport, scratchPstring);
+	NumToString((unsigned short)SessPrefsPtr->socksport, scratchPstring);
 	SetTEText(dptr, 67, scratchPstring);
 
 	if (SessPrefsPtr->NetBlockSize <= 512)
