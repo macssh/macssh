@@ -453,9 +453,11 @@ WindowPtr GetNewMyDialog(short template,Ptr wStorage,WindowPtr behind,
 			return (nil);
 	}
 	WriteZero(wStorage, sizeof(WindowRecord));
+/*
 	if ( centerFunction != NULL) {
 		(*centerFunction)(template);
 	}
+*/
 	win = GetNewDialog(template, wStorage, behind);
 	if (win==nil) return(nil);
 	SetPort(win);
