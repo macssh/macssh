@@ -9,9 +9,9 @@
 #endif
 
 #define VMajor			2
-#define VMinor			(1 * 16) + 0
-#define VStage			final
-#define VRelease		3
-#define VShortString	"2.1fc3"
+#define VMinor			(2 * 16) + 0
+#define VStage			alpha
+#define VRelease		1
+#define VShortString	"2.2a1-CVS"
 
 #define	CopyrightString	"©2000-2001 J.-P. Stierlin"
