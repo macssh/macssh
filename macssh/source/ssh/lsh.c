@@ -220,8 +220,13 @@ do_options2known_hosts(struct command *ignored UNUSED,
 
   if (!f)
     {
+#ifndef MACOS
       werror("Failed to open '%z' (errno = %i): %z.\n",
 	     s, errno, STRERROR(errno));
+#else
+      verbose("Failed to open '%z' (errno = %i): %z.\n",
+	     s, errno, STRERROR(errno));
+#endif
       COMMAND_RETURN(c, make_spki_context(options->signature_algorithms));
     }
   else
@@ -280,8 +285,13 @@ do_options2identities(struct command *ignored UNUSED,
   
   if (!f)
     {
+#ifndef MACOS
       werror("Failed to open '%z' (errno = %i): %z.\n",
 	     s, errno, STRERROR(errno));
+#else
+      verbose("Failed to open '%z' (errno = %i): %z.\n",
+	     s, errno, STRERROR(errno));
+#endif
       COMMAND_RETURN(c, make_object_list(0, -1));
     }
   else
