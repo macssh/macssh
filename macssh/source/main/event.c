@@ -1165,7 +1165,10 @@ void HandleEvent(EventRecord *myEvent) //CCP split this from DoEvents so we can 
 					if (gHaveInstalledNotification)
 					{
 						NMRemove(nRecPtr);
-						DisposeHandle(nRecPtr->nmIcon);
+						/*DisposeHandle(nRecPtr->nmIcon, true);*/
+						if (nRecPtr->nmIcon)
+							DisposeIconSuite(nRecPtr->nmIcon, TRUE);
+						DisposePtr(nRecPtr);
 						gHaveInstalledNotification = FALSE;
 					}
 //					DisableItem( myMenus[Edit],EDcut);
