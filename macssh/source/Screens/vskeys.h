@@ -41,6 +41,8 @@
 #define VSPGDN	121		/* Page down */									/* BYU 2.4.12 */
 #define VSF6	122		/* Function key  6 */		/* Mac Key F1 */	/* BYU 2.4.12 */
 
+#define VSF5    123     /* Function key  5 */		/* Mac Key F5 */
+
 /* Following group is the "Cursor Control" keys */
 #define VSUP    129     /* Up Arrow */
 #define VSDN    130     /* Down Arrow */
@@ -67,6 +69,7 @@
 #define VSF2    148     /* Function 2 */			/* Mac Keypad = */	
 #define VSF3    149     /* Function 3 */			/* Mac Keypad / */	
 #define VSF4    150     /* Function 4 */			/* Mac Keypad * */	
+
 
 
 
