@@ -390,7 +390,7 @@ void setexitbuf(jmp_buf *exitbuf)
 {
 	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
 
-	if ( context ) {
+	if ( context && context->_self == context ) {
 		context->_pexitbuf = exitbuf;
 	}
 }
@@ -403,7 +403,7 @@ jmp_buf *getexitbuf()
 {
 	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
 
-	if ( context ) {
+	if ( context && context->_self == context ) {
 		return context->_pexitbuf;
 	}
 	return NULL;
@@ -438,7 +438,10 @@ void abort(void)
  */
 void __assertion_failed(char const *condition, char const *filename, int lineno)
 {
+	Debugger();
+
 	fprintf( stderr, "Assertion (%s) failed in \"%s\" on line %d\n", condition, filename, lineno );
+
 	if ( pthread_getspecific( ssh2threadkey ) ) {
 		macosabort();
 	} else {
@@ -457,6 +460,7 @@ void *lshmalloc( unsigned long size )
 	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
 
 	if ( context ) {
+		assert(context->_self == context);
 		return MPmalloc( context->_gMemPool, size );
 	}
 	return NULL;
@@ -471,7 +475,15 @@ void *lshcalloc( unsigned long items, unsigned long size )
 	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
 
 	if ( context ) {
-		return MPmalloc( context->_gMemPool, items * size );
+		size_t		tsize;
+		void		*p;
+
+		assert(context->_self == context);
+		tsize = items * size;
+		p = MPmalloc( context->_gMemPool, tsize );
+		if ( p ) {
+			memset(p, '\0', tsize);
+		}
 	}
 	return NULL;
 }
@@ -488,6 +500,7 @@ void *lshrealloc( void *addr, unsigned long size )
 		size_t		orig_size;
 		void		*p;
 
+		assert(context->_self == context);
 		if ( addr == 0 )
 			return MPmalloc( context->_gMemPool, size );
 		orig_size = MPsize( context->_gMemPool, addr );
@@ -787,7 +800,7 @@ Boolean				gThreadModal = false;
 
 void LockDialog()
 {
-	while (gSetUpMovableModal)
+	while (gMovableModal /*gSetUpMovableModal*/)
 		ssh2_sched();
 	pthread_mutex_lock( &dialock );
 	gThreadModal = true;
@@ -817,6 +830,7 @@ char *getpass( const char *prompt )
 	char			*password;
 	Boolean			valid;
 
+	LockDialog();
 	if ( wind && strstr(prompt, "assword for") ) {
 		/* password authentication */
 		password = wind->sshdata.currentpass;
@@ -824,8 +838,10 @@ char *getpass( const char *prompt )
 		/* add host name to avoid sending password to another host... */
 		strcpy(cprompt, prompt);
 		strncat(cprompt, (char *)wind->sshdata.host + 1, wind->sshdata.host[0]);
+
 		if ( gApplicationPrefs->cachePassphrase
 		  && getnextcachedpassphrase(cprompt, password, &context->_pindex) ) {
+			UnlockDialog();
 			return password;
 		}
 		if ( wind->sshdata.password[0] ) {
@@ -835,9 +851,7 @@ char *getpass( const char *prompt )
 			valid = 1;
 		} else {
 			ppassword[0] = 0;
-			LockDialog();
 			valid = SSH2PasswordDialog(prompt, ppassword);
-			UnlockDialog();
 			if (valid) {
 				memcpy(password, ppassword + 1, ppassword[0]);
 				password[ppassword[0]] = '\0';
@@ -848,18 +862,18 @@ char *getpass( const char *prompt )
 				addcachedpassphrase(context, cprompt, password);
 			}
 		}
+
 	} else {
 		/* encrypted private key */
 		int plen;
 		assert(context != NULL);
 		if ( gApplicationPrefs->cachePassphrase
 		  && getnextcachedpassphrase(prompt, context->_kpassword, &context->_kindex) ) {
+			UnlockDialog();
 			return context->_kpassword;
 		}
 		context->_kpassword[0] = 0;
-		LockDialog();
 		valid = SSH2PasswordDialog(prompt, (StringPtr)context->_kpassword);
-		UnlockDialog();
 		if (valid) {
 			plen = context->_kpassword[0];
 			password = (wind != NULL) ? wind->sshdata.currentpass : context->_kpassword;
@@ -870,6 +884,7 @@ char *getpass( const char *prompt )
 			}
 		}
 	}
+	UnlockDialog();
 	return (valid) ? password : NULL;
 }
 
@@ -1012,7 +1027,7 @@ void ssh2_doevent(long sleepTime)
 	extern Boolean haveNotifiedLowMemory;
 
 	if ( key_gen == 0 ) {
-		if (!gThreadModal && !gSetUpMovableModal) {
+		if (!gThreadModal && !/*gSetUpMovableModal*/gMovableModal) {
 			DoEvents(NULL);
 		}
 		if (!TelInfo->done) {
@@ -1026,7 +1041,7 @@ void ssh2_doevent(long sleepTime)
 			haveNotifiedLowMemory = true;
 		}
 	} else {
-		if (!gThreadModal && !gSetUpMovableModal) {
+		if (!gThreadModal && !/*gSetUpMovableModal*/gMovableModal) {
 			static unsigned long lastTicks = 0L;
 			if ( (LMGetTicks() - lastTicks) >= 10 ) {
 				EventRecord	myEvent;
@@ -1154,6 +1169,7 @@ int get_context_listener()
 
 void init_context(lshcontext *context, short port)
 {
+	context->_self = context;
 	context->_port = port;
 	context->_thread = pthread_self();
 	context->_forward = 0;
@@ -1168,6 +1184,7 @@ void init_context(lshcontext *context, short port)
 	/*context->_convertLFs = 0;*/
 	context->_convertLFs = 1;
 	context->_lastCR = 0;
+	context->_insock = NULL;
 	context->_gConsoleInBufLen = 0;
 	context->_gConsoleInBufMax = CONSOLEBUFSIZE;
 	context->_gConsoleOutBufLen = 0;
@@ -1179,10 +1196,8 @@ void init_context(lshcontext *context, short port)
 	context->_verbose_flag = 0;
 	context->_trace_flag = 0;
 	context->_debug_flag = 0;
-
 	/*context->_error_fd = STDERR_FILENO;*/
 	context->_error_fd = g_error_fd;
-
 	context->_error_pos = 0;
 	context->_error_write = write_raw;
 	context->_tracing = 0;
@@ -1430,7 +1445,7 @@ void *ssh2_thread(WindRec*w)
 {
 	OSErr			err;
 	lshcontext		*context;
-	extern char		*applname;
+	jmp_buf			exitbuf;
 	int				argc;
 	char			**argv;
 	struct sigaction interrupt;
@@ -1441,6 +1456,7 @@ void *ssh2_thread(WindRec*w)
 	int				result;
 	unsigned long	finalTicks;
 	int				listener;
+	char			*mempool;
 
 	port = w->port;
 
@@ -1458,11 +1474,10 @@ void *ssh2_thread(WindRec*w)
 
 	listener = -1;
 
-	context->_pexitbuf = &context->_exitbuf;
-	if (!setjmp(context->_exitbuf)) {
+	context->_pexitbuf = &exitbuf;
+	if (!setjmp(exitbuf)) {
 
 		do {
-
 			init_context(context, port);
 
 			if ( listener != -1 ) {
@@ -1504,8 +1519,9 @@ void *ssh2_thread(WindRec*w)
 			close_all_files(context);
 
 			if ( context->_gMemPool ) {
-				MPDispose(context->_gMemPool);
+				mempool = context->_gMemPool;
 				context->_gMemPool = NULL;
+				MPDispose(mempool);
 			}
 
 			/* window's ptr might have changed... better reload it */
@@ -1533,12 +1549,17 @@ done:
 
 	if ( context ) {
 		if ( context->_listener != -1 ) {
-			close( context->_listener );
+			listener = context->_listener;
+			context->_listener = -1;
+			close( listener );
 		}
 		close_all_files(context);
 		if ( context->_gMemPool ) {
-			MPDispose(context->_gMemPool);
+			mempool = context->_gMemPool;
+			context->_gMemPool = NULL;
+			MPDispose(mempool);
 		}
+		context->_self = NULL;
 		DisposePtr((Ptr)context);
 	}
 
@@ -1714,17 +1735,17 @@ struct AnimationCursRec {
 
 void *ssh2_randomize_thread(struct RandStruct *rnd)
 {
-	OSErr err;
-	lshcontext *context;
-	extern char *applname;
-	int argc;
-	char **argv;
-	char levelstr[32];
-	long len;
-	char argstr[1024];
-	char *tabargv[64];
-	char *buf;
-	int i, j;
+	OSErr			err;
+	lshcontext		*context;
+	jmp_buf			exitbuf;
+	int				argc;
+	char			**argv;
+	char			levelstr[32];
+	long			len;
+	char			argstr[1024];
+	char			*tabargv[64];
+	char			*buf;
+	int				i, j;
 
 	context = (lshcontext *)NewPtr(sizeof(lshcontext));
 	if (context == NULL) {
@@ -1761,8 +1782,8 @@ void *ssh2_randomize_thread(struct RandStruct *rnd)
 
 	key_gen = 1;
 
-	context->_pexitbuf = &context->_exitbuf;
-	if (!setjmp(context->_exitbuf)) {
+	context->_pexitbuf = &exitbuf;
+	if (!setjmp(exitbuf)) {
 		/* we need to intercept SIGINT to fake 'exit' */
 		struct sigaction interrupt;
 		memset(&interrupt, 0, sizeof(interrupt));
@@ -1822,8 +1843,8 @@ void *ssh2_randomize_thread(struct RandStruct *rnd)
 
 	make_args( argstr, tabargv, &argc, &argv );
 
-	context->_pexitbuf = &context->_exitbuf;
-	if (!setjmp(context->_exitbuf)) {
+	context->_pexitbuf = &exitbuf;
+	if (!setjmp(exitbuf)) {
 		/* we need to intercept SIGINT to fake 'exit' */
 		struct sigaction interrupt;
 		memset(&interrupt, 0, sizeof(interrupt));
@@ -1863,6 +1884,7 @@ done:
 		if ( context->_gMemPool ) {
 			MPDispose(context->_gMemPool);
 		}
+		context->_self = NULL;
 		DisposePtr((Ptr)context);
 	}
 
@@ -1964,26 +1986,29 @@ void ssh_randomize(void)
 				HNoPurge((Handle)cursorHandle);
 		}
 	}
+
 	lastTicks = LMGetTicks() - 10;
 	while ( randomize_thread != NULL ) {
-		while ( key_gen != 0 ) {
-			if ( cursorList && (LMGetTicks() - lastTicks) >= 10 ) {
-				lastTicks = LMGetTicks();
-				count = (**cursorList).information.count;
-				frameNum = (**cursorList).frame % count;
-				cursorHandle = (**cursorList).nCursors[frameNum];
-				if ( cursorHandle != NULL ) {
-					HLock((Handle)cursorHandle);
-					SetCursor(*cursorHandle);
-					HUnlock((Handle)cursorHandle);
+		if ( key_gen != 0 ) {
+			while ( key_gen != 0 ) {
+				if ( cursorList && (LMGetTicks() - lastTicks) >= 10 ) {
+					lastTicks = LMGetTicks();
+					count = (**cursorList).information.count;
+					frameNum = (**cursorList).frame % count;
+					cursorHandle = (**cursorList).nCursors[frameNum];
+					if ( cursorHandle != NULL ) {
+						HLock((Handle)cursorHandle);
+						SetCursor(*cursorHandle);
+						HUnlock((Handle)cursorHandle);
+					}
+					(**cursorList).frame = (frameNum + 1) % count;
 				}
-				(**cursorList).frame = (frameNum + 1) % count;
+				if ( key_abt ) {
+					key_abt = 0;
+					pthread_kill( randomize_thread, SIGINT );
+				}
+				sched_yield();
 			}
-			if ( key_abt ) {
-				key_abt = 0;
-				pthread_kill( randomize_thread, SIGINT );
-			}
-			sched_yield();
 		}
 		sched_yield();
 	}
@@ -2021,7 +2046,7 @@ void *ssh_exportkey_thread(void *)
 {
 	OSErr		err;
 	lshcontext	*context;
-	extern char *applname;
+	jmp_buf		exitbuf;
 	int			argc;
 	char		**argv;
 	char		argstr[1024];
@@ -2060,8 +2085,8 @@ void *ssh_exportkey_thread(void *)
 
 	make_args( argstr, tabargv, &argc, &argv );
 
-	context->_pexitbuf = &context->_exitbuf;
-	if (!setjmp(context->_exitbuf)) {
+	context->_pexitbuf = &exitbuf;
+	if (!setjmp(exitbuf)) {
 		/* we need to intercept SIGINT to fake 'exit' */
 		struct sigaction interrupt;
 		memset(&interrupt, 0, sizeof(interrupt));
@@ -2113,6 +2138,7 @@ done:
 		if ( context->_gMemPool ) {
 			MPDispose(context->_gMemPool);
 		}
+		context->_self = NULL;
 		DisposePtr((Ptr)context);
 	}
 

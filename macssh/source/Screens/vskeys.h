@@ -94,11 +94,11 @@ extern unsigned char *VSIkplen;							/* BYU 2.4.12 */
  *          Definition of attribute bits in the Virtual Screen
  *
  *          0   -   Bold
- *          1   -   
- *          2   -
+ *          1   -   faint
+ *          2   -   italic
  *          3   -   Underline
- *          4   -   Blink
- *          5   -
+ *          4   -   slowly Blinking
+ *          5   -   rapidly Blinking
  *          6   -   Reverse
  *          7   -   Graphics character set
  *			8	-	bit 0 of ansi foreground color index
@@ -113,8 +113,11 @@ extern unsigned char *VSIkplen;							/* BYU 2.4.12 */
  */
 #define VSa(x)			( 1 << ((x)-1) )	
 #define VSisbold(x) 	((x) & 0x01)
+#define VSisfaint(x) 	((x) & 0x02)
+#define VSisitalic(x) 	((x) & 0x04)
 #define VSisundl(x) 	((x) & 0x08)
 #define VSisblnk(x) 	((x) & 0x10)
+#define VSisfastblnk(x) ((x) & 0x20)
 #define VSisrev(x)  	((x) & 0x40)
 #define VSisgrph(x) 	((x) & 0x80)
 #define VSinattr(x) 	((x) & 0xff)	

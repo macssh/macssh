@@ -129,10 +129,10 @@ void initftplog( void)
 	DetachResource((Handle) termHdl);
 	HLock((Handle)termHdl);
 	
-	scratchBoolean = RSsetcolor( ftplog->vs, 0, (*termHdl)->nfcolor);
-	scratchBoolean = RSsetcolor( ftplog->vs, 1, (*termHdl)->nbcolor);
-	scratchBoolean = RSsetcolor( ftplog->vs, 2, (*termHdl)->bfcolor);
-	scratchBoolean = RSsetcolor( ftplog->vs, 3, (*termHdl)->bbcolor);
+	scratchBoolean = RSsetcolor( ftplog->vs, 0, &(*termHdl)->nfcolor);
+	scratchBoolean = RSsetcolor( ftplog->vs, 1, &(*termHdl)->nbcolor);
+	scratchBoolean = RSsetcolor( ftplog->vs, 2, &(*termHdl)->bfcolor);
+	scratchBoolean = RSsetcolor( ftplog->vs, 3, &(*termHdl)->bbcolor);
 
 	DisposeHandle((Handle)termHdl);
 	VSwrite(ftplog->vs,"\033[24;0H",7);		/* Move to bottom of screen */
@@ -300,7 +300,6 @@ void initmac( void)
 		screens[i].active = CNXN_NOTINUSE;
 		
 	topLeftCorners = (short **) myNewHandle(MaxSess*sizeof(short));
-	
 
 	InquireEnvironment();
 
@@ -424,6 +423,12 @@ void init (void)
 	Size 	junk;
 	long	junk2;
 	FlushEvents(everyEvent,0);
+
+/* NONO */	
+	/*initMemoryBuffer(5*1024,30*1024);*/ //this gives use a grow zone for emergency situations
+	initMemoryBuffer(5*1024,128*1024); //this gives use a grow zone for emergency situations
+/* NONO */
+
 	initmac();				/* initialize Macintosh stuff */
 	
 	DoTheGlobalInits();
@@ -514,8 +519,4 @@ void init (void)
     }
 	loadWDEF(); //this just loads the WDEF code in so that it doesnt fragment the heap later
 	loadErrors(); //ditto for the error code
-/* NONO */	
-	/*initMemoryBuffer(5*1024,30*1024);*/ //this gives use a grow zone for emergency situations
-	initMemoryBuffer(5*1024,128*1024); //this gives use a grow zone for emergency situations
-/* NONO */
 }

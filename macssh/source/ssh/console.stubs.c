@@ -314,12 +314,16 @@ int WriteCharsToTTY(int id, void *ctx, char *buffer, int n)
 	char			*buf = buffer;
 	char			c;
 
-	if ( id == 2 ) {
-		// log stderr to console
-		putlln( buffer, n );
-		return n;							
+	if ( !context ) {
+		context = (lshcontext *)pthread_getspecific(ssh2threadkey);
 	}
-
+	if ( id == 2 ) {
+		if ( !context || context->_port != -1 ) {
+			// log stderr to console
+			putlln( buffer, n );
+			return n;
+		}
+	}
 	if ( !context ) {
 		return 0;
 	}

@@ -179,18 +179,22 @@ void trInit (MenuHandle	whichMenu)
 			Str255 menuItemName;
 			GetMenuItemText(whichMenu, i,menuItemName);
 			h = GetNamedResource(USER_TRSL,menuItemName);
-			if (ResError() == noErr && (GetHandleSize(h) == 512)) {
-				nNational++;
-				
-				// Append the table's data to the master array of table data
-				HUnlock(transTablesHdl);
-				mySetHandleSize(transTablesHdl, (nNational * 512));//we're at init time; we have the mem
-				HLockHi(transTablesHdl);
-				HLock(h);
-				BlockMoveData(*h, (*transTablesHdl) + ((nNational - 1) * 512), 512);
+			if (h != NULL && ResError() == noErr) {
+				if ( GetHandleSize(h) == 512) {
+					nNational++;
+					// Append the table's data to the master array of table data
+					HUnlock(transTablesHdl);
+					if (mySetHandleSize(transTablesHdl, (nNational * 512))) {
+						ReleaseResource(h);
+						break;
+					}
+					HLockHi(transTablesHdl);
+					HLock(h);
+					BlockMoveData(*h, (*transTablesHdl) + ((nNational - 1) * 512), 512);
+				}
+				// Release the resource
+				ReleaseResource(h);
 			}
-			// Release the resource
-			ReleaseResource(h);
 		}
 
 	}

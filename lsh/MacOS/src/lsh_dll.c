@@ -329,16 +329,28 @@ char * strsignal(int signo)
 	return 0L;
 }
 
+/*
+ * get_context_listener
+ */
+
+int get_context_listener()
+{
+	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+	if ( context ) {
+		return context->_listener;
+	}
+	return -1;
+}
 
 /*
- * setexitbuf
+ * getexitbuf
  */
 
 void setexitbuf(jmp_buf *exitbuf)
 {
 	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
 
-	if ( context ) {
+	if ( context && context->_self == context ) {
 		context->_pexitbuf = exitbuf;
 	}
 }
@@ -351,7 +363,7 @@ jmp_buf *getexitbuf()
 {
 	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
 
-	if ( context ) {
+	if ( context && context->_self == context ) {
 		return context->_pexitbuf;
 	}
 	return NULL;
@@ -371,7 +383,6 @@ void exit(int result UNUSED)
 	/* should never go here... */
 	Debugger();
 }
-
 
 /*
  * abort
@@ -430,7 +441,13 @@ void *lshcalloc(unsigned long items, unsigned long size)
 {
 	lshcontext *context = pthread_getspecific(ssh2threadkey);
 	if ( context && context->_gMemPool ) {
-		return MPmalloc(context->_gMemPool, items * size);
+		size_t		tsize;
+		void		*p;
+		tsize = items * size;
+		p = MPmalloc( context->_gMemPool, tsize );
+		if ( p ) {
+			memset(p, '\0', tsize);
+		}
 	} else {
 		return calloc(items, size);
 	}
@@ -838,19 +855,6 @@ void ssh2_doevent(long sleepTime)
 	}
 }
 
-/*
- * get_context_listener
- */
-
-int get_context_listener()
-{
-	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-	if ( context ) {
-		return context->_listener;
-	}
-	return -1;
-}
-
 
 #pragma mark -
 
@@ -968,6 +972,7 @@ void lsh_sighandler(int sig)
 void *lsh_thread(lshctx *ctx)
 {
 	lshcontext		*context;
+	jmp_buf			exitbuf;
 	OSErr			err;
 	char			*tabargv[64];
 	int				argc;
@@ -1027,6 +1032,7 @@ void *lsh_thread(lshctx *ctx)
 	context->_window_changed = 0;
 	context->_kpassword[0] = 0;
 	context->_kindex = 0;
+	context->_self = context;
 
 	ctx->context = context;
 
@@ -1034,8 +1040,8 @@ void *lsh_thread(lshctx *ctx)
 
 	make_env( context );
 
-	context->_pexitbuf = &context->_exitbuf;
-	if ( !setjmp(context->_exitbuf) ) {
+	context->_pexitbuf = &exitbuf;
+	if ( !setjmp(exitbuf) ) {
 		/* we need to intercept SIGINT to fake 'exit' */
 		struct sigaction interrupt;
 		memset(&interrupt, 0, sizeof(interrupt));

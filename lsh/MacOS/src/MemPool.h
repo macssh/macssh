@@ -32,8 +32,8 @@ typedef struct MemPool {
 	long					f_PoolSize;
 	Handle					f_HandleRec;
 	Handle					f_HandleMem;
-	char					*next;
-	char					*prev;
+	struct MemPool			*next;
+	struct MemPool			*prev;
 #if GETSTATS
 	long					f_CurrSize;
 	long					f_PeakSize;

@@ -271,7 +271,7 @@ void VSIclrbuf
   {
 	register short j, i;
 	register char *tx;
-	register unsigned short *ta;
+	register VSAttrib *ta;
 	for (i = 0; i <= VSIw->lines; i++)
 	  {
 	  	if (VSIw->oldScrollback)
@@ -411,7 +411,7 @@ short VSnewscreen
 			return(-2);
 		}
 		VSIw->linest[0] = VSIw->buftop;
-		VSIw->attrst[0] = (VSattrlinePtr)VSOnewlines(VSIw->lines + 1,2);		/* new space for attributes (these are never scrolled back) */
+		VSIw->attrst[0] = (VSattrlinePtr)VSOnewlines(VSIw->lines + 1,sizeof(VSAttrib));		/* new space for attributes (these are never scrolled back) */
 		if (VSIw->attrst[0] == NULL)
 		{
 			VSIfreelinelist(VSIw->buftop);
@@ -529,9 +529,9 @@ void VSrealloc(short w)
 	savedTextPtr = savedTextBlock;
 	for (i = 0; i <= VSIw->lines; i++) {
 		if (VSIw->oldScrollback)
-			BlockMoveData(VSIw->attrst[i]->text, savedTextPtr->attr, (VSIw->allwidth + 1) * 2);
+			BlockMoveData(VSIw->attrst[i]->text, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 		else
-			BlockMoveData(VSIw->linest[i]->attr, savedTextPtr->attr, (VSIw->allwidth + 1) * 2);
+			BlockMoveData(VSIw->linest[i]->attr, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 		if (savedTextPtr->next) savedTextPtr = savedTextPtr->next;
 	}
 
@@ -646,8 +646,8 @@ short VSredraw
 			
 			for (y=ty1; y<=ty2; y++) {
 				char *pt;
-				unsigned short *pa;
-				unsigned short lasta;
+				VSAttrib *pa;
+				VSAttrib lasta;
 				short x, lastx;
 
 				pt = ypt->text + VSIw->Rleft;
@@ -686,8 +686,8 @@ short VSredraw
 			
 			for (y=ty1; y<=ty2; y++) {
 				char *pt;
-				unsigned short *pa;
-				unsigned short lasta;
+				VSAttrib *pa;
+				VSAttrib lasta;
 				short x, lastx;
 			
 				pt = ypt->text + VSIw->Rleft;
@@ -795,8 +795,8 @@ short VSOredraw
 			
 			for (y=ty1; y<=ty2; y++) {
 				char *pt;
-				unsigned short *pa;
-				unsigned short lasta;
+				VSAttrib *pa;
+				VSAttrib lasta;
 				short x, lastx;
 			
 				pt = ypt->text + VSIw->Rleft;
@@ -1707,7 +1707,7 @@ short VSsetlines
 	VSlinePtr line;							/* pointer to a line */
 	short i, j, oldlines;
 	char *temp;
-	unsigned short *tempa;
+	VSAttrib *tempa;
 	
 	if (VSvalids(w) != 0)
 		return(-3000);
@@ -1845,7 +1845,7 @@ short VSOsetlines
 	VSlinePtr line;							/* pointer to a line */
 	short i, j, oldlines;
 	char *temp;
-	unsigned short *tempa;
+	VSAttrib *tempa;
 	
 	if (VSvalids(w) != 0)
 		return(-3000);
@@ -1884,7 +1884,7 @@ short VSOsetlines
 	
 
 	VSIw->linest[0] = VSOnewlines(lines + 1,1); /* allocate new text and attribute lines */
-	VSIw->attrst[0] = (VSattrlinePtr)VSOnewlines(lines + 1,2);
+	VSIw->attrst[0] = (VSattrlinePtr)VSOnewlines(lines + 1,sizeof(VSAttrib));
 	if (VSIw->linest[0] && VSIw->attrst[0])
 	{	/* mem is there */
 		
@@ -1922,7 +1922,7 @@ short VSOsetlines
 		VSIfreelinelist((VSlinePtr)attrst[0]);				  /* release current visible attrib */
 		DisposePtr((Ptr) attrst);
 		VSIw->linest[0] = VSOnewlines(lines + 1,1); /* allocate new screen arrays */
-		VSIw->attrst[0] = (VSattrlinePtr)VSOnewlines(lines + 1,2);
+		VSIw->attrst[0] = (VSattrlinePtr)VSOnewlines(lines + 1,sizeof(VSAttrib));
 		if (!VSIw->linest[0] || !VSIw->attrst[0])
 		{  /* still not enough memory;  Try to allocate just enough to go back to original size */
 			
@@ -1932,7 +1932,7 @@ short VSOsetlines
 				VSIfreelinelist((VSlinePtr)VSIw->attrst[0]);
 
 			VSIw->linest[0] = VSOnewlines(oldlines + 1,1); /* try original size */
-			VSIw->attrst[0] = (VSattrlinePtr)VSOnewlines(oldlines + 1,2);
+			VSIw->attrst[0] = (VSattrlinePtr)VSOnewlines(oldlines + 1,sizeof(VSAttrib));
 			
 			if (!VSIw->linest[0] || !VSIw->attrst[0])
 			/* damage control: */
@@ -2099,8 +2099,8 @@ short VSPulseOne
 
 		for (y=ty1; y<=ty2; y++) {
 			char *pt;
-			unsigned short *pa;
-			unsigned short lasta;
+			VSAttrib *pa;
+			VSAttrib lasta;
 			short x, lastx;
 
 			pt = ypt->text + VSIw->Rleft;
@@ -2109,7 +2109,7 @@ short VSPulseOne
 			lastx = tx1;
 			lasta = pa[tx1];
 			for(x=tx1+1; x<=tx2; x++) {
-				if (pa[x]!=lasta && VSisblnk(lasta)) { // Ahah! [DJ]
+				if (pa[x]!=lasta && (VSisblnk(lasta) || VSisfastblnk(lasta))) { // Ahah! [DJ]
 					if (!cursOff) {
 						// temporarily hide cursor
 						cursOff = 1;
@@ -2121,7 +2121,7 @@ short VSPulseOne
 					lasta = pa[x];
 				}
 			}
-			if (lastx<=tx2 && VSisblnk(lasta)) {			// Ditto [DJ]
+			if (lastx<=tx2 && (VSisblnk(lasta) || VSisfastblnk(lasta))) {			// Ditto [DJ]
 				if (!cursOff) {
 					// temporarily hide cursor
 					cursOff = 1;
@@ -2228,8 +2228,8 @@ short VSOPulseOne
 
 			for (y=ty1; y<=ty2; y++) {
 				char *pt;
-				unsigned short *pa;
-				unsigned short lasta;
+				VSAttrib *pa;
+				VSAttrib lasta;
 				short x, lastx;
 
 				pt = ypt->text + VSIw->Rleft;
@@ -2238,7 +2238,7 @@ short VSOPulseOne
 				lastx = tx1;
 				lasta = pa[tx1];
 				for(x=tx1+1; x<=tx2; x++) {
-					if (pa[x]!=lasta && VSisblnk(lasta)) { // Ahah! [DJ]
+					if (pa[x]!=lasta && (VSisblnk(lasta) || VSisfastblnk(lasta))) { // Ahah! [DJ]
 						if (!cursOff) {
 							// temporarily hide cursor
 							cursOff = 1;
@@ -2250,7 +2250,7 @@ short VSOPulseOne
 						lasta = pa[x];
 					}
 				}
-				if (lastx<=tx2 && VSisblnk(lasta)) {		// Ditto [DJ]
+				if (lastx<=tx2 && (VSisblnk(lasta) || VSisfastblnk(lasta))) {		// Ditto [DJ]
 					if (!cursOff) {
 						// temporarily hide cursor
 						cursOff = 1;

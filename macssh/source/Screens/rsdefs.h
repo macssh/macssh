@@ -85,7 +85,7 @@ struct RSdata {
 		bfsiz,		// RAB BetterTelnet 1.0fc9 - bold font size
 		bfstyle,	// RAB BetterTelnet 1.0fc9 - bold font style
 		realbold,	// RAB BetterTelnet 1.2 - use bold font for bold
-		boldislarger;// to use real bold
+		boldislarger; // to use real bold
 	Boolean
 		skip;		/* TRUE if we are skipping the output */
 	Boolean

@@ -54,11 +54,11 @@ void InitDebug(void)
 				(TERMINALPREFS_RESTYPE, "\p<Default>", sizeof(TerminalPrefs));
 	DetachResource((Handle) termHdl);
 	HLock((Handle)termHdl);
-	
-	scratchBoolean = RSsetcolor( console->vs, 0, (*termHdl)->nfcolor);
-	scratchBoolean = RSsetcolor( console->vs, 1, (*termHdl)->nbcolor);
-	scratchBoolean = RSsetcolor( console->vs, 2, (*termHdl)->bfcolor);
-	scratchBoolean = RSsetcolor( console->vs, 3, (*termHdl)->bbcolor);
+
+	RSsetcolor( console->vs, 0, &(*termHdl)->nfcolor);
+	RSsetcolor( console->vs, 1, &(*termHdl)->nbcolor);
+	RSsetcolor( console->vs, 2, &(*termHdl)->bfcolor);
+	RSsetcolor( console->vs, 3, &(*termHdl)->bbcolor);
 
 	DisposeHandle((Handle)termHdl);
 #else

@@ -1,5 +1,7 @@
+#ifndef	__VSDATA__
+#include "vsdata.h"
+#endif
 
-/* vsintern.c */
 short VSIclip(short *x1, short *y1, short *x2, short *y2, short *n, short *offset);
 short VSIcdellines(short w, short top, short bottom, short n, short scrolled);
 short VSIcinslines(short w, short top, short bottom, short n, short scrolled);
@@ -48,7 +50,7 @@ void VSIinschar(short x);
 void VSIinsstring(short len, char *start);
 void VSIsave(void);
 void VSIrestore(void);
-void VSIdraw(short VSIwn, short x, short y, short a, short len, char *c);
+void VSIdraw(short VSIwn, short x, short y, VSAttrib a, short len, char *c);
 void VSIflush(void);
 void VSIcursdisable();
 void VSIcursenable();

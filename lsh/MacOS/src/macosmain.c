@@ -273,21 +273,63 @@ char * strsignal(int signo)
 }
 
 
+
+/*
+ * get_context_listener
+ */
+
+int get_context_listener()
+{
+	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+	if ( context ) {
+		return context->_listener;
+	}
+	return -1;
+}
+
+/*
+ * getexitbuf
+ */
+
+void setexitbuf(jmp_buf *exitbuf)
+{
+	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+
+	if ( context && context->_self == context ) {
+		context->_pexitbuf = exitbuf;
+	}
+}
+
+/*
+ * getexitbuf
+ */
+
+jmp_buf *getexitbuf()
+{
+	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+
+	if ( context && context->_self == context ) {
+		return context->_pexitbuf;
+	}
+	return NULL;
+}
+
 /*
  * exit
  */
 
 void exit(int result UNUSED)
 {
-	lshcontext *context = pthread_getspecific(ssh2threadkey);
 	extern Boolean SIOUXQuitting;
+	jmp_buf *exitbuf;
 
 	fflush(stdout);
 	trace("*** exit ***\n");
 	fflush(stdout);
 
-	if ( !SIOUXQuitting && context )
-		longjmp( context->_exitbuf, 0 );
+	if ( !SIOUXQuitting && (exitbuf = getexitbuf()) != NULL ) {
+		longjmp( *exitbuf, 1 );
+	}
 	ExitToShell();
 }
 
@@ -356,7 +398,14 @@ void *lshcalloc(unsigned long items, unsigned long size)
 {
 	lshcontext *context = pthread_getspecific(ssh2threadkey);
 	if ( context && context->_gMemPool ) {
-		return MPmalloc(context->_gMemPool, items * size);
+		size_t		tsize;
+		void		*p;
+		assert(context->_self == context);
+		tsize = items * size;
+		p = MPmalloc( context->_gMemPool, tsize );
+		if ( p ) {
+			memset(p, '\0', tsize);
+		}
 	} else {
 		return calloc(items, size);
 	}
@@ -706,13 +755,14 @@ void make_args( char *argstr, int *argc, char ***argv )
 
 static void run_app()
 {
-	lshcontext *context;
+	lshcontext		*context;
+	jmp_buf			exitbuf;
 	extern Boolean SIOUXQuitting;
-	char moreargs[1024];
-	char *pmoreargs;
-	int argc;
-	char **argv;
-	OSErr err;
+	char			moreargs[1024];
+	char			*pmoreargs;
+	int				argc;
+	char			**argv;
+	OSErr			err;
 
 	context = (lshcontext *)NewPtr(sizeof(lshcontext));
 	if (context == NULL) {
@@ -734,9 +784,12 @@ static void run_app()
 	}
 
 	context->_port = -1;
+	context->_userdata = NULL;
 	context->_thread = pthread_self();
 	context->_forward = 0;
 	context->_localport = 0;
+	context->_listener = -1;
+	context->_socket = -1;
 	//context->_exitbuf = 0;
 	//context->_gMemPool = NULL;
 	memset(context->_filesTable, 0xff, sizeof(context->_filesTable));
@@ -744,6 +797,7 @@ static void run_app()
 	context->_gConsoleInEOF = 0;
 	context->_convertLFs = 1;
 	context->_lastCR = 0;
+	context->_insock = NULL;
 	context->_gConsoleInBufLen = 0;
 	context->_gConsoleInBufMax = CONSOLEBUFSIZE;
 	context->_gConsoleOutBufLen = 0;
@@ -762,8 +816,12 @@ static void run_app()
 	context->_verbosing = 0;
 	context->_debugging = 0;
 	context->_window_changed = 0;
+	context->_kpassword[0] = 0;
+	context->_kindex = 0;
+	context->_self = context;
 
-	if (!setjmp(context->_exitbuf)) {
+	context->_pexitbuf = &exitbuf;
+	if (!setjmp(&exitbuf)) {
 	
 	  printf("\n\nlsh shell application\nargs (--help for info): ");
 	

@@ -271,7 +271,7 @@ VSlinePtr VSInewlines
 	void* memoryPtr;
 	VSlinePtr linePtr;
 	char* textPtr;
-	unsigned short* attrPtr;
+	VSAttrib* attrPtr;
 	long width;
 	long i;
 
@@ -284,14 +284,14 @@ VSlinePtr VSInewlines
 	   BCS 970726
 	*/
 	width = VSIw->allwidth + 1;
-	memoryPtr = myNewPtrCritical(nlines * (sizeof(VSline) + (width * 3)));
+	memoryPtr = myNewPtrCritical(nlines * (sizeof(VSline) + (width * (1 + sizeof(VSAttrib)))));
 	if(memoryPtr == NULL)
 		return (VSlinePtr)NULL;
 
 	// Chop the memory up into its 3 chunks.
 	linePtr = (VSlinePtr)memoryPtr;
 	textPtr = (char*)(linePtr + nlines);
-	attrPtr = (unsigned short*)(textPtr + (nlines * width));
+	attrPtr = (VSAttrib*)(textPtr + (nlines * width));
 
 	// Loop through the elements, initializing each one.
 	for(i = 0; i < nlines; i++) {
@@ -606,7 +606,7 @@ void VSIelo
 	Doesn't do anything to the display. */
   {
 	char *tt;
-	unsigned short *ta;
+	VSAttrib *ta;
 	short i;
 
 	if (s < 0)
@@ -710,7 +710,7 @@ void VSIreset
 	VSIw->DECPAM = 0;
 	VSIw->DECORG = 0;		/* NCSA: SB -- is this needed? */
 	VSIw->DECCM = 1; // Bri 970610
-	VSIw->Pattrib = -1;		/* NCSA: SB -- is this needed? */
+	VSIw->Pattrib = 0xffff;		/* NCSA: SB -- is this needed? */
 	VSIw->IRM = 0;
 	VSIw->attrib = 0;
 	VSIw->x = 0;
@@ -756,7 +756,7 @@ void VSIdellines
   {
 	short i, j;
 	char *tt;
-	unsigned short *ta;
+	VSAttrib *ta;
 	VSlinePtr  ts, TD, BD, TI, BI, itt;
 
 	if (VSIw->oldScrollback) {
@@ -829,7 +829,7 @@ void VSOdellines
   {
 	short i, j;
 	char *tt;
-	unsigned short *ta;
+	VSAttrib *ta;
 	VSlinePtr  as, ts, TD, BD, TI, BI, itt, ita;
 	if (s < 0)
 		s = VSIw->y;
@@ -912,7 +912,7 @@ void VSIinslines
   {
 	short i, j;
 	char *tt;
-	unsigned short *ta;		
+	VSAttrib *ta;		
 	VSlinePtr ts, TD, BD, TI, BI, itt;
 
 	VSIflush(); // RAB BetterTelnet 2.0b3
@@ -986,7 +986,7 @@ void VSOinslines
   {
 	short i, j;
 	char *tt;
-	unsigned short *ta;		
+	VSAttrib *ta;		
 	VSlinePtr ts, TD, BD, TI, BI, itt;
 	VSattrlinePtr as, aTD, aBD, aTI, aBI, ita;	
 
@@ -1064,7 +1064,7 @@ void VSIscroll
   /* scrolls scrolling region up one line. */
   {
 	register char *temp;
-	register unsigned short *tempa;
+	register VSAttrib *tempa;
 	static VSlinePtr tmp, tmp2, tmp3, tmp4;
 	register short i;
 	short theBottom;				/* NCSA 2.5: the correct screen bottom */
@@ -1195,7 +1195,7 @@ void VSOscroll
   /* scrolls scrolling region up one line. */
   {
 	register char *temp;
-	register unsigned short *tempa;
+	register VSAttrib *tempa;
 	register short i;
 	short theBottom;				/* NCSA 2.5: the correct screen bottom */
 	static VSlinePtr tmp, tmp2, tmp3, tmp4;
@@ -1384,7 +1384,7 @@ void VSIeeol
   {
 	char
 		*tt;
-	unsigned short 
+	VSAttrib 
 		*ta;
 	short
 		x1 = VSIw->x,
@@ -1412,9 +1412,9 @@ void VSIeeol
 		savedTextPtr = savedTextBlock;
 		for (i = 0; i <= VSIw->lines; i++) {
 			if (VSIw->oldScrollback)
-				BlockMoveData(VSIw->attrst[i]->text, savedTextPtr->attr, (VSIw->allwidth + 1) * 2);
+				BlockMoveData(VSIw->attrst[i]->text, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 			else
-				BlockMoveData(VSIw->linest[i]->attr, savedTextPtr->attr, (VSIw->allwidth + 1) * 2);
+				BlockMoveData(VSIw->linest[i]->attr, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 			if (savedTextPtr->next) savedTextPtr = savedTextPtr->next;
 		}
 
@@ -1428,9 +1428,9 @@ void VSIeeol
 		savedTextPtr = savedTextBlock;
 		for (i = 0; i <= VSIw->lines; i++) {
 			if (VSIw->oldScrollback)
-				BlockMoveData(savedTextPtr->attr, VSIw->attrst[i]->text, (VSIw->allwidth + 1) * 2);
+				BlockMoveData(savedTextPtr->attr, VSIw->attrst[i]->text, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 			else
-				BlockMoveData(savedTextPtr->attr, VSIw->linest[i]->attr, (VSIw->allwidth + 1) * 2);
+				BlockMoveData(savedTextPtr->attr, VSIw->linest[i]->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 			if (savedTextPtr->next) savedTextPtr = savedTextPtr->next;
 		}
 		DisposePtr((Ptr) savedTextBlock); // VSIfreelinelist adds un-needed overhead here
@@ -1471,7 +1471,7 @@ void VSIdelchars
 		offset;
 	char
 		*temp;
-	unsigned short
+	VSAttrib
 		*tempa;
 
 	VSIwrapnow(&x1, &y1);
@@ -1567,7 +1567,7 @@ void VSIebol
   {
 	char
 		*tt;
-	unsigned short
+	VSAttrib
 		*ta;
 	short
 		x1 = 0,
@@ -1604,7 +1604,7 @@ void VSIel
   /* erases the specified line. */
   {
 	char *tt;
-	unsigned short *ta;
+	VSAttrib *ta;
 	short x1 = 0, y1 = s, x2 = VSIw->maxwidth, y2 = s, n = -1, offset;
 	short i;
 
@@ -1897,7 +1897,7 @@ void VSIinschar
   {
 	short i, j; 
 	char  *temp;
-	unsigned short *tempa;
+	VSAttrib *tempa;
 	VSIwrapnow(&i, &j);
 
 	if (VSIw->oldScrollback)
@@ -1951,7 +1951,7 @@ void VSIrestore
   )
   /* restores the last-saved cursor position and attribute settings. */
   {
-	if (VSIw->Pattrib < 0)
+	if (VSIw->Pattrib == 0xffff)
 	  /* no previous save */
 		return;
 
@@ -1968,7 +1968,7 @@ void VSIdraw
 	short VSIwn, /* window number */
 	short x, /* starting column */
 	short y, /* line on which to draw */
-	short a, /* text attributes */
+	VSAttrib a, /* text attributes */
 	short len, /* length of text to draw */
 	char *c /* pointer to text */
   )

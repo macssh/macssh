@@ -141,7 +141,8 @@ pascal long MyWDEFPatch (short varCode, WindowPtr window, short message, long pa
 	 * 			keep developers writing workarounds and keep their minds afresh.
 	 * What else can we say ? Thanks !!!!! (Roberto Avanzi june 19, 1992)
 	 */
-	if ( (message == wDraw) ? (((short)param) != kOurHit ) : true ) {
+
+	if ( message != wDraw || (short)param != kOurHit ) {
 #ifdef __powerpc__
 		result = CallUniversalProc((UniversalProcPtr)wdefProc, uppMyWDEFPatch, varCode, window, message, param);
 #else
@@ -159,15 +160,8 @@ pascal long MyWDEFPatch (short varCode, WindowPtr window, short message, long pa
 				SetPort(aPort);
 				aRgn = NewRgn();
 				GetClip(aRgn);
-
 				SetRect(&aRect,-32000,-32000,32000,32000);
 				ClipRect(&aRect);
-/* should check if title bar is visible...
-				visRgn = NewRgn();
-				SectRgn(visRgn, xxxxxxxx, visRgn);
-				SetClip(visRgn);
-				DisposeRgn(visRgn);
-*/
 				switch ( (short) param ) {	// Roberto Avanzi 18-06-1992: support for 
 											// tracking of the new part
 					case 0:
@@ -266,7 +260,7 @@ void PatchWindowWDEF (WindowPtr window, struct WindRec *tw)
 	wdefPatch = *wdefHndl;
 	wdefPatch->oldAddr = oldAddr;
 #ifdef __powerpc__
-	BlockMove(&MyWDEFPatchUniversal, &wdefPatch->rd, sizeof(wdefPatch->rd));
+	BlockMoveData(&MyWDEFPatchUniversal, &wdefPatch->rd, sizeof(wdefPatch->rd));
 #else
 	wdefPatch->jmpInst = 0x4ef9; /*JMP*/
 	wdefPatch->patchAddr = (ProcPtr)MyWDEFPatch;
