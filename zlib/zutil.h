@@ -1,5 +1,5 @@
 /* zutil.h -- internal interface and configuration of the compression library
- * Copyright (C) 1995-1998 Jean-loup Gailly.
+ * Copyright (C) 1995-2002 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -15,16 +15,12 @@
 
 #include "zlib.h"
 
-#ifdef _KERNEL
-#include "kernel_includes.h"
-#else /* _KERNEL */
 #ifdef STDC
 #  include <stddef.h>
 #  include <string.h>
 #  include <stdlib.h>
-#endif /* STDC */
-#endif /* _KERNEL */
-#if defined(NO_ERRNO_H) || defined(_KERNEL)
+#endif
+#ifdef NO_ERRNO_H
     extern int errno;
 #else
 #   include <errno.h>

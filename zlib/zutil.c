@@ -1,5 +1,5 @@
 /* zutil.c -- target dependent utility functions for the compression library
- * Copyright (C) 1995-1998 Jean-loup Gailly.
+ * Copyright (C) 1995-2002 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
@@ -198,7 +198,6 @@ void  zcfree (voidpf opaque, voidpf ptr)
 #endif /* MSC */
 
 
-#ifndef _KERNEL
 #ifndef MY_ZCALLOC /* Any system without a special alloc function */
 
 #ifndef STDC
@@ -227,4 +226,3 @@ void  zcfree (opaque, ptr)
 }
 
 #endif /* MY_ZCALLOC */
-#endif /* _KERNEL */

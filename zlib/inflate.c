@@ -1,5 +1,5 @@
 /* inflate.c -- zlib interface to inflate modules
- * Copyright (C) 1995-1998 Mark Adler
+ * Copyright (C) 1995-2002 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
@@ -92,18 +92,12 @@ int stream_size;
   if (z == Z_NULL)
     return Z_STREAM_ERROR;
   z->msg = Z_NULL;
-#ifdef _KERNEL
-  if (z->zalloc == Z_NULL || z->zfree == Z_NULL)
-    ssh_fatal("z->zalloc == Z_NULL or z->zfree == Z_NULL in _KERNEL compile");
-#else
   if (z->zalloc == Z_NULL)
   {
     z->zalloc = zcalloc;
     z->opaque = (voidpf)0;
   }
-  if (z->zfree == Z_NULL) 
-    z->zfree = zcfree;
-#endif /* _KERNEL */
+  if (z->zfree == Z_NULL) z->zfree = zcfree;
   if ((z->state = (struct internal_state FAR *)
        ZALLOC(z,1,sizeof(struct internal_state))) == Z_NULL)
     return Z_MEM_ERROR;

@@ -1,5 +1,5 @@
 /* zconf.h -- configuration of the zlib compression library
- * Copyright (C) 1995-1998 Jean-loup Gailly.
+ * Copyright (C) 1995-2002 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -237,7 +237,7 @@ typedef uLong FAR uLongf;
    typedef Byte     *voidp;
 #endif
 
-#if defined(HAVE_UNISTD_H) && !defined(_KERNEL)
+#ifdef HAVE_UNISTD_H
 #  include <sys/types.h> /* for off_t */
 #  include <unistd.h>    /* for SEEK_* and off_t */
 #  define z_off_t  off_t
