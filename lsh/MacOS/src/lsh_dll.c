@@ -22,6 +22,7 @@
 
 #include "format.h"
 #include "io.h"
+#include "tty.h"
 #include "xalloc.h"
 #include "werror.h"
 
@@ -771,12 +772,12 @@ int AvailableFromTTY(int id, void *ctx)
  * tty_getwinsize : replaces tty_getwinsize from liblsh
  */
 int
-tty_getwinsize(int fd, UINT32 *w, UINT32 *h, UINT32 *wp, UINT32 *hp)
+tty_getwinsize(int fd, struct terminal_dimensions *dims)
 {
-  *w = 80;
-  *h = 24;
-  *wp = 0;
-  *hp = 0;
+  dims->char_width = 80;
+  dims->char_height = 24;
+  dims->pixel_width = 0;
+  dims->pixel_height = 0;
   return 1;
 }
 
@@ -837,9 +838,9 @@ int yes_or_no(struct lsh_string *s, int def, int free)
 {
 	lshctx *ctx = lsh_current();
 	if ( ctx && ctx->yes_or_no ) {
-		struct lsh_string *prompt = make_cstring(s, 0);
+		const char *prompt = lsh_get_cstring(s);
 		if ( prompt ) {
-			def = (*ctx->yes_or_no)( ctx->userData, prompt->data, def );
+			def = (*ctx->yes_or_no)( ctx->userData, prompt, def );
 			lsh_string_free(prompt);
 		}
 	}
