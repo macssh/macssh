@@ -297,9 +297,15 @@ void RSsetattr(short a)
 /* BYU - bold system fonts don't work (they overwrite the scroll bars), 
          but NCSA's 9 point Monaco bold works okay. */
 
-	if (VSisbold(a) && RScurrent->realbold)
-		TextFace(((a & outline) >> 1) + 1);
-    else TextFace((a & outline) >> 1); 	/* BYU - do outline as underline setting */
+	if (VSisbold(a) && RScurrent->realbold) {
+/* NONO : use compressed bold fonts */
+		if (RScurrent->boldislarger) {
+			TextFace(((a & outline) >> 1) + bold + condense);
+		} else {
+			TextFace(((a & outline) >> 1) + 1);
+		}
+/* NONO */
+    } else TextFace((a & outline) >> 1); 	/* BYU - do outline as underline setting */
 
 	if (VSisansifg(a)) {
 		fg = 4 +((a>>8)&0x7);
@@ -556,6 +562,8 @@ void RSdraw
 
 	DrawText(ptr, 0, len);
 
+
+
 	if (RScurrent->selected)
 		RSinvText(w, *(Point *) &RScurrent->anchor,
 			*(Point *) &RScurrent->last, &rect);
@@ -698,7 +706,10 @@ void RSdellines
 		  } /* if */
 	  } /* if */
 
-    rect.left = -1;							/* BYU 2.4.12 - necessary */
+/* NONO: scroll 2 pixels more on the left*/
+	/*rect.left = -1;*/						/* BYU 2.4.12 - necessary */
+	rect.left = -3;
+/* NONO */
     rect.right = RScurrent->width;
     rect.top = t * RScurrent->fheight;
     RSfheightTimesbplus1 = (b + 1) * RScurrent->fheight;
@@ -747,7 +758,9 @@ void RSerase
 		x1 * RScurrent->fwidth ,
 		y1 * RScurrent->fheight,
 		(x2 + 1) * RScurrent->fwidth - 1,
-		(y2 + 1) * RScurrent->fheight + 1
+/* NONO removed bottom line from erase */
+		(y2 + 1) * RScurrent->fheight /*+ 1*/
+/* NONO */
 	  );
 	if (rect.left <= 0)						/* little buffer strip on left */
 		rect.left = CHO;
@@ -789,7 +802,10 @@ void RSinslines
 			*(Point *) &RScurrent->last, &noConst);
 		RScurrent->selected = 0;
 	  } /* if */
-	rect.left = -1;						/* BYU 2.4.12 - necessary */
+/* NONO: scroll 2 pixels more on the left */
+	/*rect.left = -1;*/						/* BYU 2.4.12 - necessary */
+	rect.left = -3;
+/* NONO */
     rect.right = RScurrent->width;
     rect.top = t * RScurrent->fheight;
     rect.bottom = (b + 1) * RScurrent->fheight;
@@ -800,10 +816,9 @@ void RSinslines
     InvalRgn(RSuRgn);
   /* newly-inserted area is already blank -- validate it to avoid redrawing. */
   /* any necessary redrawing will be done by caller */
-	SetRect(&rect, 0, t * RScurrent->fheight - 1,
+	SetRect(&rect, 0, t * RScurrent->fheight /*- 1*/,
 		RScurrent->width, (t + n) * RScurrent->fheight + 1);
     ValidRect(&rect);
-/* NONO */
     RSsetattr(VSIw->attrib); /* restore mode for text drawing */
 /* NONO */
   } /* RSinslines */
