@@ -658,8 +658,9 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 				Hilite(dptr, kDuplicate, 0);
 				return(FALSE);
 			}
-			else  //CCP go to right list item based on keystroke
+			else if (currentHead)
 			{
+				//CCP go to right list item based on keystroke
 				if ((TickCount() - lastTime) > GetCaretTime() )
 					shortcut[0] = 0;
 				lastTime = TickCount();
@@ -779,7 +780,7 @@ void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPt
 		case TERMINALPREFS_RESTYPE:
 			GetIndString(ItemName, MISC_STRINGS, TITLE_TERMINALS);
 			break;
-		case FTPUSER:
+		case FTPUSERPREFS_RESTYPE:
 			GetIndString(ItemName, MISC_STRINGS, TITLE_FTPUSERS);
 			break;
 	}
@@ -842,6 +843,7 @@ void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPt
 				if ( GetCurrentSelection(thelist, &theCell, ItemName)
 				  && !IsDefaultLabel(ItemName) ) {
 					deleteItem(&theHead,ItemName);//delete it from the linked list
+					currentHead = theHead; //in case list is now empty
 					LDelRow(1,theCell.v,thelist);
 					theCell.v--;
 					LSetSelect(TRUE,theCell,thelist);
@@ -885,6 +887,7 @@ void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPt
 				if ((*EditFunction)((StringPtr)&ItemName)) 
 				{
 					short whereAt = createNodeAndSort(&theHead, ItemName);
+					currentHead = theHead; //in case list was empty
 					if (LGetSelect(TRUE, &theCell, thelist)) 
 						LSetSelect(FALSE,theCell,thelist); //turn off old selection
 					theCell.v = LAddRow(1, whereAt, thelist);
@@ -1189,31 +1192,32 @@ void ShowTermPanel(DialogPtr dptr, short panel)
 		case 1:
 		ShowDialogItemRange(dptr, 11, 16);
 		ShowDialogItemRange(dptr, 22, 23);
-		ShowDialogItemRange(dptr, 25, 27);
-		ShowDialogItemRange(dptr, 30, 31);
-		ShowDialogItemRange(dptr, 33, 34);
-		ShowDialogItemRange(dptr, 48, 49);
-		ShowDialogItem(dptr, TermANSIE);
+		ShowDialogItemRange(dptr, 25, 26);
+		ShowDialogItemRange(dptr, 29, 30);
+		//ShowDialogItemRange(dptr, 32, 33);
+		ShowDialogItem(dptr, 32);
+		ShowDialogItemRange(dptr, 45, 46);
+//		ShowDialogItem(dptr, TermANSIE);
 		break;
 
 		case 2:
-		ShowDialogItemRange(dptr, 28, 29);
-		ShowDialogItem(dptr, 32);
-		ShowDialogItemRange(dptr, 35, 39);
+		ShowDialogItemRange(dptr, 27, 28);
+		ShowDialogItem(dptr, 31);
+		ShowDialogItemRange(dptr, 33, 37);
 		break;
 
 		case 3:
 		ShowDialogItemRange(dptr, 19, 21);
-		ShowDialogItemRange(dptr, 40, 44);
+		ShowDialogItemRange(dptr, 38, 42);
 		DrawPopUp(dptr, 20);
-		DrawPopUp(dptr, 43);
-		ShowDialogItem(dptr, 47);
+		DrawPopUp(dptr, 41);
+		ShowDialogItem(dptr, 44);
 		break;
 
 		case 4:
 		ShowDialogItemRange(dptr, 3, 10);
 		ShowDialogItem(dptr, 24);
-		ShowDialogItem(dptr, 50);
+		ShowDialogItem(dptr, 47);
 		break;
 	}
 }
@@ -1224,31 +1228,32 @@ void HideTermPanel(DialogPtr dptr, short panel)
 		case 1:
 		HideDialogItemRange(dptr, 11, 16);
 		HideDialogItemRange(dptr, 22, 23);
-		HideDialogItemRange(dptr, 25, 27);
-		HideDialogItemRange(dptr, 30, 31);
-		HideDialogItemRange(dptr, 33, 34);
-		HideDialogItemRange(dptr, 48, 49);
-		HideDialogItem(dptr, TermANSIE);
+		HideDialogItemRange(dptr, 25, 26);
+		HideDialogItemRange(dptr, 29, 30);
+		//HideDialogItemRange(dptr, 32, 33);
+		HideDialogItem(dptr, 32);
+		HideDialogItemRange(dptr, 45, 46);
+//		HideDialogItem(dptr, TermANSIE);
 		break;
 
 		case 2:
-		HideDialogItemRange(dptr, 28, 29);
-		HideDialogItem(dptr, 32);
-		HideDialogItemRange(dptr, 35, 39);
+		HideDialogItemRange(dptr, 27, 28);
+		HideDialogItem(dptr, 31);
+		HideDialogItemRange(dptr, 33, 37);
 		break;
 
 		case 3:
 		DrawBlank(dptr, 20);
-		DrawBlank(dptr, 43);
+		DrawBlank(dptr, 41);
 		HideDialogItemRange(dptr, 19, 21);
-		HideDialogItemRange(dptr, 40, 44);
-		HideDialogItem(dptr, 47);
+		HideDialogItemRange(dptr, 38, 42);
+		HideDialogItem(dptr, 44);
 		break;
 
 		case 4:
 		HideDialogItemRange(dptr, 3, 10);
 		HideDialogItem(dptr, 24);
-		HideDialogItem(dptr, 50);
+		HideDialogItem(dptr, 47);
 		break;
 	}
 }
@@ -1267,7 +1272,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	Point			ColorBoxPoint;
 	MenuHandle		WeNeedAFontMenuHandle, WeNeedAnotherFontMenuHandle;
 	popup TPopup[] = {{TermFontPopup, (MenuHandle) 0, 1},
-						{43, (MenuHandle) 0, 1},
+						{41, (MenuHandle) 0, 1},
 						{0, (MenuHandle) 0, 0}};
 
 	SetUpMovableModalMenus();
@@ -1278,7 +1283,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	SetDialogTracksCursor(dptr, 1);
 	currentPanel = TelInfo->lastPanelTerminal + 1;
 
-	SetCntrl(dptr, 46, currentPanel);
+	SetCntrl(dptr, 43, currentPanel);
 
 	WeNeedAFontMenuHandle = NewMenu(666, "\p");
 	//get the fonts from the font menu in the menu bar
@@ -1337,15 +1342,15 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	HLock((Handle) TermPrefsHdl);
 	TermPrefsPtr = *TermPrefsHdl;
 	SetTEText(dptr, TermName, PrefRecordNamePtr);
-	SetCntrl(dptr, TermANSI, TermPrefsPtr->ANSIgraphics);
+	SetCntrl(dptr, TermANSIEsc, TermPrefsPtr->ANSIgraphics);
 	SetCntrl(dptr, TermXterm, TermPrefsPtr->Xtermsequences);
-	SetCntrl(dptr, 39, TermPrefsPtr->remapCtrlD);
-	SetCntrl(dptr, 40, TermPrefsPtr->allowBold);
-	SetCntrl(dptr, 41, TermPrefsPtr->colorBold);
-	SetCntrl(dptr, 44, TermPrefsPtr->boldFontStyle);
-	SetCntrl(dptr, 47, TermPrefsPtr->realbold);
-	SetCntrl(dptr, 48, TermPrefsPtr->oldScrollback);
-	SetCntrl(dptr, 49, TermPrefsPtr->jumpScroll);
+	SetCntrl(dptr, 37, TermPrefsPtr->remapCtrlD);
+	SetCntrl(dptr, 38, TermPrefsPtr->allowBold);
+	SetCntrl(dptr, 39, TermPrefsPtr->colorBold);
+	SetCntrl(dptr, 42, TermPrefsPtr->boldFontStyle);
+	SetCntrl(dptr, 44, TermPrefsPtr->realbold);
+	SetCntrl(dptr, 45, TermPrefsPtr->oldScrollback);
+	SetCntrl(dptr, 46, TermPrefsPtr->jumpScroll);
 	SetCntrl(dptr, Termvtwrap, TermPrefsPtr->vtwrap);
 //	SetCntrl(dptr, Termmeta, TermPrefsPtr->emacsmetakey);
 	SetCntrl(dptr, TermMetaIsCmdCntrol, (TermPrefsPtr->emacsmetakey == 1));
@@ -1355,12 +1360,10 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	SetCntrl(dptr, TermMAT, TermPrefsPtr->MATmappings);
 	SetCntrl(dptr, Termeightbit, TermPrefsPtr->eightbit);
 	SetCntrl(dptr, Termclearsave, TermPrefsPtr->clearsave);
-	SetCntrl(dptr, TermVT100, (TermPrefsPtr->vtemulation == 0));
-	SetCntrl(dptr, TermVT220, (TermPrefsPtr->vtemulation == 1));
-	SetCntrl(dptr, TermANSIE, (TermPrefsPtr->vtemulation == 2));
+	SetCntrl(dptr, TermType, TermPrefsPtr->vtemulation + 1);
 
 	SetCntrl(dptr, TermRemapKeypad, TermPrefsPtr->remapKeypad);
-	SetCntrl(dptr, 50, TermPrefsPtr->realBlink);
+	SetCntrl(dptr, 47, TermPrefsPtr->realBlink);
 	scratchlong = (long)(TermPrefsPtr->vtwidth);
 	NumToString(scratchlong, scratchPstring);
 	SetTEText(dptr, TermWidth, scratchPstring);
@@ -1460,16 +1463,16 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 		{
 				okayTermName:
 			switch (ditem) {
-				case	TermANSI:
+				case	TermANSIEsc:
 				case	TermXterm:
+				case	37:
+				case	38:
 				case	39:
-				case	40:
-				case	41:
+				case	42:
 				case	44:
+				case	45:
+				case	46:
 				case	47:
-				case	48:
-				case	49:
-				case	50:
 				case	Termvtwrap:
 				case	Termarrow:
 				case	TermMAT:
@@ -1478,34 +1481,31 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 				case 	TermRemapKeypad:
 					FlipCheckBox(dptr, ditem);
 					break;
-				
-				case	TermVT100:
-					SetCntrl(dptr, TermVT100, 1);
-					SetCntrl(dptr, TermVT220, 0);
-					SetCntrl(dptr, TermANSIE, 0);
-					SetTEText(dptr, TermAnswerback, "\pvt100");
-					//HideDialogItem(dptr,TermRemapKeypad);
-					//HideDialogItem(dptr,TermMAT);
-					break;
-	
-				case	TermVT220:
-					SetCntrl(dptr, TermVT100, 0);
-					SetCntrl(dptr, TermVT220, 1);
-					SetCntrl(dptr, TermANSIE, 0);
-					SetTEText(dptr, TermAnswerback, "\pvt220");
-					//ShowDialogItem(dptr,TermRemapKeypad);
-					//ShowDialogItem(dptr,TermMAT);
-					break;
 
-				case	TermANSIE:
-					SetCntrl(dptr, TermVT100, 0);
-					SetCntrl(dptr, TermVT220, 0);
-					SetCntrl(dptr, TermANSIE, 1);
-					SetTEText(dptr, TermAnswerback, "\pansi");
-					//ShowDialogItem(dptr,TermRemapKeypad);
-					//ShowDialogItem(dptr,TermMAT);
+				case	TermType:
+					switch (GetCntlVal(dptr, ditem)) {
+						case 1:
+							SetTEText(dptr, TermAnswerback, "\pvt100");
+							//HideDialogItem(dptr,TermRemapKeypad);
+							//HideDialogItem(dptr,TermMAT);
+							break;
+						case 2:
+							SetTEText(dptr, TermAnswerback, "\pvt220");
+							//ShowDialogItem(dptr,TermRemapKeypad);
+							//ShowDialogItem(dptr,TermMAT);
+							break;
+						case 3:
+							SetTEText(dptr, TermAnswerback, "\pansi");
+							//ShowDialogItem(dptr,TermRemapKeypad);
+							//ShowDialogItem(dptr,TermMAT);
+							break;
+						case 4:
+							SetTEText(dptr, TermAnswerback, "\plinux");
+							//ShowDialogItem(dptr,TermRemapKeypad);
+							//ShowDialogItem(dptr,TermMAT);
+							break;
+					}
 					break;
-
 
 				case	TermMetaIsCmdCntrol:
 					SetCntrl(dptr, TermMetaIsOption, 0);
@@ -1535,9 +1535,9 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 							BoxColorData[ditem-TermNFcolor] = scratchRGBcolor;
 						}
 					break;
-				case	46: // switch tabs
+				case	43: // switch tabs
 
-					newPanel = GetCntlVal(dptr, 46);
+					newPanel = GetCntlVal(dptr, ditem);
 					if (newPanel == currentPanel) break;
 
 					HideTermPanel(dptr, currentPanel);
@@ -1582,16 +1582,16 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	if (StrLength(scratchPstring) > 63) scratchPstring[0] = 63;
 	BlockMoveData(scratchPstring, (TermPrefsPtr->DisplayFont), scratchPstring[0]+1);
 	
-	TermPrefsPtr->ANSIgraphics = GetCntlVal(dptr, TermANSI);
+	TermPrefsPtr->ANSIgraphics = GetCntlVal(dptr, TermANSIEsc);
 	TermPrefsPtr->Xtermsequences = GetCntlVal(dptr, TermXterm);
-	TermPrefsPtr->remapCtrlD = GetCntlVal(dptr, 39);
-	TermPrefsPtr->allowBold = GetCntlVal(dptr, 40);
-	TermPrefsPtr->colorBold = GetCntlVal(dptr, 41);
-	TermPrefsPtr->realbold = GetCntlVal(dptr, 47);
-	TermPrefsPtr->oldScrollback = GetCntlVal(dptr, 48);
-	TermPrefsPtr->jumpScroll = GetCntlVal(dptr, 49);
-	TermPrefsPtr->boldFontStyle = GetCntlVal(dptr, 44);
-	TermPrefsPtr->realBlink = GetCntlVal(dptr, 50);
+	TermPrefsPtr->remapCtrlD = GetCntlVal(dptr, 37);
+	TermPrefsPtr->allowBold = GetCntlVal(dptr, 38);
+	TermPrefsPtr->colorBold = GetCntlVal(dptr, 39);
+	TermPrefsPtr->realbold = GetCntlVal(dptr, 44);
+	TermPrefsPtr->oldScrollback = GetCntlVal(dptr, 45);
+	TermPrefsPtr->jumpScroll = GetCntlVal(dptr, 46);
+	TermPrefsPtr->boldFontStyle = GetCntlVal(dptr, 42);
+	TermPrefsPtr->realBlink = GetCntlVal(dptr, 47);
 	TermPrefsPtr->vtwrap = GetCntlVal(dptr, Termvtwrap);
 
 	if (GetCntlVal(dptr, TermMetaIsCmdCntrol))
@@ -1607,12 +1607,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	TermPrefsPtr->clearsave = GetCntlVal(dptr, Termclearsave);
 	TermPrefsPtr->remapKeypad = GetCntlVal(dptr, TermRemapKeypad);
 
-	if (GetCntlVal(dptr, TermVT220))
-		TermPrefsPtr->vtemulation = 1;
-	else if (GetCntlVal(dptr, TermANSIE))
-		TermPrefsPtr->vtemulation = 2;
-	else
-		TermPrefsPtr->vtemulation = 0;
+	TermPrefsPtr->vtemulation = GetCntlVal(dptr, TermType) - 1;
 
 	GetTEText(dptr, TermWidth, scratchPstring);
 	StringToNum(scratchPstring, &scratchlong);
@@ -2414,8 +2409,8 @@ Boolean EditFTPUser(StringPtr PrefRecordNamePtr)
 	short		ditem, scratchshort, resourceID, vRefNum;
 	ResType		scratchResType;
 	Boolean		IsNewPrefRecord;
-	FTPUser**	FTPUHdl;
-	FTPUser*	FTPUptr;
+	FTPUserPrefs**	FTPUHdl;
+	FTPUserPrefs*	FTPUptr;
 	Str255		scratchPstring, scratchPstring2;
 
 	SetUpMovableModalMenus();
@@ -2425,27 +2420,31 @@ Boolean EditFTPUser(StringPtr PrefRecordNamePtr)
 	HideDialogItem(dptr, FTPUcanchangeCWD);		// Sometime later, perhaps
 		
 	if (PrefRecordNamePtr[0] != 0) {
-		IsNewPrefRecord = FALSE;
 		UseResFile(TelInfo->SettingsFile);
-		FTPUHdl = (FTPUser **)Get1NamedResource(FTPUSER, PrefRecordNamePtr);
-		HLock((Handle) FTPUHdl);
-		FTPUptr = *FTPUHdl;
-		SetCntrl(dptr, FTPUcanchangeCWD, FTPUptr->UserCanCWD);
-		SetTEText(dptr, FTPUusername, PrefRecordNamePtr);
-		for (scratchshort = 8, scratchPstring[0] = 8; scratchshort > 0; scratchshort--)
-			scratchPstring[scratchshort] = '¥';
- 		SetTEText(dptr, FTPUpassword, scratchPstring);
-		vRefNum = VolumeNameToRefNum(FTPUptr->DefaultDirVolName);
+		FTPUHdl = (FTPUserPrefs **)Get1NamedResource(FTPUSERPREFS_RESTYPE, PrefRecordNamePtr);
+		if ( FTPUHdl ) {
+			IsNewPrefRecord = FALSE;
+			HLock((Handle) FTPUHdl);
+			FTPUptr = *FTPUHdl;
+			SetCntrl(dptr, FTPUcanchangeCWD, FTPUptr->UserCanCWD);
+			SetTEText(dptr, FTPUusername, PrefRecordNamePtr);
+			for (scratchshort = 8, scratchPstring[0] = 8; scratchshort > 0; scratchshort--)
+				scratchPstring[scratchshort] = '¥';
+	 		SetTEText(dptr, FTPUpassword, scratchPstring);
+			vRefNum = VolumeNameToRefNum(FTPUptr->DefaultDirVolName);
+		} else {
+			PrefRecordNamePtr[0] = 0;
 		}
-	else {
+	}
+	if (PrefRecordNamePtr[0] == 0) {
 		IsNewPrefRecord = TRUE;
-		FTPUHdl = (FTPUser **)myNewHandle(sizeof(FTPUser));
+		FTPUHdl = (FTPUserPrefs **)myNewHandle(sizeof(FTPUserPrefs));
 		HLock((Handle) FTPUHdl);
 		FTPUptr = *FTPUHdl;
 		vRefNum = -1;						// Default Volume
 		FTPUptr->DefaultDirDirID = 2;		// Root directory
 		SetCntrl(dptr, FTPUcanchangeCWD, 0);
-		}
+	}
 
 	PathNameFromDirID(FTPUptr->DefaultDirDirID, vRefNum, scratchPstring);
 	SetTEText(dptr, FTPUDfltDirDsply, scratchPstring);
@@ -2462,9 +2461,10 @@ Boolean EditFTPUser(StringPtr PrefRecordNamePtr)
 				break;
 			
 			case	FTPUDfltDirButton:
-				SelectDirectory(&vRefNum, &(FTPUptr->DefaultDirDirID));
-				PathNameFromDirID(FTPUptr->DefaultDirDirID, vRefNum, scratchPstring);
-				SetTEText(dptr, FTPUDfltDirDsply, scratchPstring);
+				if (SelectDirectory(&vRefNum, &FTPUptr->DefaultDirDirID)) {
+					PathNameFromDirID(FTPUptr->DefaultDirDirID, vRefNum, scratchPstring);
+					SetTEText(dptr, FTPUDfltDirDsply, scratchPstring);
+				}
 				break;
 				
 			default:
@@ -2498,8 +2498,8 @@ Boolean EditFTPUser(StringPtr PrefRecordNamePtr)
 			
 	if (IsNewPrefRecord) {
 		UseResFile(TelInfo->SettingsFile);
-		resourceID = UniqueID(FTPUSER);
-		AddResource((Handle)FTPUHdl, FTPUSER, resourceID, PrefRecordNamePtr);
+		resourceID = UniqueID(FTPUSERPREFS_RESTYPE);
+		AddResource((Handle)FTPUHdl, FTPUSERPREFS_RESTYPE, resourceID, PrefRecordNamePtr);
 		UpdateResFile(TelInfo->SettingsFile);
 		ReleaseResource((Handle)FTPUHdl);
 		}
