@@ -80,6 +80,7 @@ extern void UnlockDialog();
 
 static	void setSessStates(DialogPtr dptr);
 static short FindMenuItemText(MenuHandle hMenu, StringPtr itemString);
+static short numberKerberosConnections(void);
 
 static	pascal short POCdlogfilter( DialogPtr dptr, EventRecord *evt, short *item);
 PROTO_UPP(POCdlogfilter, ModalFilter);
@@ -1391,6 +1392,7 @@ void destroyport(short wind)
 void removeport(WindRecPtr tw)
 {
 	Str255		scratchPstring;
+	short		active;
 	
 	setLastCursor(theCursors[watchcurs]);				/* We may be here a while */
 
@@ -1417,9 +1419,17 @@ void removeport(WindRecPtr tw)
 	if (VSisprinting(tw->vs))
 		ClosePrintingFile(tw->vs);
 
-	if ((gApplicationPrefs->destroyKTickets)&&(numberLiveConnections() == 1))//if this is last window
+	active = tw->active;
+	tw->active = CNXN_ISCORPSE;
+	if ( tw->authenticate
+	  && gApplicationPrefs->destroyKTickets
+	  && numberKerberosConnections() == 0 ) {
+		// if this is last window
 		DestroyTickets();
-		
+	}
+	tw->active = active;
+
+
 	if (!gApplicationPrefs->WindowsDontGoAway) {
 		if ( tw->vs >= 0 ) {
 			short sn = findbyVS(tw->vs);
@@ -1615,6 +1625,18 @@ short numberLiveConnections(void)
 	short liveConnections = 0;
 	for(i = 0; i < MaxSess; i++)
 		if ((screens[i].active == CNXN_ACTIVE)||(screens[i].active == CNXN_OPENING))
+			liveConnections++;
+	return liveConnections;
+}
+
+
+static short numberKerberosConnections(void)
+{
+	short i;
+	short liveConnections = 0;
+	for(i = 0; i < MaxSess; i++)
+		if ( screens[i].authenticate
+		 && (screens[i].active == CNXN_ACTIVE || screens[i].active == CNXN_OPENING) )
 			liveConnections++;
 	return liveConnections;
 }

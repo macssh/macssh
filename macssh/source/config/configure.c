@@ -139,6 +139,7 @@ void Cenviron( void)
 	SetCntrl(dptr, PrefDestroyTickets, gApplicationPrefs->destroyKTickets);
 	SetCntrl(dptr, 30, gApplicationPrefs->autoOpenDialog);
 	SetCntrl(dptr, 31, gApplicationPrefs->dontWarnOnQuit);
+	SetCntrl(dptr, 42, gApplicationPrefs->dontWarnOnClose);
 	SetCntrl(dptr, 32, gApplicationPrefs->autoOpenDefault);
 	SetCntrl(dptr, 33, gApplicationPrefs->parseAliases);
 	SetCntrl(dptr, 34, gApplicationPrefs->monospacedOut);
@@ -210,6 +211,7 @@ void Cenviron( void)
 			case 36:
 			case 37:
 			case 41:
+			case 42:
 				FlipCheckBox( dptr, ditem);
 				break;
 			case PrefStag:
@@ -336,6 +338,7 @@ void Cenviron( void)
 	gApplicationPrefs->destroyKTickets = GetCntlVal(dptr,PrefDestroyTickets);
 	gApplicationPrefs->autoOpenDialog = GetCntlVal(dptr,30);
 	gApplicationPrefs->dontWarnOnQuit = GetCntlVal(dptr,31);
+	gApplicationPrefs->dontWarnOnClose = GetCntlVal(dptr,42);
 	gApplicationPrefs->autoOpenDefault = GetCntlVal(dptr,32);
 	gApplicationPrefs->parseAliases = GetCntlVal(dptr,33);
 	gApplicationPrefs->monospacedOut = GetCntlVal(dptr,34);

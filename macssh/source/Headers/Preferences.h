@@ -272,7 +272,7 @@ typedef	struct	{
 	Boolean
 		cachePassphrase,		// 
 		useKeyChain,			// 
-		unused2,				// free
+		dontWarnOnClose,
 		unused3;				// free
 	long
 		cacheDelay;				// delay in seconds before passphrase expires
