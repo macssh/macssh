@@ -452,11 +452,23 @@ Boolean PresentOpenConnectionDialog(void)
 //	GetMenuItemText(TPopup[0].h, TPopup[0].choice, terminalPopupString);
 //	PopupCleanup();
 	portSet = false;
+
 	for (mystrpos = 0; mystrpos < StrLength(scratchPstring); mystrpos++) {
 		if (scratchPstring[mystrpos + 1] == ':') {
 			scratchPstring[mystrpos + 1] = ' ';
 			portSet = true;
+			break;
 		}
+	}
+	mystrpos = StrLength(scratchPstring);
+	while (mystrpos > 0 && scratchPstring[mystrpos] == ' ')
+		--mystrpos;
+	scratchshort = mystrpos;
+	while (mystrpos > 0 && scratchPstring[mystrpos] >= '0' && scratchPstring[mystrpos] <= '9')
+		--mystrpos;
+	if ( mystrpos != scratchshort && scratchPstring[mystrpos] == ' ' ) {
+		// terminated by [spc][digits]
+		portSet = true;
 	}
 
 	MaxMem(&junk);
