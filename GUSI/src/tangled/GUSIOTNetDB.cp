@@ -52,11 +52,13 @@ pascal void GUSIOTNetDBNotify(
 			break;
 		}
 		break;
+
 	default:
-		if (code == kOTProviderIsClosed)
+		if (code == kOTProviderWillClose || code == kOTProviderIsClosed) {
 			netdb->fCreationContext = nil;	// Close & reopen
-		if (code != kOTProviderWillClose)
+		} else {
 			result = 0;
+		}
 		break;
 	}
 	if (result)
