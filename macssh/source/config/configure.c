@@ -1220,12 +1220,14 @@ void ShowTermPanel(DialogPtr dptr, short panel)
 			ShowDialogItem(dptr, 48);
 		}
 		//ShowDialogItem(dptr, 48);
+		ShowDialogItem(dptr, 50);
 		break;
 
 		case 2:
 		ShowDialogItemRange(dptr, 27, 28);
 		ShowDialogItem(dptr, 31);
 		ShowDialogItemRange(dptr, 33, 37);
+		ShowDialogItem(dptr, TermMetaIsOff);
 		break;
 
 		case 3:
@@ -1255,12 +1257,14 @@ void HideTermPanel(DialogPtr dptr, short panel)
 		HideDialogItem(dptr, 32);
 		HideDialogItemRange(dptr, 45, 46);
 		HideDialogItem(dptr, 48);
+		HideDialogItem(dptr, 50);
 		break;
 
 		case 2:
 		HideDialogItemRange(dptr, 27, 28);
 		HideDialogItem(dptr, 31);
 		HideDialogItemRange(dptr, 33, 37);
+		HideDialogItem(dptr, TermMetaIsOff);
 		break;
 
 		case 3:
@@ -1372,6 +1376,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 //	SetCntrl(dptr, Termmeta, TermPrefsPtr->emacsmetakey);
 	SetCntrl(dptr, TermMetaIsCmdCntrol, (TermPrefsPtr->emacsmetakey == 1));
 	SetCntrl(dptr, TermMetaIsOption, (TermPrefsPtr->emacsmetakey == 2));
+	SetCntrl(dptr, TermMetaIsCmd, (TermPrefsPtr->emacsmetakey == 3));
 	SetCntrl(dptr, TermMetaIsOff, (TermPrefsPtr->emacsmetakey == 0));
 	SetCntrl(dptr, Termarrow, TermPrefsPtr->emacsarrows);
 	SetCntrl(dptr, TermMAT, TermPrefsPtr->MATmappings);
@@ -1382,6 +1387,9 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	SetCntrl(dptr, TermRemapKeypad, TermPrefsPtr->remapKeypad);
 	SetCntrl(dptr, 47, TermPrefsPtr->realBlink);
 	SetCntrl(dptr, 48, TermPrefsPtr->vt7bits);
+	
+	SetCntrl(dptr, 50, TermPrefsPtr->hideScrollBars);
+	
 	scratchlong = (long)(TermPrefsPtr->vtwidth);
 	NumToString(scratchlong, scratchPstring);
 	SetTEText(dptr, TermWidth, scratchPstring);
@@ -1497,6 +1505,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 				case	46:
 				case	47:
 				case	48:
+				case	50:
 				case	Termvtwrap:
 				case	Termarrow:
 				case	TermMAT:
@@ -1536,18 +1545,27 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 					break;
 
 				case	TermMetaIsCmdCntrol:
-					SetCntrl(dptr, TermMetaIsOption, 0);
-					SetCntrl(dptr, TermMetaIsOff, 0);
 					SetCntrl(dptr, TermMetaIsCmdCntrol, 1);
+					SetCntrl(dptr, TermMetaIsOption, 0);
+					SetCntrl(dptr, TermMetaIsCmd, 0);
+					SetCntrl(dptr, TermMetaIsOff, 0);
 					break;
 				case	TermMetaIsOption:
-					SetCntrl(dptr, TermMetaIsOff, 0);
 					SetCntrl(dptr, TermMetaIsCmdCntrol, 0);
 					SetCntrl(dptr, TermMetaIsOption, 1);
+					SetCntrl(dptr, TermMetaIsCmd, 0);
+					SetCntrl(dptr, TermMetaIsOff, 0);
+					break;
+				case	TermMetaIsCmd:
+					SetCntrl(dptr, TermMetaIsCmdCntrol, 0);
+					SetCntrl(dptr, TermMetaIsOption, 0);
+					SetCntrl(dptr, TermMetaIsCmd, 1);
+					SetCntrl(dptr, TermMetaIsOff, 0);
 					break;
 				case	TermMetaIsOff:
 					SetCntrl(dptr, TermMetaIsCmdCntrol, 0);
 					SetCntrl(dptr, TermMetaIsOption, 0);
+					SetCntrl(dptr, TermMetaIsCmd, 0);
 					SetCntrl(dptr, TermMetaIsOff, 1);
 					break;
 				case	TermNFcolor:	
@@ -1625,12 +1643,15 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	TermPrefsPtr->boldFontStyle = GetCntlVal(dptr, 42);
 	TermPrefsPtr->realBlink = GetCntlVal(dptr, 47);
 	TermPrefsPtr->vt7bits = GetCntlVal(dptr, 48);
+	TermPrefsPtr->hideScrollBars = GetCntlVal(dptr, 50);
 	TermPrefsPtr->vtwrap = GetCntlVal(dptr, Termvtwrap);
 
 	if (GetCntlVal(dptr, TermMetaIsCmdCntrol))
 		TermPrefsPtr->emacsmetakey = 1;
 	else if (GetCntlVal(dptr, TermMetaIsOption))
 		TermPrefsPtr->emacsmetakey = 2;
+	else if (GetCntlVal(dptr, TermMetaIsCmd))
+		TermPrefsPtr->emacsmetakey = 3;
 	else
 		TermPrefsPtr->emacsmetakey = 0;
 	
@@ -1951,6 +1972,9 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	CheckPortPopup( dptr, (unsigned short)SessPrefsPtr->port, 90 );
 	SetCntrl(dptr, 91, SessPrefsPtr->launchurlesc);
 	SetCntrl(dptr, 93, SessPrefsPtr->x11forward);
+
+//	SetCntrl(dptr, 94, SessPrefsPtr->autoreconnect);
+	
 /* NONO */
 
 	if (!authOK) {
@@ -2444,6 +2468,7 @@ void SetSessionData(DialogPtr dptr, SessionPrefs *SessPrefsPtr,
 	SessPrefsPtr->launchurlesc = GetCntlVal(dptr, 91);
 	SessPrefsPtr->x11forward = GetCntlVal(dptr, 93);
 
+//	SessPrefsPtr->autoreconnect = GetCntlVal(dptr, 94);
 /* NONO */
 
 	memset(SessPrefsPtr->otppassword, 0, sizeof(SessPrefsPtr->otppassword));
