@@ -101,9 +101,10 @@ typedef	struct {
 		oldScrollback,
 		jumpScroll,
 		realBlink,
-		vt7bits;
+		vt7bits,
+		hideScrollBars;
 	short
-		padding[99];			// So I'm generous....
+		padding[98];			// So I'm generous....
 }	TerminalPrefs;
 #define	TERMINALPREFS_RESTYPE	'TeR2'
 #define	TERMINALPREFS_APPID		1991		// The "<Default>" terminal seed copy
@@ -214,8 +215,12 @@ typedef	struct {
 	char
 		display[64];			// x11 display name (usually "0.0")
 
+	Boolean
+		autoreconnect;
+	Boolean
+		unused1;
 	short
-		padding[100];			// Disk space is cheap.... (used to be [98])
+		padding[99];			// Disk space is cheap.... (used to be [98])
 /* NONO */
 
 }	SessionPrefs;
