@@ -53,7 +53,6 @@
 
 #include <Printing.h>
 #include "printing.proto.h"
-#include "menuseg.proto.h"
 #include "translate.proto.h"
 #include "parse.proto.h"				// For SendNAWSinfo proto
 #include "keypadmenus.proto.h"
@@ -149,6 +148,7 @@ void	AdjustMenus(void)
 		DisableItem( myMenus[Fil],FLsave);
 		DisableItem( myMenus[Fil],FLsavem);
 		DisableItem( myMenus[Fil],FLprint);
+		DisableItem( myMenus[Fil],FLprintScrn);
 		DisableItem( myMenus[Fil],FLselect);
 		DisableItem( myMenus[Fil],FLupload);
 		DisableItem( myMenus[Edit],EDcut);
@@ -213,6 +213,7 @@ void	AdjustMenus(void)
 		EnableItem ( myMenus[Fil],FLsave);
 		EnableItem ( myMenus[Fil],FLsavem);
 		EnableItem ( myMenus[Fil],FLupload);
+		EnableItem ( myMenus[Fil],FLprintScrn);
 
 		EnableItem ( myMenus[Emul],0); // RAB BetterTelnet 1.0fc8
 
@@ -832,7 +833,7 @@ void copyText( short vs)
 
 	tlong=ZeroScrap();		/* This Scrap aint big enough for the both of us */
 
-	charh=RSGetTextSel(vs,0);		/* Get the text selection */
+	charh=RSGetTextSel(vs, 0, 1);		/* Get the text selection */
 
 	if (charh == (char **)-1L)
 		OutOfMemory(400);
@@ -857,7 +858,7 @@ void copyTable( short vs)
 
 	tlong=ZeroScrap();		/* This Scrap aint big enough for the both of us */
 
-	charh=RSGetTextSel(vs, gApplicationPrefs->CopyTableThresh);		/* Get the text selection */
+	charh=RSGetTextSel(vs, gApplicationPrefs->CopyTableThresh, 1);		/* Get the text selection */
 
 	if (charh>(char **)0L) {					/* BYU LSC - Can't do anything without characters */
 		HLock(charh);				/* Lock for putting */
@@ -989,7 +990,7 @@ void autoPaste(short vs) // RAB: routine added in BetterTelnet 1.0fc6
 	/* Flush the buffer if necessary */ //CCP fix for linemode
 	kbflush(tw);
 
-	charh = RSGetTextSel(vs,0);		/* Get the text selection */
+	charh = RSGetTextSel(vs, 0, 1);		/* Get the text selection */
 
 	if (charh == (char **)-1L) {
 		OutOfMemory(400);
@@ -1150,6 +1151,7 @@ void HandleMenuCommand( long mResult, short modifiers)
 	register short i;
 	short theItem, theMenu;
 	Boolean doWrap;
+	Str255		scratchPstring;
 
 	theMenu = mResult >> 16;
 	theItem = mResult & 0xffff;
@@ -1237,6 +1239,10 @@ void HandleMenuCommand( long mResult, short modifiers)
 
 		case FLprint:								/* Print Selection (or gr) */
 			PrintSelection();
+			break;
+
+		case FLprintScrn:							/* Print Screen */
+			PrintScreen();
 			break;
 
 		case FLselect:
@@ -1763,24 +1769,29 @@ void HandleMenuCommand( long mResult, short modifiers)
 			break;
 		}
 		
+		if ( theItem == COshowlog ) {
+			DebugKeys(TRUE, 39, -1);
+			break;
+		}
+
 		if (theItem == COtitle)	{
 			ChangeWindowName(FrontWindow());
 			break;
-			}
+		}
 			
 		if (theItem >= FIRST_CNXN_ITEM) {
 			if ((theItem - FIRST_CNXN_ITEM-1)>(TelInfo->numwindows+1)) break;  /* rotten danish */
 			if (screens[theItem - FIRST_CNXN_ITEM].active != CNXN_ACTIVE) {
 				displayStatus(theItem - FIRST_CNXN_ITEM);	/* Tell them about it..... */
 				break;
-				}
+			}
 			else {
 				HiliteWindow(screens[scrn].wind, FALSE);
 				changeport(scrn,(theItem - FIRST_CNXN_ITEM));
 				if (!(modifiers &  optionKey)) SelectWindow(screens[scrn].wind);
 				else HiliteWindow(screens[scrn].wind, TRUE);
-				}
 			}
+		}
 		break;
 
 	case fontMenu:
@@ -1942,9 +1953,15 @@ void DoTheMenuChecks(void)
 		return;
 	}
 
+
+	EnableItem( myMenus[Conn], 0 );
+	EnableItem( myMenus[Conn], COshowlog);
+
 	if (TelInfo->numwindows>0)
 		{
-		EnableItem( myMenus[Conn],0);
+//		EnableItem(myMenus[Conn], 0 );
+		EnableItem( myMenus[Conn], COtitle );
+
 		if (gApplicationPrefs->KeyPadAndFuncMenus) {			/* Baylor */
 			EnableItem(myMenus[Keypad], 0);			/* Baylor */
 			EnableItem(myMenus[Function], 0);		/* Baylor */
@@ -1954,13 +1971,16 @@ void DoTheMenuChecks(void)
 
 	else 
 		{
-		DisableItem(myMenus[Conn],0);
+//		DisableItem(myMenus[Conn], 0 );
+		DisableItem(myMenus[Conn], COtitle );
+
 		if (gApplicationPrefs->KeyPadAndFuncMenus) {			/* Baylor */
 			DisableItem(myMenus[Keypad], 0);		/* Baylor */
 			DisableItem(myMenus[Function], 0);		/* Baylor */
 			}
 		DrawMenuBar();
 		}
+
 
 	active =0;
 	
@@ -2244,7 +2264,7 @@ void SaveThisSelection(short vs) {
 	short refNum, exist;
 	long tempCount;
 
-	charh=RSGetTextSel(vs,0);		/* Get the text selection */
+	charh=RSGetTextSel(vs, 0, 1);		/* Get the text selection */
 
 	if (charh == (char **)-1L)
 		OutOfMemory(400);
