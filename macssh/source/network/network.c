@@ -1112,7 +1112,7 @@ short netclose(short pnum)
 		if (wind->sshdata.context) {
 			ssh_glue_close(wind);
 		} else {
-			netputevent(SCLASS, CLOSEDONE, pnum,0);
+			netputuev(SCLASS, CLOSEDONE, pnum,0);
 		}
 
 		return 0;
@@ -1322,10 +1322,10 @@ pascal void Notify(StreamPtr streamPtr, unsigned short code, Ptr uptr,
 	switch( code) {
 		case TCPTerminate:
 		case TCPClosing:
-			netputevent(CONCLASS, CONCLOSE, pnum,0);
+			netputuev(CONCLASS, CONCLOSE, pnum,0);
 			break;
 		case TCPULPTimeout:
-			netputevent(CONCLASS, CONFAIL, pnum,0);
+			netputuev(CONCLASS, CONFAIL, pnum,0);
 			break;
 		case TCPDataArrival:
 		case TCPUrgent:
@@ -1370,15 +1370,15 @@ void	OpenComplete(MyTCPpbPtr pbp)
 		return;			 //I'll assume so (CCP)
 	}
 	if (pbp->pb.ioResult == -23017) {
-		netputevent(CONCLASS, CONFAIL, pnum, -23017);
+		netputuev(CONCLASS, CONFAIL, pnum, -23017);
 		streams[pnum]->pbp = pbp; // save the params
 		return;					 // and return
 	} else streams[pnum]->pbp = 0;
 
 	if (pbp->pb.ioResult !=noError) 
-		netputevent(CONCLASS, CONFAIL, pnum,pbp->pb.ioResult);	/* Failure ... */
+		netputuev(CONCLASS, CONFAIL, pnum,pbp->pb.ioResult);	/* Failure ... */
 	else 
-		netputevent(CONCLASS, CONOPEN, pnum,0);			/* Success ! */
+		netputuev(CONCLASS, CONOPEN, pnum,0);			/* Success ! */
 	
 	MyPBreturn( pbp);
 }
@@ -1434,15 +1434,15 @@ void	CloseComplete(MyTCPpbPtr pbp)
 	
 	if (pnum < 0 || (p = streams[pnum]) == 0L)
 	  {
-		netputevent(SCLASS, CLOSEDONE+1, pnum,0);
+		netputuev(SCLASS, CLOSEDONE+1, pnum,0);
 		MyPBreturn(pbp);
 		return;
 	  }
 		
 	if (pbp->pb.ioResult !=noError) 
-		netputevent(SCLASS, CLOSEDONE+1, pnum,0);
+		netputuev(SCLASS, CLOSEDONE+1, pnum,0);
 	else 
-		netputevent(SCLASS, CLOSEDONE, pnum,0);			/* Success ! */
+		netputuev(SCLASS, CLOSEDONE, pnum,0);			/* Success ! */
 
 	MyPBreturn( pbp);
 }
