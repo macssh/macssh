@@ -72,11 +72,12 @@ struct VSscrn {
          savelines,         /* save lines off top? 0=no                     */
  		 forcesave,			/* NCSA 2.5: always force lines to be saved off top */
          possibleForce,		//we have receive a "move to 0,0"; if next is EEOl, forcesave
-         ESscroll,			/* Scroll screen when ES received				*/
-         attrib,            /* current character writing attributes         */
-         x,y,               /* current cursor positon                       */
-         Px,Py,Pattrib,     /* saved cursor position and writing attributes */
-         DECAWM,            /* Auto Wrap Mode 0=off 						*/
+         ESscroll;			/* Scroll screen when ES received				*/
+    unsigned short attrib;  /* current character writing attributes         */
+    short x,y,              /* current cursor positon                       */
+         Px,Py;             /* saved cursor position and writing attributes */
+    unsigned short Pattrib; /* current character writing attributes         */
+    short DECAWM,           /* Auto Wrap Mode 0=off 						*/
          DECCKM,            /* Cursor Key Mode      						*/
          DECPAM,            /* keyPad Application Mode						*/
 		 DECORG,			/* origin mode                                  */
