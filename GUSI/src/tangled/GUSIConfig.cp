@@ -200,6 +200,7 @@ void GUSIConfiguration::DoAutoSpin() const
 // <Member functions for class [[GUSIConfiguration]]>=                     
 void GUSIConfiguration::DoAutoInitGraf()
 {
+#if !TARGET_API_MAC_CARBON
 	Ptr curA5 = LMGetCurrentA5();
 	
 	if (!(reinterpret_cast<long>(curA5) & 1) 
@@ -208,6 +209,7 @@ void GUSIConfiguration::DoAutoInitGraf()
 	)
 		if (*reinterpret_cast<GrafPtr **>(curA5) != &qd.thePort)
 			InitGraf(&qd.thePort);
+#endif
 	fAutoInitGraf	=	false;	
 }
 // [[BrokenPipe]] raises a [[SIGPIPE]] signal if desired.                  
@@ -222,6 +224,7 @@ void GUSIConfiguration::BrokenPipe()
 void GUSIConfiguration::CheckInterrupt()
 {
 	if (fSigInt) {
+#if !TARGET_API_MAC_CARBON
 		EvQElPtr		eventQ;
 
 		for (eventQ = (EvQElPtr) LMGetEventQueue()->qHead; eventQ; )
@@ -231,6 +234,12 @@ void GUSIConfiguration::CheckInterrupt()
 				break; 
 			} else
 				eventQ = (EvQElPtr)eventQ->qLink;
+#else
+		if ( CheckEventQueueForUserCancel() ) {
+			raise(SIGINT);
+			FlushEvents(-1, 0);
+		}
+#endif
 	}
 }
 // Checking for the Command-Period key combination is rather complex. Our technique is copied

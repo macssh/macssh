@@ -170,4 +170,8 @@ int GUSI_sprintf(char * s, const char * format, ...);
 
 #endif /* GUSI_SOURCE */
 
+#if TARGET_API_MAC_CARBON
+#	define LMGetTicks() TickCount()
+#endif
+
 #endif /* _GUSIBasics_ */

@@ -347,6 +347,7 @@ void GUSIHandleNextEvent(long sleepTime)
 	
 	if (WaitNextEvent(gGUSIEventMask|1, &event, sleepTime, nil))
 		switch (event.what) {
+#if !TARGET_API_MAC_CARBON
 		case mouseDown:
 			if (!gGUSIEventHook[mouseDown]) {
 				WindowPtr win;
@@ -355,6 +356,7 @@ void GUSIHandleNextEvent(long sleepTime)
 				return;
 			}
 			break;
+#endif
 		case kHighLevelEvent:
 			AEProcessAppleEvent(&event);	// Ignore errors
 				
