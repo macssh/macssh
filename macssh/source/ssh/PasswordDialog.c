@@ -511,12 +511,27 @@ static void AddPassToKeychain(const char *prompt, StringPtr password)
 
 
 /*
+ * ActivateTerminal
+ */
+
+static void ActivateTerminal(WindowPtr wind)
+{
+	if ( wind && FrontWindow() != wind ) {
+		SelectWindow( wind );
+		do {
+			EventRecord theEvent;
+			if ( WaitNextEvent(activMask | updateMask, &theEvent, 0, 0L) ) {
+				HandleEvent(&theEvent);
+			}
+		} while ( FrontWindow() != wind );
+	}
+}
+
+/*
  * SSH2PasswordDialog
  */
 
-
-
-Boolean SSH2PasswordDialog(const char *prompt, StringPtr password)
+Boolean SSH2PasswordDialog(const char *prompt, StringPtr password, WindowPtr term)
 {
 	DialogPtr		dlog;
 	short			item = 0;
@@ -536,6 +551,8 @@ Boolean SSH2PasswordDialog(const char *prompt, StringPtr password)
 #endif
 
 	InteractWithUser( true, 128, 128 );
+
+	ActivateTerminal(term);
 
 	SetUpMovableModalMenus();
 	internalBufferFilterUPP = NewModalFilterProc(InternalBufferFilter);
