@@ -103,6 +103,24 @@ GetUSecLow()
 #endif
 }
 
+#if TARGET_API_MAC_CARBON
+typedef struct
+{
+  unsigned *count;
+  struct hash_instance *hash;
+} flattenTravInfos;
+
+static pascal OSErr collectionFlattenProc(SInt32 size, void *data, void *refCon)
+{
+	flattenTravInfos *infos = (flattenTravInfos *)refCon;
+	HASH_UPDATE(infos->hash, size, (UINT8 *)data);
+     *infos->count += size / 8;
+   return noErr;
+}
+#endif
+
+
+
 static unsigned
 do_unix_random_slow(struct random_poll *s, struct hash_instance *hash)
 {
@@ -116,8 +134,15 @@ do_unix_random_slow(struct random_poll *s, struct hash_instance *hash)
   ProcessInfoRec pinfo;
   Str255 pname;
   FSSpec pfspec;
+#if TARGET_API_MAC_CARBON
+	WindowPtr window;
+	Collection collection = NewCollection();
+	CollectionFlattenUPP coltraversal = NewCollectionFlattenUPP(collectionFlattenProc);
+	flattenTravInfos flattenInfos;
+#else
   const WindowRecord *window;
   const VCB *vcb;
+#endif
 
   now = time( NULL ); 
   tick = GetUSecLow();
@@ -146,6 +171,22 @@ do_unix_random_slow(struct random_poll *s, struct hash_instance *hash)
     } while ( GetNextProcess(&psn) == noErr );
   }
 
+#if TARGET_API_MAC_CARBON
+  flattenInfos.count = &count;
+  flattenInfos.hash = hash;
+  window = GetWindowList();
+  while ( window && collection && coltraversal ) {
+  	EmptyCollection(collection);
+  	StoreWindowIntoCollection(window, collection);
+  	FlattenCollection(collection, coltraversal, &flattenInfos);
+    window = GetNextWindow(window);
+  }
+  
+  if(collection)
+  	DisposeCollection(collection);
+  if(coltraversal)
+  	DisposeCollectionFlattenUPP(coltraversal);
+#else
   window = (const WindowRecord *)LMGetWindowList();
   while ( window ) {
     HASH_OBJECT(hash, *window);
@@ -159,6 +200,7 @@ do_unix_random_slow(struct random_poll *s, struct hash_instance *hash)
     count += sizeof(VCB) / 8;
     vcb = (const VCB *)vcb->qLink;
   }
+#endif
 
   return count;
 }
