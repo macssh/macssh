@@ -32,6 +32,7 @@
 #ifndef __ERRORS__
 #include <Errors.h>
 #endif
+#include <Assert.h>
 
 /*--------------- Includes ---------------------------------------------------*/
 
@@ -90,6 +91,11 @@ struct mem {
 #define REMOVESIZE(memPool, mp)
 #endif
 
+#define BADBLOCK(memPool, mp) \
+	((mp) < memPool->f_LoMem || (mp) > memPool->f_HiMem - MEMHSIZE \
+	 || !(mp)->size || (mp)->size > memPool->f_PoolSize)
+
+
 //------------------------------------------------------------------------------
 
 OSErr MPInit(long allocsize, Ptr *priv, Ptr prev)
@@ -134,7 +140,7 @@ OSErr MPInit(long allocsize, Ptr *priv, Ptr prev)
 	memPool->f_HandleRec = privH;
 	memPool->f_HandleMem = poolH;
 	memPool->next = nil;
-	memPool->prev = prev;
+	memPool->prev = (MemPool *)prev;
 #if GETSTATS
 	memPool->f_CurrSize = 0L;
 	memPool->f_PeakSize = 0L;
@@ -153,6 +159,10 @@ void MPDispose(Ptr priv)
 #endif
 	MemPool			*memPool = (MemPool *)priv;
 
+#if DEBUG_MEM
+	assert(memPool == (MemPool *)*memPool->f_HandleRec);
+	assert(memPool->f_LoMem == *memPool->f_HandleMem);
+#endif
 #if GROW_POOL
 	if (memPool->next != nil) {
 		MPDispose(memPool->next);
@@ -184,20 +194,25 @@ void *MPmalloc(Ptr priv, long size)
 	long			wanted;
 	unsigned short	oldLevel;
 
+#if DEBUG_MEM
+	assert(memPool == (MemPool *)*memPool->f_HandleRec);
+	assert(memPool->f_LoMem == *memPool->f_HandleMem);
+#endif
     if ((wanted = size) == 0)
 		return (char *)0;
 	else {
 		// align to four bytes
 		if (size % 4)
-			size += 4 - size % 4;
+			size += 4 - (size % 4);
 		size += MEMHSIZE;
 	}
 	oldLevel = DisInt();
 	// search into the free blocks list if size needed is found
     for (tmp = 0, mp = (struct mem *)memPool->f_Free; mp; tmp = mp, mp = mp->nextBlock) {
+		assert(!BADBLOCK(memPool, mp));
         if (mp && mp->size >= size) {
 			// this block is at least big enough for the size needed
-            if (mp->size > size + 11) {	// free the begining
+            if (mp->size >= size + MEMHSIZE + 4) {	// free the begining
 				// this block is much bigger, let's create a new free block
                 tmp = (struct mem *)((unsigned)mp + mp->size - size);
                 tmp->size = size;
@@ -254,6 +269,10 @@ void MPfree(Ptr priv, void *addr)
     register struct mem *mp, *tmp;
 	unsigned short	oldLevel;
 
+#if DEBUG_MEM
+	assert(memPool == (MemPool *)*memPool->f_HandleRec);
+	assert(memPool->f_LoMem == *memPool->f_HandleMem);
+#endif
 	// check the addr
 	if (addr < memPool->f_LoMem + MEMHSIZE || addr >= memPool->f_HiMem) {
 #if GROW_POOL
@@ -267,7 +286,7 @@ void MPfree(Ptr priv, void *addr)
 #endif
 		return;
 	}
-    memAddr = (struct mem *)((long)addr - MEMHSIZE);
+    memAddr = (struct mem *)((char *)addr - MEMHSIZE);
 	if (!memAddr->size || memAddr->size > memPool->f_PoolSize) {
 		DEBUGSTRING("### MPfree : bad size");
 		return;
@@ -292,6 +311,7 @@ void MPfree(Ptr priv, void *addr)
     } else {
 		// get previous free block
 	    for (tmp = nil, mp = (struct mem *)memPool->f_Free; mp; tmp = mp, mp = mp->nextBlock) {
+			assert(!BADBLOCK(memPool, mp));
 			// this block is between memPool->f_LoMem and previous free block
 	        if (tmp < memAddr && memAddr < mp)
 	            break;
@@ -310,7 +330,8 @@ void MPfree(Ptr priv, void *addr)
 	// now compact the free blocks list
 	// try assembling adjacent free blocks
     for (tmp = (struct mem *)memPool->f_Free,
-		 mp = ((struct mem *)memPool->f_Free)->nextBlock; mp; tmp=mp, mp=mp->nextBlock) {
+		mp = ((struct mem *)memPool->f_Free)->nextBlock; mp; tmp=mp, mp=mp->nextBlock) {
+		assert(!BADBLOCK(memPool, mp));
         if ((char *)tmp + tmp->size == (char *)mp) {
             tmp->size += mp->size;
             tmp->nextBlock = mp->nextBlock;
@@ -334,13 +355,12 @@ void MPfree(Ptr priv, void *addr)
         }
     }
 #if GROW_POOL
-	if ( memPool->f_Free == nil && memPool->f_Top == memPool->f_LoMem ) {
-		if ( memPool->prev ) {
-			((MemPool *)memPool->prev)->next = memPool->next;
-		}
-		if ( memPool->next ) {
-			((MemPool *)memPool->next)->prev = memPool->prev;
-		}
+	/* don't kill first mempool: it's the only one known by the caller... */
+	if ( memPool->prev && memPool->f_Free == nil && memPool->f_Top == memPool->f_LoMem ) {
+		if ( memPool->prev )
+			memPool->prev->next = memPool->next;
+		if ( memPool->next )
+			memPool->next->prev = memPool->prev;
 		memPool->next = nil;
 		MPDispose(priv);
 	}
@@ -359,7 +379,7 @@ long MPsize(Ptr priv, void *addr)
 	if (addr < memPool->f_LoMem + MEMHSIZE || addr >= memPool->f_HiMem) {
 #if GROW_POOL
 		if (memPool->next != nil) {
-			return MPsize(memPool->next, addr);
+			return MPsize((Ptr)memPool->next, addr);
 		} else {
 #endif
 			DEBUGSTRING("### MPsize : outbounds");
@@ -368,7 +388,7 @@ long MPsize(Ptr priv, void *addr)
 #endif
 		return NULL;
 	}
-    memAddr = (struct mem *)((long)addr - MEMHSIZE);
+    memAddr = (struct mem *)((char *)addr - MEMHSIZE);
 	if (!memAddr->size || memAddr->size > memPool->f_PoolSize) {
 		DEBUGSTRING("### MPsize : bad size");
 		return NULL;
