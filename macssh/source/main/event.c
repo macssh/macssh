@@ -79,31 +79,36 @@ short				gBlink = 0;
 //extern void VSPulseAll(void);
 /* End blink */
 
+#define switchEvt	 1		/* Switching event (suspend/resume )  for app4evt */
+
+#define	BScode		51		/* This is the Keycode for Backspace */
 
 //This is stuff to translate key codes to VS codes.  There are two tables, for shifted
 //and unshifted.  The base is 0x41, the code for the keypad period.  The max is 0x7e, the
 //code for the up arrow.  This includes everything but the main portion of the keyboard.
 
+#define KPlowest	65		/* This is the last code before the KP */
+
 unsigned char kpxlate[2][62] =
   {
 	  {		/* virtual key code */
-		VSKP,	/* $41 */
-		VSRT,	/* $42 (Mac+) */
-		VSF4,	/* $43 (ADB) */
+		VSKP,	/* $41 */					/* Keypad . */
+		VSRT,	/* $42 (Mac+) */			/* Right Arrow */
+		VSPF4,	/* $43 (ADB) */				/* Mac Keypad * */
 		0,		/* $44 */
-		VSKC,	/* $45 (ADB std) */
-		VSLT,	/* $46 (Mac+) */
-		VSF1,	/* $47 */
+		VSKC,	/* $45 (ADB std) */			/* Keypad , (+) */
+		VSLT,	/* $46 (Mac+) */			/* Left Arrow */
+		VSPF1,	/* $47 */					/* Mac Keypad Clear */
 		VSDN,	/* $48 (Mac+) */
 		0,		/* $49 */
 		0,		/* $4A */
-		VSF3,	/* $4B (ADB) */
+		VSPF3,	/* $4B (ADB) */
 		VSKE,	/* $4C */
 		VSUP,	/* $4D (Mac+) */
-		VSKM,	/* $4E */
+		VSKM,	/* $4E */					/* Keypad - */
 		0,		/* $4F */
 		0,		/* $50 */
-		VSF2,	/* $51 (ADB) */
+		VSPF2,	/* $51 (ADB) */
 		VSK0,	/* $52 */
 		VSK1,	/* $53 */
 		VSK2,	/* $54 */
@@ -152,22 +157,22 @@ unsigned char kpxlate[2][62] =
 	  },
 	  {
 		VSKP,	/* $41 */
-		VSF4,	/* $42 (Mac+) */
-		VSF4,		/* $43 (ADB) */
+		VSPF4,	/* $42 (Mac+) */
+		VSPF4,		/* $43 (ADB) */
 		0,		/* $44 */
 		VSKC,		/* $45 (ADB) */
 		VSKC,	/* $46 (Mac+) */
-		VSF1,	/* $47 */
-		VSF2,	/* $48 */
+		VSPF1,	/* $47 */
+		VSPF2,	/* $48 */
 		0,		/* $49 */
 		0,		/* $4A */
-		VSF3,		/* $4B */
+		VSPF3,		/* $4B */
 		VSKE,	/* $4C */
-		VSF3,	/* $4D */
+		VSPF3,	/* $4D */
 		VSKM,		/* $4E */
 		0,		/* $4F */
 		0,		/* $50 */
-		VSF2,		/* $51 */
+		VSPF2,		/* $51 */
 		VSK0,	/* $52 */
 		VSK1,	/* $53 */
 		VSK2,	/* $54 */
@@ -216,6 +221,14 @@ unsigned char kpxlate[2][62] =
 	  }
   };
 
+
+void setLastCursor(Cursor *crsr)
+{
+	if ( TelInfo->lastCursor != crsr ) {
+		SetCursor(TelInfo->lastCursor = crsr);
+	}
+}
+
 short updateCursor(short force)
 {
 	static Point	lastPoint;
@@ -223,108 +236,71 @@ short updateCursor(short force)
 	short			optDown;
 	Point			myPoint;
 	KeyMap			allthekeys;			/* Someplace to put the keymap */
+	short			vs;
 
-	if (TelInfo->myfrontwindow) {					/* BYU 2.4.11 */
-		SetPort((GrafPtr) TelInfo->myfrontwindow);	/* BYU 2.4.11 */
-	} else {								/* BYU 2.4.11 */
-		SetCursor(theCursors[normcurs]);				/* BYU 2.4.11 */
-		return(0);							/* BYU 2.4.11 */
+	if ( !TelInfo->myfrontwindow ) {
+		setLastCursor(theCursors[normcurs]);
+		return 0;
 	}
 
+	/* GetMouse returns local coordinates */
+	SetPort( TelInfo->myfrontwindow );
 	GetMouse(&myPoint);
 
 	GetKeys(allthekeys);
-	optDown = ((unsigned char *)allthekeys)[7] &4;
+	optDown = ((unsigned char *)allthekeys)[7] & 4;
 
-	if ( (!force) && EqualPt(myPoint,lastPoint) && (optDown ==optwasdown))
-		return(0);
+	if ( !force && EqualPt(myPoint,lastPoint) && optDown == optwasdown)
+		return 0;
 
 	if (force)
-		TelInfo->lastCursor=0L;
+		TelInfo->lastCursor = 0L;
+
 	if (TelInfo->ginon) {
-		if (TelInfo->lastCursor!= theCursors[gincurs]) {
-			SetCursor(theCursors[gincurs]);
-			TelInfo->lastCursor = theCursors[gincurs];
-			}
-		return(1);
-		}
+		setLastCursor(theCursors[gincurs]);
+		return 1;
+	}
 
 	if (TelInfo->xferon && !optDown) {
-		if  (TelInfo->lastCursor!= theCursors[xfercurs]) {
-			SetCursor( theCursors[xfercurs]);
-			TelInfo->lastCursor = theCursors[xfercurs];
-			}
-		return(1);
-		}
+		setLastCursor(theCursors[xfercurs]);
+		return 1;
+	}
+
+	vs = TelInfo->myfrontvs;
 
 	switch (TelInfo->myfronttype) {
 		case DEC_WINDOW:
-			if (RSmouseintext( TelInfo->myfrontvs, myPoint)) 
-			{
-			
-				if ((PointInSelection(normalize(myPoint, TelInfo->myfrontvs, FALSE),
-							TelInfo->myfrontvs))&&(gHaveDragMgr)) //for Drag ability
-					
-				{
-					if (TelInfo->lastCursor != theCursors[normcurs]) 
-					{
-						TelInfo->lastCursor  = theCursors[normcurs];
-						SetCursor(theCursors[normcurs]);
+			if ( RSmouseintext(vs, myPoint) ) {
+				if ( gHaveDragMgr && RSTextSelected(vs)
+				  && PointInSelection(normalize(myPoint, vs, FALSE), vs) ) {
+					// for Drag ability
+					setLastCursor(theCursors[normcurs]);
+				} else {
+					if (optDown) {
+						setLastCursor(theCursors[poscurs]);
+					} else {
+						setLastCursor(theCursors[textcurs]);
 					}
 				}
-				else
-				{
-					if (optDown)				/* Option key is down */
-					{
-						if (TelInfo->lastCursor != theCursors[poscurs]) 
-						{
-							TelInfo->lastCursor  = theCursors[poscurs];
-							SetCursor(theCursors[poscurs]);
-						}
-					} 
-					else 
-					{
-						if (TelInfo->lastCursor != theCursors[textcurs]) 
-						{
-							TelInfo->lastCursor  = theCursors[textcurs];
-							SetCursor(theCursors[textcurs]);
-						}
-					}
-				}
-			} 
-			else 
-			{
-				if (TelInfo->lastCursor != theCursors[normcurs]) 
-				{
-					TelInfo->lastCursor  = theCursors[normcurs];
-					SetCursor(theCursors[normcurs]);
-				}
+			} else {
+				setLastCursor(theCursors[normcurs]);
 			}
 			break;
 		case TEK_WINDOW:
 			LocalToGlobal(&myPoint);
-			if (PtInRgn(myPoint, TelInfo->myfrontwindow->contRgn)) {		/* BYU LSC */
-				if (TelInfo->lastCursor != theCursors[graphcurs]) {
-					TelInfo->lastCursor  = theCursors[graphcurs];
-					SetCursor(theCursors[graphcurs]);
-					}
+			if ( PtInRgn(myPoint, TelInfo->myfrontwindow->contRgn) ) {		/* BYU LSC */
+				setLastCursor(theCursors[graphcurs]);
 			} else {
-				if (TelInfo->lastCursor != theCursors[normcurs]) {
-					TelInfo->lastCursor  = theCursors[normcurs];
-					SetCursor(theCursors[normcurs]);
-					}
+				setLastCursor(theCursors[normcurs]);
 			}
 			break;
 		case NO_WINDOW:
 		default:
-			if (force) {
-				SetCursor( theCursors[normcurs]);
-				TelInfo->lastCursor= theCursors[normcurs];
-				}
-		}
-	lastPoint=myPoint;
-	optwasdown=optDown;
-	return(0);
+			setLastCursor(theCursors[normcurs]);
+	}
+	lastPoint = myPoint;
+	optwasdown = optDown;
+	return 0;
 }
 
 void NoWindow( void)
@@ -336,7 +312,7 @@ void NoWindow( void)
 	TelInfo->myfrontwindow=0L;
 	TelInfo->myfronttype=NO_WINDOW;
 	TelInfo->myfrontRgn=0L;
-	updateCursor(1);
+	updateCursor(0);
 }
 
 /* 	The following code was graciously donated by Marc Tamsky.  When are YOU going to donate
@@ -476,47 +452,39 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 	else if ((controldown)&&(shifted)&&(ascii == '6'))
 		ascii = 0x1e;//fix bad KCHR control-^
 
-	if (commanddown)  		
-	{ 
-		if (gApplicationPrefs->CommandKeys)
-		{
+	if (commanddown) {
+		if (gApplicationPrefs->CommandKeys) {
 			//if optioned, retranslate so we can do menu commands
-			if (optiondown)
-			{
+			if ( optiondown ) {
 				ascii = translatekey( code, (theEvent.modifiers & shiftKey) );
 			}
-
 			menuEquiv = MenuKey(ascii); //handle menu keys first
-			if ((menuEquiv & 0xFFFF0000) != 0) 
-			{
+			if ( (menuEquiv & 0xFFFF0000) != 0 ) {
 				HandleMenuCommand(menuEquiv,theEvent.modifiers);
 				return;
 			}
-			if ((TelInfo->numwindows < 1) || (tw->active != CNXN_ACTIVE)) 
+			if ( TelInfo->numwindows < 1 || tw->active != CNXN_ACTIVE ) 
 				return;
 			//	Check for EMACS meta key.  
-			if ((tw->emacsmeta)&&(controldown))
-			{		
+			if ( tw->emacsmeta && controldown ) {
 				unsigned char temp[2];
 				if (ascii <= 32) //control changed the ascii value
 					ascii |= 0x40; //move back to a non-control
-				if ((shifted)||(ascii == 0x5f)) //so we can get meta -
-				{
+				if ( shifted || ascii == 0x5f ) {
+					//so we can get meta -
 					ascii = translatekey( code, (theEvent.modifiers & shiftKey) );
 				}
-emacsHack:		//if the option key KCHR is installled, we will get the right ascii value
-				if ((tw->clientflags & PASTE_IN_PROGRESS)&&(tw->pastemethod)) //queue this
-				{
+emacsHack:
+				if ( (tw->clientflags & PASTE_IN_PROGRESS) && tw->pastemethod ) {
+					// queue this
 					tw->kbbuf[tw->kblen++] = ESC;
 					tw->kbbuf[tw->kblen++] = ascii;
 					return;
 				}
-				if (tw->kblen > 0)
-				{
+				if (tw->kblen > 0) {
 					netwrite( tw->port,tw->kbbuf,tw->kblen);										
 					tw->kblen=0;												
 				}
-					
 				temp[0] = ESC;
 				temp[1] = ascii;
 				if (tw->echo && tw->halfdup) 		
@@ -526,17 +494,17 @@ emacsHack:		//if the option key KCHR is installled, we will get the right ascii 
 				netwrite(tw->port,temp,1); // RAB BetterTelnet 2.0b4
 				controldown = 0;
 //				return;					RAB BetterTelnet 2.0b4 - deal with key below
-			}
-			else if (ascii >='0' && ascii <='9' )  //now look for macros
-			{
-				sendmacro(tw, ascii-'0' + (shifted ? 10 : 0));
+			} else if ( ascii >= '0' && ascii <='9' ) {
+				// now look for macros
+				sendmacro(tw, ascii - '0' + (shifted) ? 10 : 0);
+				return;
+			} else if (!((ascii == '`' && gApplicationPrefs->RemapTilde) || code == BScode )) {
+				// remap cmd-pgup/down
+				CheckPageKeys(code);
 				return;
 			}
-			else if (!((ascii == '`' && gApplicationPrefs->RemapTilde)||(code == BScode)))
-				return;
-		}
-		else //no command key menus
-		{
+		} else {
+			// no command key menus
 			if ((TelInfo->numwindows < 1) || (tw->active != CNXN_ACTIVE)) 
 				return;
 // RAB BetterTelnet 2.0b4 - better remapping for old Macs
@@ -602,6 +570,7 @@ emacsHack:		//if the option key KCHR is installled, we will get the right ascii 
 
 	if (code >= KPlowest) 		/* BYU - Handle Keypad */
 	{
+/*
 		if (theWorld.keyBoardType == envStandADBKbd)	//standard MacII keyboard has keypad +,- 
 		{												// codes switched	
 			if (code == 0x45)									
@@ -609,7 +578,7 @@ emacsHack:		//if the option key KCHR is installled, we will get the right ascii 
 			else if (code == 0x4e)
 				code = 0x45;
 		}
-
+*/
 		// RAB BetterTelnet 2.0b3 - who cares if we're using VT220?
 		// RAB BetterTelnet 2.0b4 - fix for the fix
 //		if ((code >= 0x7B)||(code <= 0x60)) //fkeys dont work in vt100
@@ -1335,10 +1304,10 @@ void HandleModeless(EventRecord *theEvent, DialogPtr dlogp, short theItem)
 		MacroDialog(&TelInfo->newMacros, dlogp,
 					theEvent, theItem);
 		if (theItem == 1) {
-			updateCursor(1);
+			updateCursor(0);
 			CloseMacros(&TelInfo->newMacros, dlogp);
 		} else if (theItem == 2) {
-			updateCursor(1);
+			updateCursor(0);
 			CancelMacros(&TelInfo->newMacros, dlogp);
 		}
 /* NONO */
