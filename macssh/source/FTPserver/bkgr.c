@@ -1099,7 +1099,7 @@ Boolean Scompass(char *ps, char *en)
 /*  Scheckpass - Check the password file for the user, password combination */
 Boolean Scheckpass(char *us, char *ps)
 {
-	FTPUser		**FTPUhdl;
+	FTPUserPrefs		**FTPUhdl;
 	Str255		scratchPstring;
 	CInfoPBRec	theInfo;
 	
@@ -1107,7 +1107,7 @@ Boolean Scheckpass(char *us, char *ps)
 	CtoPstr((char *)scratchPstring);
 	
 	UseResFile(TelInfo->SettingsFile);
-	FTPUhdl = (FTPUser **)Get1NamedResource(FTPUSER, scratchPstring);
+	FTPUhdl = (FTPUserPrefs **)Get1NamedResource(FTPUSERPREFS_RESTYPE, scratchPstring);
 	if (ResError()) return(FALSE);		// User not found
 	
 	HLock((Handle)FTPUhdl);
