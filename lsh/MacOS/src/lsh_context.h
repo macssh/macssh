@@ -26,6 +26,7 @@ typedef struct lshcontext {
 	int				_socket;	// for cvs
 	int				_rcmdline;	// for cvs
 	jmp_buf			_exitbuf;
+	jmp_buf			*_pexitbuf;
 	char			*_gMemPool;
 	int				_filesTable[MAXFILESCOUNT];
 	struct termios	_mactermios;
@@ -34,6 +35,7 @@ typedef struct lshcontext {
 	Boolean			_convertLFs;
 	char			_lastCR;
 
+	void			*_insock;
 	long			_gConsoleInBufLen;
 	long			_gConsoleInBufMax;
 	char			_gConsoleInBuf[CONSOLEBUFSIZE];
