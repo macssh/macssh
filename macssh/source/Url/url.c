@@ -19,8 +19,12 @@
 
 // Revised 5/97 to use IC 1.1's new ICLaunchURL routine. (RAB BetterTelnet 1.0b2c2)
 
+extern void VSprintf(char *fmt, ...);
+
 extern ICInstance inst;
 TURLKind ParseURL(Handle, short*);
+
+extern long dumpln(long base, char *dest, void *src, long len);
 
 Boolean MyStrNEqual (char *s1, char *s2, short n);
 OSErr FindAppOnVolume (OSType sig, short vRefNum, FSSpec *file);
@@ -73,6 +77,7 @@ char *gURLSchemeNames[] = {
 	"finger:",
 	"whois:",
 	"ssh:",
+	"ssh2:",
 	nil
 };
 
@@ -94,13 +99,14 @@ Boolean MyStrNEqual (char *s1, char *s2, short n)
 #define isLWSP(a) ((a) == ' ' || (a) == '\t')
 #define isLWSPorCR(a) (isLWSP(a) || (a) == CR)
 
-static void LaunchURL(Handle urlH, short w)
+static Boolean LaunchURL(Handle urlH, short w)
 {
 	TURLKind urlKind;
 	OSErr err;
 	OSType sig;
 	short returnedSize;
 	long fakeSelBegin, fakeSelEnd, handleSize;
+	unsigned short launchControlFlags;
 	
 	HLock(urlH);
 
@@ -109,23 +115,52 @@ static void LaunchURL(Handle urlH, short w)
 	if (urlKind != 100) {
 		if ( w >= 0 )
 			FlashSelection(w);
-		if (urlKind == kTelnetURL || urlKind == kSSHURL) {
+		if (urlKind == kTelnetURL || urlKind == kSSHURL || urlKind == kSSH2URL) {
 			//we handle this, send apple event to ourselves
 			ProcessSerialNumber psn;
-			unsigned short launchControlFlags;
 			launchControlFlags = launchContinue | launchNoFileFlags | launchDontSwitch;
 			GetCurrentProcess( &psn );
 			err = LaunchAppWithEventAndString(TRUE, NULL, &psn,
 					kGetURLEventClass, kGetURLEventID,
 					keyDirectObject, *urlH, 0, launchControlFlags);
-		} else {
+		} else if (urlKind != kNotURL) {
 			fakeSelBegin = 0;
 			fakeSelEnd = returnedSize;
 			ICFindConfigFile(inst, 0, 0);
-			ICLaunchURL(inst, aligned_pstring("\p"), *urlH, returnedSize, &fakeSelBegin, &fakeSelEnd);
+			err = ICLaunchURL(inst, aligned_pstring("\p"), *urlH, returnedSize, &fakeSelBegin, &fakeSelEnd);
+		} else {
+			// a local application to launch ?			
+			Str32 nullString;
+			AliasHandle	alias;
+			FSSpec fileSpec;
+			Boolean wasChanged;
+			char *p = *urlH;
+			if ( *p == '/' || *p == '\\' ) {
+				char *q = p + returnedSize;
+				while ( ++p < q ) {
+					if ( *p == '/' )
+						*p = ':';
+				}
+				p = *urlH + 1;
+				--returnedSize;
+			}
+			nullString[0] = '\0';
+			err = NewAliasMinimalFromFullPath(returnedSize, p, nullString, nullString, &alias);
+			if ( err == noErr ) {
+				err = ResolveAlias(NULL, alias, &fileSpec, &wasChanged);
+				DisposeHandle((Handle)alias);
+			}
+			if ( err == noErr ) {
+				// launch this application
+				launchControlFlags = launchContinue | launchNoFileFlags /*| launchDontSwitch*/;
+				err = LaunchAppWithEventAndString(FALSE, &fileSpec, NULL,
+						kCoreEventClass, kAEOpenApplication,
+						keyDirectObject, "\p", 0, launchControlFlags);
+			}
 		}
-		return;
+		return err == noErr;
 	}
+	return false;
 //		sig = GetHelperInfo(urlKind);
 //	if (sig == NULL)
 //		return;
@@ -133,23 +168,27 @@ static void LaunchURL(Handle urlH, short w)
 }
 
 
-void HandleURLString(ConstStr255Param urlString)
+Boolean HandleURLString(ConstStr255Param urlString)
 {
 	Handle urlH;
-	
-	urlH = NewHandle(urlString[0] + 1);
+	Boolean result;
+	short len = urlString[0];
+
+	urlH = NewHandle(len + 1);
 	if (MemError() != noErr) {
-		return;
+		return false;
 	}
 	HLock(urlH);
-	BlockMoveData(urlString + 1, *urlH, urlString[0]);
-	(*urlH)[urlString[0] + 1] = ' ';
-	LaunchURL(urlH, -1);
+	BlockMoveData(urlString + 1, *urlH, len);
+	(*urlH)[len] = ' ';
+	result = LaunchURL(urlH, -1);
 	DisposeHandle(urlH);
+	return result;
 }
 
-void HandleURL(short w)
+Boolean HandleURL(short w)
 {
+	Boolean result;
 	Handle urlH;
 	TURLKind urlKind;
 	OSErr err;
@@ -157,9 +196,9 @@ void HandleURL(short w)
 	short returnedSize;
 	long fakeSelBegin, fakeSelEnd, handleSize;
 	
-	urlH = RSGetTextSel(w, 0);
+	urlH = RSGetTextSel(w, 0, 1);
 	if ((urlH == (char **)-1L) || (urlH == nil)) {
-		return;
+		return false;
 	}
 	// 12/10/97, RJZ.  Increase size by one
 	// so there is room for a NULL
@@ -168,12 +207,13 @@ void HandleURL(short w)
 	SetHandleSize(urlH, handleSize + 1);
 	if (MemError() != noErr) {
 		DisposeHandle(urlH);
-		return;
+		return false;
 	}
 	HLock(urlH);
 	(*urlH)[handleSize] = ' ';
-	LaunchURL(urlH, w);
+	result = LaunchURL(urlH, w);
 	DisposeHandle(urlH);
+	return result;
 }
 
 
@@ -186,8 +226,11 @@ TURLKind ParseURL(Handle urlH, short *returnedSize)
 
 
 	size = GetHandleSize(urlH);
-	textBegin = *urlH;
-	textEnd = *urlH + size - 1;
+
+	p = *urlH;
+
+	textBegin = p;
+	textEnd = p + size - 1;
 
 	/* strip off leading white space and lagging white space */
 	while (isLWSPorCR(*textBegin) && textBegin < textEnd) textBegin++;
@@ -229,22 +272,26 @@ TURLKind ParseURL(Handle urlH, short *returnedSize)
 	}
 			
 	/* Clean up and NULL terminate */
-	BlockMoveData(textBegin, *urlH, size);
-	*(*urlH + size) = 0;
-	
-	/* get url type */
 	p = *urlH;
-	while ((*p != ':')&&(p < *urlH + size - 1)) p++;
-	if (p - *urlH >= size - 1) // colon not found
-	{
+	BlockMoveData(textBegin, p, size);
+	p[size] = 0;
+
+	*returnedSize = size;
+
+	/* get url type */
+	while ( *p != ':' && p < *urlH + size - 1 )
+		p++;
+
+	if ( p - *urlH >= size - 1 ) {
+		// colon not found
 		/* might be mail address */
 		//if (isMailAddress(urlH))
 		//	return kMailtoURL;
 	//	else
-			return 100;
+		// pathname ?
+		return ( **urlH == '/' ) ? kNotURL : 100;
 	}
 
-	*returnedSize = size;
 
 	for (urlKind = kNotURL; ; urlKind++) {
 		schemeName = gURLSchemeNames[urlKind];
