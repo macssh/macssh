@@ -1,0 +1,94 @@
+This patch, relative to gcc-2.95.3, improves gcov support by properly
+locking the output files that are written at process exit.
+
+/Niels Möller <nisse@lysator.liu.se>
+
+--- libgcc2.c.orig	Fri Jun 11 05:11:43 1999
++++ libgcc2.c	Thu Mar 22 20:48:39 2001
+@@ -1459,6 +1459,10 @@
+ #include "gcov-io.h"
+ #include <string.h>
+ 
++/* For O_RDWR and O_CREAT */
++#include <fcntl.h>
++#include <errno.h>
++
+ static struct bb *bb_head;
+ 
+ /* Return the number of digits needed to print a value */
+@@ -1478,6 +1482,23 @@
+   return ret;
+ }
+ 
++/* Opens a file, locking it for exclusive access. Used for .da files
++ * below. 
++ */
++static FILE *
++lopen(const char *name)
++{
++  int fd = open(name, O_RDWR | O_CREAT, 0666);
++  if (fd < 0)
++    return NULL;
++
++  while ( (lockf(fd, F_LOCK, 0) < 0))
++    if (errno != EINTR)
++      return NULL;
++
++  return fdopen(fd, "r+b");
++}
++
+ void
+ __bb_exit_func (void)
+ {
+@@ -1502,18 +1523,21 @@
+ 	  /* If the file exists, and the number of counts in it is the same,
+ 	     then merge them in.  */
+ 	     
+-	  if ((da_file = fopen (ptr->filename, "r")) != 0)
++	  long n_counts = 0;
++
++	  /* If the file exists, and the number of counts in it is the same,
++	     then merge them in.  */
++
++
++	  if ((da_file = lopen (ptr->filename)) == 0)
+ 	    {
+-	      long n_counts = 0;
+-	      
+-	      if (__read_long (&n_counts, da_file, 8) != 0)
+-		{
+-		  fprintf (stderr, "arc profiling: Can't read output file %s.\n",
+-			   ptr->filename);
+-		  continue;
+-		}
++	      fprintf (stderr, "arc profiling: Can't open output file %s.\n",
++		       ptr->filename);
++	      continue;
++	    }
+ 
+-	      if (n_counts == ptr->ncounts)
++	  if ( (__read_long (&n_counts, da_file, 8) == 0)
++	       && (n_counts == ptr->ncounts) )
+ 		{
+ 		  int i;
+ 
+@@ -1531,16 +1555,9 @@
+ 		    }
+ 		}
+ 
+-	      if (fclose (da_file) == EOF)
+-		fprintf (stderr, "arc profiling: Error closing output file %s.\n",
+-			 ptr->filename);
+-	    }
+-	  if ((da_file = fopen (ptr->filename, "w")) == 0)
+-	    {
+-	      fprintf (stderr, "arc profiling: Can't open output file %s.\n",
+-		       ptr->filename);
+-	      continue;
+-	    }
++          /* Perhaps we should also truncate the file before
++	   * writing? */
++	  rewind(da_file);
+ 
+ 	  /* ??? Should first write a header to the file.  Preferably, a 4 byte
+ 	     magic number, 4 bytes containing the time the program was
