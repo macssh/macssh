@@ -75,8 +75,6 @@ void ssh2_init()
 
 void ssh2_terminate()
 {
-	static Boolean		sGUSISetup = false;
-
 	if ( sGUSISetup ) {
 
 		GUSIwithoutTTYSockets();
