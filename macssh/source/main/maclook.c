@@ -230,6 +230,8 @@ void showNetNumbers( void)
 
 //	DisposeDialog(dptr);
 //	Alert(MyIPDLOG, 0L);
+	AdjustMenus();
+	DoTheMenuChecks();
 }
 
 /*******************************************************************/
