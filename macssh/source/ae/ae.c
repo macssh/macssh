@@ -27,6 +27,7 @@ extern WindRec *screens;
 extern short scrn;
 
 extern Boolean			gPresentOpenConnectionDialog;
+extern Boolean			gAutoOpenDefault;
 extern unsigned long	gPresentOpenConnectionTicks;
 
 static void ProcessURLEscapeCodes (char *url, char **end);
@@ -138,8 +139,10 @@ pascal OSErr  MyHandleOApp (AppleEvent *theAppleEvent, AppleEvent *reply, long
 	// automatically if a set file was opened.
 
 	if (gApplicationPrefs->autoOpenDialog && !TelInfo->gotDocument) {
-		//PresentOpenConnectionDialog();
 		gPresentOpenConnectionDialog = 1;
+		gPresentOpenConnectionTicks = LMGetTicks();
+	} else if (gApplicationPrefs->autoOpenDefault && !TelInfo->gotDocument) {
+		gAutoOpenDefault = 1;
 		gPresentOpenConnectionTicks = LMGetTicks();
 	}
 

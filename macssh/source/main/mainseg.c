@@ -61,7 +61,8 @@ Boolean gHasAppearance = false;
 Boolean gHasAppearance11 = false;
 Boolean haveNotifiedLowMemory = FALSE;
 
-Boolean		gPresentOpenConnectionDialog;
+Boolean			gPresentOpenConnectionDialog;
+Boolean			gAutoOpenDefault;
 unsigned long	gPresentOpenConnectionTicks;
 
 extern int gMovableModal;
@@ -104,8 +105,10 @@ void	main(void)
 	init();					/* JMB 2.6 - Call all init routines */
 	UnloadSeg(&init);		/* Bye, bye to init routines... 	*/
 
+/*
 	if ( gApplicationPrefs->autoOpenDefault )
 		OpenSpecial(3);
+*/
 
 	TelInfo->gotDocument = 0;
 
@@ -125,16 +128,24 @@ void	main(void)
 			Alert(MemoryLowAlert, NULL);
 			haveNotifiedLowMemory = true;
 		}
-		if ( gPresentOpenConnectionDialog ) {
+
+		if ( gPresentOpenConnectionDialog || gAutoOpenDefault ) {
 			if ( !TelInfo->gotDocument ) {
 				if (LMGetTicks() - gPresentOpenConnectionTicks > 30) {
-					gPresentOpenConnectionDialog = 0;
-					PresentOpenConnectionDialog();
+					if ( gPresentOpenConnectionDialog ) {
+						gPresentOpenConnectionDialog = 0;
+						PresentOpenConnectionDialog();
+					} else {
+						gAutoOpenDefault = 0;
+						OpenSpecial(3);
+					}
 				}
 			} else {
 				gPresentOpenConnectionDialog = 0;
+				gAutoOpenDefault = 0;
 			}
 		}
+
 	} while ( !TelInfo->done );
 
 #ifdef	PERFORMANCE
