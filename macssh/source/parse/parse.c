@@ -54,6 +54,9 @@ extern Boolean encryptOK;				// true if des encryption routines available
 
 #include "parse.proto.h"
 
+extern void VSprintf(char *fmt, ...);
+extern void VSdump(char *p, int len);
+
 static	char	*getcname(struct WindRec *tw);
 static	void	encryptStatechange(struct WindRec *tw);
 static	void	process_suboption(struct WindRec *tw, unsigned char *start, unsigned char *end);
@@ -108,6 +111,8 @@ void	SendStringAsIfTyped(struct WindRec *tw, char *string, short len)
 	int				i;
 	int				j;
 	int				res;
+
+	kbflush( tw );
 
 	trflush_mac_nat(tw);
 
@@ -173,6 +178,7 @@ void	SendStringAsIfTyped(struct WindRec *tw, char *string, short len)
 // all over the place.
 void SendCRAsIfTyped(struct WindRec *tw)
 {
+	kbflush( tw );
 
 	if (tw->echo) 
 		parse(tw,(unsigned char *) "\012\015",2);	/* BYU LSC */
