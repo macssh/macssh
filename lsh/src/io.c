@@ -114,65 +114,6 @@
 */
 
 
-
-#if MACOS
-
-int io_check_signals(struct io_backend *b);
-int io_check_callouts(struct io_backend *b);
-
-int io_check_signals(struct io_backend *b)
-{
-  int signal_called = 0;
-    
-  /* Check all flags */
-  if (b->signals)
-    {
-      struct lsh_signal_handler *f;
-      struct lsh_signal_handler **f_p;
-      for (f_p = &b->signals; (f = *f_p); )
-	{
-	  if (!f->super.alive)
-	    *f_p = f->next;
-	  else
-	    {
-	      if (*f->flag)
-		{
-		  *f->flag = 0;
-		  LSH_CALLBACK(f->action);
-		  signal_called = 1;
-		}
-	      f_p = &f->next;
-	    }
-	}
-    }
-  return signal_called;
-}
-
-int io_check_callouts(struct io_backend *b)
-{
-  int callout_needed = 0;
-    
-  /* Invoke all callouts. Clear the list first; if any callout
-   * installs another one, that will not be invoked until the next
-   * iteration. */
-  if (b->callouts)
-    {
-      struct lsh_callout *p;
-      
-      for (p = b->callouts, b->callouts = NULL;
-	   p; p = p->next)
-	if (p->super.alive)
-	  {
-		callout_needed = 1;
-	  }
-    }
-      
-  return callout_needed;
-}
-
-#endif
-
-
 /* Backend loop */
 
 /* If there's nothing to do for this amount of time (ms), do
@@ -193,9 +134,6 @@ int io_iter(struct io_backend *b)
   /* int timeout; */
   int res;
 
-#if MACOS
-  io_check_signals( b );
-#else
   /* Check all flags */
   if (b->signals)
     {
@@ -216,7 +154,6 @@ int io_iter(struct io_backend *b)
 	    }
 	}
     }
-#endif
   
   /* Invoke all callouts. Clear the list first; if any callout
    * installs another one, that will not be invoked until the next
@@ -347,21 +284,6 @@ int io_iter(struct io_backend *b)
     assert(all_events);
   }
 
-#if MACOS
-  res = poll(fds, nfds, 0);
-  if (!res)
-    {
-      gc_maybe(&b->super, 0);
-      while (!res)
-        {
-          res = poll(fds, nfds, 0);
-          if ( !res && (io_check_signals(b) || io_check_callouts(b)) )
-            res = EINTR;
-        }
-    }
-  else
-    gc_maybe(&b->super, 1);
-#else
   res = poll(fds, nfds, IDLE_TIME);
 
   if (!res)
@@ -371,7 +293,6 @@ int io_iter(struct io_backend *b)
     }
   else
     gc_maybe(&b->super, 1);
-#endif
   
   if (!res)
     {
