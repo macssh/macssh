@@ -62,14 +62,16 @@ short	RGMnewwin(void)
 {
 	short	i = 0;
 
-	while ((i < MAXWIND) && (RGMwind[i] != nil)) i++;
+	while ( i < MAXWIND && RGMwind[i] != nil )
+		i++;
 
-	if (i >= MAXWIND) return(-1);
+	if (i >= MAXWIND)
+		return -1;
 
 	RGMwind[i] = (struct RGMwindows *) myNewPtr(sizeof(struct RGMwindows));
 	if (RGMwind[i] == nil) {
 		return -1;
-		}
+	}
 
 	RGMwind[i]->id = 'RGMW';
 
@@ -78,7 +80,7 @@ short	RGMnewwin(void)
 		DisposePtr((Ptr)RGMwind[i]);
 		RGMwind[i] = nil;
 		return -1;
-		}
+	}
 
 	((WindowPeek)RGMwind[i]->wind)->windowKind = WIN_TEK;
 	
@@ -92,9 +94,10 @@ short	RGMnewwin(void)
 	RGMwind[i]->height  = 300;		/* BYU LSC - was 342 (size of old window resource */
 	RGMwind[i]->ingin   = 0;		/* BYU LSC */
 
+	// avoid unnecessary update
 	ValidRect(&RGMwind[i]->wind->portRect);  
 
-	return(i);
+	return i;
 }
 
 void	RGMinit(void)
@@ -106,7 +109,8 @@ void	RGMinit(void)
 
 short	RGMgin(short w)
 {
-	if (RGsetwind(w)) return(-1);
+	if (RGsetwind(w))
+		return -1;
 
 	setgraphcurs();
 	RGMwind[w]->ingin=1;
@@ -114,7 +118,9 @@ short	RGMgin(short w)
 
 short	RGMpencolor(short w, short color)
 {
-	if (RGsetwind(w) ) return(-1);
+	if (RGsetwind(w))
+		return -1;
+
 	ForeColor((long) RGMcolor[color] );
 #ifdef	TEK_DEBUG_1
 	sprintf(TEK_DEBUG_STRING, "TEK: Setting pen color to %d", color);
@@ -125,14 +131,17 @@ short	RGMpencolor(short w, short color)
 
 short	RGMclrscr(short w)
 {	
-	if (RGsetwind(w) ) return(-1);
+	if (RGsetwind(w))
+		return -1;
+
 	PaintRect(&RGMwind[w]->wind->portRect);
 	TEK_DEBUG_PRINT("TEK: Clearing screen");					
 }	
 
 short	RGMclose(short w)
 {
-	if (RGsetwind(w) ) return(-1);
+	if (RGsetwind(w))
+		return -1;
 
 	DisposeWindow(RGMwind[w]->wind);
 	DisposePtr((Ptr)RGMwind[w]->name);
@@ -142,7 +151,8 @@ short	RGMclose(short w)
 
 short	RGMpoint(short w, short x, short y)
 {
-	if (RGsetwind(w) ) return(-1);
+	if (RGsetwind(w))
+		return -1;
 
 	MoveTo(x,y);
 	LineTo(x,y);
@@ -152,8 +162,8 @@ short	RGMdrawline(short w, short x0, short y0, short x1, short y1)
 {
 	long	xl0, yl0, xl1, yl1;
 	
-	if (RGsetwind(w) )
-		return(-1);
+	if (RGsetwind(w))
+		return -1;
 
 	xl0 = ((long)x0 * RGMwind[w]->width) / INXMAX;
 	yl0 = (long)RGMwind[w]->height - (((long)y0 * RGMwind[w]->height) / INYMAX);
@@ -229,28 +239,20 @@ short	RGMoutfunc(short (*f )())
 
 short	RGsetwind(short dnum)
 {
-	if (dnum<0 || dnum>=MAXWIND) return(-1);
-
-	if (RGMwind[dnum] == nil) return -1;
-
-	SetPort( RGMwind[dnum]->wind);
-	return(0);
+	if ( dnum < 0 || dnum >= MAXWIND || RGMwind[dnum] == nil )
+		return -1;
+	SetPort( RGMwind[dnum]->wind );
+	return 0;
 }
 
-short	RGfindbyVG(short vg)
+short	RGfindbyVG( short vg )
 {
-	short	i = 0;
-	
-	while (i < MAXWIND) {
-		if (RGMwind[i] != nil) {
-			if (RGMwind[i]->vg == vg)
-				break;
-			}
-		i++;
-		}
+	short	i = -1;
 
-	if (i >= MAXWIND) return(-1);
-	return(i);
+	while ( ++i < MAXWIND )
+		if ( RGMwind[i] != nil && RGMwind[i]->vg == vg )
+			return i;
+	return -1;
 }
 
 short	RGattach(short vg, short virt, char *name, short TEKtype)
@@ -297,7 +299,6 @@ short	RGdetach( short vg)
 		char	myname[256];			/* BYU LSC */
 
 	if ((dnum = RGfindbyVG(vg)) < 0) return(-1);		/* BYU */
-	if (dnum >= MAXWIND)  return(-1);					/* BYU */
 
 	if (RGMwind[dnum]->vs != -1) { 									/* BYU */
 		if (RGMwind[dnum]->wind != (GrafPtr) 0) {					/* BYU */
@@ -317,58 +318,68 @@ short	RGdetach( short vg)
 	return(0);						/* BYU */
 }
 
+
 short	RGfindbywind( GrafPtr wind)
 {
-	short	i = 0;
+	short	i = -1;
 
-	while (i < MAXWIND) {
-		if (RGMwind[i] != nil) {
-			if (RGMwind[i]->wind == wind)
-				break;
-			}
-		i++;
-		}
-
-	if (i >= MAXWIND) return(-1);
-	return(i);
+	if ( wind ) {
+		i = -1;
+		while ( ++i < MAXWIND )
+			if ( RGMwind[i]->wind == wind )
+				return i;
+	}
+	return -1;
 }
 
-short	RGupdate( GrafPtr wind)
-{
-	short	i = 0,
-			done;
 
-	if ((i = RGfindbywind(wind)) < 0)
-		return(-1);
+short	RGupdate( GrafPtr wind )
+{
+	GrafPtr		savePort;
+	short		rg ;
+	short		done;
+
+	if ((rg = RGfindbywind(wind)) < 0)
+		return -1;
+
+	GetPort(&savePort);
 
 	SetPort(wind);
+
 	BeginUpdate(wind);
 
-	VGstopred(RGMwind[i]->vg);
-	VGpage(RGMwind[i]->vg);
-	done = VGpred(RGMwind[i]->vg,RGMwind[i]->vg);
+	VGstopred(RGMwind[rg]->vg);
+	VGpage(RGMwind[rg]->vg);
+	done = VGpred(RGMwind[rg]->vg, RGMwind[rg]->vg);
 
 	EndUpdate(wind);
+
 	if (!done)
-		netputevent(USERCLASS,RG_REDRAW,RGMwind[i]->vg,0);
-	return(done);
+		netputevent(USERCLASS, RG_REDRAW, RGMwind[rg]->vg, 0);
+
+	SetPort(savePort);
+
+	return done;
 }
 
 short	RGsupdate( short i)
 {
-	short	rg;
+	GrafPtr		savePort;
+	short		rg;
+	short		result;
 
-	rg = RGfindbyVG(i);
+	if ( (rg = RGfindbyVG(i)) < 0 )
+		return 0;
 
-	if (rg < 0) return(0);
+	GetPort(&savePort);
 	SetPort(RGMwind[rg]->wind);
-	if (!VGpred(RGMwind[rg]->vg,RGMwind[rg]->vg))
-	{
+	if (!VGpred(RGMwind[rg]->vg,RGMwind[rg]->vg)) {
 		netputevent(USERCLASS,RG_REDRAW,i,0);
-	}
-	else
-		return(1);
-	return(0);
+		result = 0;
+	} else
+		result = 1;
+	SetPort(savePort);
+	return result;
 }
 
 short	RGgetVG(GrafPtr wind)
