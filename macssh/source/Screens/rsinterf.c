@@ -935,8 +935,9 @@ GrafPtr RSgetwindow
 char **RSGetTextSel
   (
 	short w, /* window to look at */
-	short table /* nonzero for "table" mode, i e
+	short table, /* nonzero for "table" mode, i e
 		replace this many (or more) spaces with a single tab. */
+	short clipspaces
   )
   /* returns the contents of the current selection as a handle,
 	or nil if there is no selection. */
@@ -963,11 +964,48 @@ char **RSGetTextSel
 	HLock((Handle)charh);
 	charp = *charh;
 	realsiz = VSgettext(w, Anchor.h, Anchor.v, Last.h, Last.v,
-		charp, realsiz, "\015", table, 1);
+		charp, realsiz, "\015", table, clipspaces);
 	HUnlock((Handle)charh);
 	mySetHandleSize((Handle)charh, realsiz);
-	return(charh);
+	return charh;
   }  /* RSGetTextSel */
+
+extern void VSprintf(char *fmt, ...);
+
+char **RSGetTextScreen
+  (
+	short w, /* window to look at */
+	short table, /* nonzero for "table" mode, i e
+		replace this many (or more) spaces with a single tab. */
+	short clipspaces
+  )
+  /* returns the contents of the visible on-screen text as a handle */
+  {
+	char **charh, *charp;
+	short maxwid;
+	long realsiz;
+	Point Anchor,Last;
+
+	maxwid = VSmaxwidth(w);
+	VSgetrgn(w, &Anchor.h, &Anchor.v, &Last.h, &Last.v);
+	Anchor.h = -1;
+	realsiz = Anchor.v - Last.v;
+	if (realsiz < 0)
+		realsiz = - realsiz;
+	realsiz ++;								/* lines 2,3 selected can be 2 lines */
+	realsiz *= (maxwid * 2 + 2);
+	charh = myNewHandle(realsiz);
+	if (charh == 0L)
+		return((char **) -1L);				/* Boo Boo return */
+	HLock((Handle)charh);
+	charp = *charh;
+	realsiz = VSgettext(w, Anchor.h, Anchor.v, Last.h, Last.v,
+		charp, realsiz, "\015", table, clipspaces);
+	HUnlock((Handle)charh);
+	mySetHandleSize((Handle)charh, realsiz);
+	return charh;
+}  /* RSGetTextScreen */
+
 
 RgnHandle RSGetTextSelRgn(short w)
 {
