@@ -407,6 +407,7 @@ void *lshcalloc(unsigned long items, unsigned long size)
 		if ( p ) {
 			memset(p, '\0', tsize);
 		}
+		return p;
 	} else {
 		return calloc(items, size);
 	}
@@ -796,7 +797,7 @@ static void run_app()
 	memset(context->_filesTable, 0xff, sizeof(context->_filesTable));
 	memcpy(&context->_mactermios, &defaulttermios, sizeof(struct termios));
 	context->_gConsoleInEOF = 0;
-	context->_convertLFs = 1;
+	context->_convertLFs = 0;
 	context->_lastCR = 0;
 	context->_insock = NULL;
 	context->_gConsoleInBufLen = 0;

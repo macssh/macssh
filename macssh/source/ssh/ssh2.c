@@ -494,6 +494,7 @@ void *lshcalloc( unsigned long items, unsigned long size )
 		if ( p ) {
 			memset(p, '\0', tsize);
 		}
+		return p;
 	}
 	return NULL;
 }
