@@ -1326,8 +1326,10 @@ void	CloseAWindow(WindowPtr	theWindow)
 	switch(((WindowPeek)theWindow)->windowKind) {
 		case WIN_CONSOLE:
 //			Debugger();				// Can't close the console window
+			// can't close it, but we can hide it...
+			DebugKeys(TRUE, 39, -1);
 			break;
-					
+
 		case WIN_LOG:
 			if (theWindow == ftplog->wind) {
 				CheckItem(myMenus[Fil],FLlog,FALSE);
