@@ -215,12 +215,13 @@ GUSIFileSpec::GUSIFileSpec(const char * path, bool useAlias)
    while (!fError && *++path == ':')
    	--(*this);
 		} else {
-			fullSpec = true;
 			if (nextPath = strchr(path, ':')) {
 				AddPathComponent(path, nextPath-path, fullSpec);
-				path = nextPath+1;
+				fullSpec 	= true;
+				path 		= nextPath+1;
 			} else {
 				AddPathComponent(path, strlen(path), fullSpec);
+				fullSpec 	= true;
 				break;
 			}
 		}
@@ -288,6 +289,7 @@ GUSIFileSpec & GUSIFileSpec::operator++()
 		fSpec.vRefNum	=	0;
 		fSpec.parID		=	fsRtParID;
 		fSpec.name[0]	=	0;
+		fValidInfo		= 	false;
 		
 		goto punt;
 	} 
@@ -326,6 +328,7 @@ GUSIFileSpec & GUSIFileSpec::AddPathComponent(const char * name, int length, boo
 			goto punt;
 	
 	memcpy(fSpec.name+1, name, fSpec.name[0] = length);
+	fValidInfo = false;
 		
 	if (fSpec.parID == fsRtParID)
 		GetVolume();

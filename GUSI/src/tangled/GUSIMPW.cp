@@ -346,7 +346,15 @@ GUSISocket * GUSIMPWDevice::open(GUSIFileToken & file, int flags)
 	if (!ConnectToMPWLibrary())
 		return GUSISetPosixError(ENOEXEC), static_cast<GUSISocket *>(nil);
 
-	int fd 	= MPW_open(file.Path(), TranslateOpenFlags(flags));
+	// To ensure that our fancy path handling gets applied to all complex paths, but MPW gets
+ // to do its magic on [[Dev:]] paths, we normalize paths if they contain more than 1 colon.
+ //                                                                         
+ // <Normalize [[path]] for MPW>=                                           
+ const char * path	= file.Path();
+ const char * colon	= strchr(path, ':');
+ if (colon && strchr(colon, ':'))
+ 	path = file.RelativePath();
+	int fd 	= MPW_open(path, TranslateOpenFlags(flags));
 	
 	if (fd == -1) {
 		return static_cast<GUSISocket *>(nil);

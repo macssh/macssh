@@ -23,6 +23,7 @@ inline uint32_t CompleteMask(OTEventCode code)
 pascal void GUSIOTNotify(
 	GUSIOTSocket * sock, OTEventCode code, OTResult result, void *cookie)
 {
+	GUSI_MESSAGE1(("GUSIOTNotify %08x %d\n", code, result));
 	switch (code & 0x7f000000L) {
 	case 0:
 		sock->fNewEvent |= code;
@@ -154,8 +155,9 @@ void GUSIOTSocket::close()
   // violence to disconnect the socket.                                      
   //                                                                         
   // <Disconnect the [[GUSIOTSocket]], dammit>=                              
-  fCompletion &= ~(CompleteMask(T_DISCONNECTCOMPLETE));
-  GUSIOTTCall * call = new (fEndpoint, 0) GUSIOTTCall;
+  fCompletion 	   &= ~(CompleteMask(T_DISCONNECTCOMPLETE));
+  GUSIOTTCall * call 	= new (fEndpoint, 0) GUSIOTTCall;
+  fAsyncError 		= 0;
   SetAsyncMacError(OTSndDisconnect(fEndpoint, call));
   delete call;
   AddContext();
@@ -205,7 +207,8 @@ int GUSIOTSocket::BindToAddress(GUSIOTTBind * addr)
 	fSockName = new (fEndpoint) GUSIOTTBind;
 	if (!fSockName)
 		return GUSISetPosixError(ENOMEM);
-	fCompletion &= ~CompleteMask(T_BINDCOMPLETE);
+	fCompletion	   &= ~CompleteMask(T_BINDCOMPLETE);
+	fAsyncError		= 0;
 	SetAsyncMacError(OTBind(fEndpoint, addr, fSockName));
 	AddContext();
 	MopupEvents();
@@ -226,6 +229,7 @@ int GUSIOTSocket::BindToAddress(GUSIOTTBind * addr)
 void GUSIOTSocket::Unbind()
 {
 	fCompletion &= ~(CompleteMask(T_BINDCOMPLETE) | CompleteMask(T_UNBINDCOMPLETE));
+	fAsyncError = 0;
 	SetAsyncMacError(OTUnbind(fEndpoint));
 	AddContext();
 	MopupEvents();
@@ -250,6 +254,7 @@ int GUSIOTSocket::getsockname(void * name, socklen_t * namelen)
 			return GUSISetPosixError(ENOMEM);
 		
 		fCompletion &= ~CompleteMask(T_GETPROTADDRCOMPLETE);
+		fAsyncError	 = 0;
 		SetAsyncMacError(OTGetProtAddress(fEndpoint, otname, nil));
 
 		AddContext();
@@ -325,7 +330,7 @@ bool GUSIOTSocket::pre_select(bool wantRead, bool wantWrite, bool wantExcept)
 	if (wantRead && OTCountDataBytes(fEndpoint, &sz) == kOTNoDataErr)
 		fEvent &= ~(T_DATA|T_EXDATA);
 	
-	return true;
+	return GUSISocket::pre_select(wantRead, wantWrite, wantExcept);
 }
 // <Member functions for class [[GUSIOTSocket]]>=                          
 int GUSIOTSocket::getsockopt(int level, int optname, void *optval, socklen_t * optlen)
@@ -605,6 +610,7 @@ int GUSIOTStreamSocket::listen(int queueLength)
  else
  	queueLength = ((queueLength * 3) >> 1) + 1;
 	fSockName->qlen = queueLength;
+	fAsyncError 	= 0;
 	SetAsyncMacError(OTBind(fEndpoint, fSockName, nil));
 	AddContext();
 	MopupEvents();
@@ -672,6 +678,7 @@ if (err) {
 			// <Call [[OTAccept]] and [[return]] if successful>=                       
    GUSIOTStreamSocket * sock = fNextListener;
    fCompletion &= ~(CompleteMask(T_ACCEPTCOMPLETE));
+   fAsyncError  = 0;
    SetAsyncMacError(OTAccept(fEndpoint, sock->fEndpoint, sock->fPeerName));
    AddContext();
    MopupEvents();
@@ -721,6 +728,7 @@ int GUSIOTStreamSocket::connect(void * address, socklen_t addrlen)
 	MopupEvents();
 	OTResult res = 0;
 
+	GUSI_MESSAGE(("Connecting...\n"));
 	switch (OTGetEndpointState(fEndpoint)) {
 	case T_OUTCON:
 		if (!fBlocking)
@@ -857,6 +865,7 @@ bool GUSIOTStreamSocket::select(bool * canRead, bool * canWrite, bool * except)
 {
 	MopupEvents();
 	
+	size_t	sz;
 	bool 		res		= false;
 	OTResult	state 	= OTGetEndpointState(fEndpoint);
 	
