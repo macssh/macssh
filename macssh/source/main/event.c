@@ -442,12 +442,15 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 		goto emacsHack;
 	}
 
+
 	if ( code == 0x34 && ascii == 3 )	// fix for PowerBook 540  bad KCHR
 		ascii = 13; 					// (map control-c to return)
+/*
 	else if ( controldown && shifted && ascii == '2' )
 		ascii = 0;						// fix bad KCHR control-@
 	else if ( controldown && shifted && ascii == '6' )
 		ascii = 0x1e;					// fix bad KCHR control-^
+*/
 
 	if ( controldown && !commanddown && gKeyboardLayoutType == kKeyboardJIS ) {
 		if ( code == 0x5d ) {	// '\'
