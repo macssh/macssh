@@ -101,7 +101,7 @@ void otpgetselection(char *selection)
 	if ((i = RSfindvwind(FrontWindow())) < 0) return;	// It had better be a text window...
 	if (!RSTextSelected(i)) return;						// ...with something selected!
 
-	charh = RSGetTextSel(i, 0);							// Get the text selection
+	charh = RSGetTextSel(i, 0, 1);							// Get the text selection
 
 	if (charh == (char **)-1L) OutOfMemory(400);
 	if (charh != (char **)0L) {

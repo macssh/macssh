@@ -327,7 +327,7 @@ OSErr DragText(EventRecord *ev, Point where, short w, Boolean *dragged)
 	if (!WaitMouseMoved(ev->where)) return noErr;
 	*dragged = true;
 
-	textH = RSGetTextSel(w, 0);
+	textH = RSGetTextSel(w, 0, 1);
 	
 	if ((textH == (char **)-1L) || (textH == nil)) {
 		textH = nil;
