@@ -184,18 +184,21 @@ short confile( char *s)
 				if (!success) {
 					sets_debug_print("ERROR IN OPENING!! ");
 					return(42);
-					}
 				}
-
+			}
 			if (SetParams == NULL) {
 				SetParams = ReturnDefaultConnInitParams();
-				HLockHi((Handle)SetParams);
-				HLockHi((Handle)(**SetParams).session);
-				SetSessionPtr = *(**SetParams).session;
-				HLockHi((Handle)(**SetParams).terminal);
-				SetTerminalPtr = *(**SetParams).terminal;
+				if ( SetParams ) {
+					HLockHi((Handle)SetParams);
+					HLockHi((Handle)(**SetParams).session);
+					SetSessionPtr = *(**SetParams).session;
+					HLockHi((Handle)(**SetParams).terminal);
+					SetTerminalPtr = *(**SetParams).terminal;
+				} else {
+					DoError(107 | MEMORY_ERRORCLASS, LEVEL2, NULL);	/* register the error */
+					return(-1);
 				}
-				
+			}
 			strncpy(tempCstring, s, 255);			/* Move name in */
 			CtoPstr(tempCstring);
 			if ((tempCstring[0] == 1) && (tempCstring[1] == ' '))
@@ -1259,17 +1262,19 @@ void SaveSetFromSession(SessionPrefs* setSession, TerminalPrefs* setTerminal, sh
 		SetFPos(fn, 2, 0L);
 
 	if (doSaveMacros)
-		for (i = 0; i < 10; i++)
+/* NONO: save all macros */
+		for (i = 0; i < 110; i++)
 		  {
 			getmacro(&TelInfo->newMacros,i, temp, sizeof(temp));			/* BYU LSC */
 			if (*temp) {									/* BYU LSC */
-				sprintf(temp2, "key%d = \"", i);			/* BYU 2.4.16 */
+				sprintf(temp2, "macro= \"%d ", i);			/* BYU 2.4.16 */
 				CStringToFile(fn,(unsigned char *) temp2);	/* BYU LSC */
 				CStringToFile(fn,(unsigned char *) temp);	/* BYU LSC */
 				strcpy(temp2,"\"\015");						/* BYU LSC */
 				CStringToFile(fn,(unsigned char *) temp2);	/* BYU LSC */
 			}												/* BYU LSC */
 		  } /* for */
+/* NONO */
 
 	sprintf(temp2, "name= \" \"\015");
 	CStringToFile(fn,(unsigned char *) temp2);				/* BYU LSC */
