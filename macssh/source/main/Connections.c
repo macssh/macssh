@@ -593,47 +593,51 @@ Boolean OpenConnectionFromURL(char *host, char *portstring, char *user, char *pa
 	windowName[0] = 0;
 
 	// Set up window name if user (and password) given
-	if ( user != nil && ssh == 0 ) {
+	if ( user != NULL && ssh == 0 ) {
 		GetIndString(windowName, MISC_STRINGS, MISC_USERPRMPT);
 		len = strlen(user);
 		BlockMoveData(user,& windowName[StrLength(windowName)+1], len);
 		windowName[0] += len;
-		if (password != nil) {
-		GetIndString(tempString, MISC_STRINGS, MISC_PSWDPRMPT);
+		if (password != NULL) {
+			GetIndString(tempString, MISC_STRINGS, MISC_PSWDPRMPT);
 			BlockMoveData(&tempString[1], &windowName[StrLength(windowName)+1], tempString[0]);
 			windowName[0] += tempString[0];
 			len = strlen(password);
 			BlockMoveData(password, &windowName[StrLength(windowName)+1], len);
 			windowName[0] += len;
-			}
+		}
 
 		if (windowName[0] != 0) {
 			BlockMoveData(windowName, (**Params).WindowName, StrLength(windowName)+1);
-			}
 		}
+	}
 
 	CtoPstr(host);
 	BlockMoveData(host, (**(**Params).session).hostname, host[0]+1);
 	
-	if (portstring != nil) {
-		CtoPstr(portstring);
-		StringToNum((StringPtr)portstring, &port);
-		(**(**Params).session).port = port;
-		}
-		
 	if ( ssh != 0 ) {
 		(**(**Params).session).protocol = 4;
 		(**(**Params).session).port = getDefaultPort(4);
-		strcpy((**(**Params).session).username, user);
-		CtoPstr((**(**Params).session).username);
-		strcpy((**(**Params).session).password, password);
-		CtoPstr((**(**Params).session).password);
+		if ( user != NULL ) {
+			strcpy((**(**Params).session).username, user);
+			CtoPstr((**(**Params).session).username);
+		}
+		if ( password != NULL ) {
+			strcpy((**(**Params).session).password, password);
+			CtoPstr((**(**Params).session).password);
+		}
 	} else if ( (**(**Params).session).protocol == 4 ) {
 		/* default to telnet */
 		(**(**Params).session).protocol = 0;
 		(**(**Params).session).port = getDefaultPort(0);
 	}
 
+	if (portstring != nil) {
+		CtoPstr(portstring);
+		StringToNum((StringPtr)portstring, &port);
+		(**(**Params).session).port = port;
+	}
+		
 	success = CreateConnectionFromParams(Params);
 	return success;
 }	
@@ -1479,12 +1483,12 @@ ConnInitParams	**NameToConnInitParams(StringPtr InputString, Boolean useDefaultT
 
 	UnloadSeg(&PREFSUnload);
 	MaxMem(&junk);	  //swap out space so we can make the new window CCP
-	HUnlock((Handle)sessHdl);
 	
 	((**theHdl).WindowName)[0] = 0;
 	(**sessHdl).ip_address = 0;
 
 	(**theHdl).sessmacros.handle = 0;
+
 	if (sessmacros) {
 		DetachResource(sessmacros);
 		HLock(sessmacros);
@@ -1494,6 +1498,8 @@ ConnInitParams	**NameToConnInitParams(StringPtr InputString, Boolean useDefaultT
 	if (foundPort) { (**sessHdl).port = portRequested; (**sessHdl).portNegative = portNegative; }
 	else if (portHack) (**sessHdl).port = getDefaultPort((**sessHdl).protocol);
 	
+	HUnlock((Handle)sessHdl);
+
 	return(theHdl);
 }
 
