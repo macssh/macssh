@@ -945,7 +945,7 @@ void ssh2_doevent(long sleepTime)
 	extern Boolean haveNotifiedLowMemory;
 
 	if ( key_gen == 0 ) {
-		DoEvents();
+		DoEvents(NULL);
 		if (!TelInfo->done) {
 			DoNetEvents();
 		}
