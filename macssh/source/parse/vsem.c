@@ -97,11 +97,11 @@ void	VSunload(void) {}
 /* LU - we have gotten the escape sequence to turn on printer redirection, so do so */ 
 void VSprON(void)
 {
-	char	tmp[100];				/* only for debugging */
 	OSErr	sts;
 	long	myEOF;
 	
-	putln ("printer redirection ON");
+	VSprintf("printer redirection ON\n");
+
 	VSIw->prredirect = 1;
 
 	if (VSIw->qprint && VSIw->printqueued) {
@@ -123,23 +123,23 @@ void VSprON(void)
 		if (sts != dupFNErr) {
 			SysBeep(1);
 			VSIw->prredirect = 0;
-			sprintf(tmp,"Create: ERROR %d",sts);
-			putln(tmp);
+			VSprintf("Create: ERROR %d\n",sts);
 			return;
 			}
 		}
 	if ((sts = HOpenDF(TempItemsVRefNum, TempItemsDirID, (StringPtr)VSIw->fname, fsRdWrPerm, &(VSIw->refNum))) != noErr) {
 		SysBeep(1);
 		VSIw->prredirect = 0;
-		sprintf(tmp,"FSOpen: ERROR %d",sts);
-		putln(tmp);
+		VSprintf("FSOpen: ERROR %d\n",sts);
 		HDelete(TempItemsVRefNum, TempItemsDirID, (StringPtr)VSIw->fname);
 		return;
 		}
 	if (SetEOF(VSIw->refNum, 0L)) {
 		SysBeep(1);
 		VSIw->prredirect = 0;
-		putln("VSPRON:SETEOF ERROR");
+		VSprintf("VSPRON:SETEOF ERROR\n");
+		FSClose(VSIw->refNum);
+		VSIw->refNum = -1;
 		HDelete(TempItemsVRefNum, TempItemsDirID, (StringPtr)VSIw->fname);
 		return;
 		}
@@ -156,11 +156,10 @@ void VSprOFF(void)
 	TPPrPort	prPort;		/* the Printer port */
 	OSErr		sts;
 	GrafPtr		savePort;
-	char		tmp[100];	/* only for debugging */
 	short		sn;		/* NCSA: SB - the screen # */
 	THPrint		PrRecHandle;
 	
-	putln ("printer redirection OFF");
+	VSprintf("printer redirection OFF\n");
 	if (VSIw->prredirect==0)			/* no redirection started! */
 		return;
 	VSIw->prredirect = 0;
@@ -176,32 +175,29 @@ void VSprOFF(void)
 	
 	if (PrJobDialog(PrRecHandle)) {			/* Cancel the print if FALSE */
 		if ((sts=PrError()) != noErr){
-			sprintf(tmp,"PrJobDialog: ERROR %d",sts);
-			putln(tmp);
-			}
+			VSprintf("PrJobDialog: ERROR %d\n",sts);
+		}
 		prPort=PrOpenDoc(PrRecHandle,0L,0L);
 		if ((sts=PrError()) != noErr) {
 			SysBeep(1);
-			sprintf(tmp,"PrOpenDoc: ERROR %d",sts); putln(tmp);
+			VSprintf("PrOpenDoc: ERROR %d\n",sts);
 		} else {
 			sn = findbyVS(VSIwn);					/* NCSA: SB */
 			if (sn < 0)	{
 				PrClose();					/* NCSA: SB */
 				DisposeHandle((Handle)PrRecHandle);
 				return;							/* NCSA: SB */
-				}
+			}
 			printPages (prPort, PrRecHandle, Title, VSmaxwidth(VSIwn), NULL, VSIw->refNum, 0L,sn);
 			PrCloseDoc(prPort);
 			if ((sts=PrError()) != noErr) {
-				sprintf(tmp,"PrCloseDoc: ERROR %d",sts);
-				putln(tmp);
-				}
+				VSprintf("PrCloseDoc: ERROR %d\n",sts);
+			}
 			if (((*PrRecHandle)->prJob.bJDocLoop == bSpoolLoop) && (PrError()==0)) {
 				PrPicFile(PrRecHandle,0L,0L,0L,&prStatus); /* Spool if necessaryÉ */
 				if ((sts=PrError()) != noErr) {
-					sprintf(tmp,"PrPicFile: ERROR %d",sts);
-					putln(tmp);
-					}
+					VSprintf("PrPicFile: ERROR %d\n",sts);
+				}
 			}
 		}
 	}
@@ -212,13 +208,13 @@ void VSprOFF(void)
 	SetPort (savePort);				/* restore old port */
 	if ((sts=FSClose (VSIw->refNum)) != noErr) {
 		SysBeep(1);
-		sprintf(tmp,"FSClose: ERROR %d",sts); putln(tmp);
+		VSprintf("FSClose: ERROR %d\n",sts);
 	}
 	VSIw->refNum = -1;
 
 	if ((sts=HDelete(TempItemsVRefNum, TempItemsDirID, (StringPtr)VSIw->fname)) != noErr) {
 		SysBeep(1);
-		sprintf(tmp,"HDelete: ERROR %d",sts); putln(tmp);
+		VSprintf("HDelete: ERROR %d\n",sts);
 	}
 	updateCursor(1);
 }
@@ -243,7 +239,7 @@ static OSErr VStranslatewrite(char *string, long len)
 		while (!theErr && len) {
 			buflen = len > 256 ? 256 : len;
 			count = sizeof(buf);
-			trbuf_mac_nat(tw, (unsigned char *)string, &buflen, (unsigned char *)buf, &count);
+			trbuf_nat_mac(tw, (unsigned char *)string, &buflen, (unsigned char *)buf, &count);
 			theErr = FSWrite(VSIw->refNum, &count, buf);
 			len -= buflen;
 			string += buflen;
@@ -262,11 +258,12 @@ void VSpr(unsigned char **pc, short *pctr)
 	char tmp[100];			/* only for debugging */
 	short rdy;				/* true if <ESC>[4i or <ESC>[?4i */
 
-	count=0;				
-	start=(char *)*pc;	
-	rdy=0;
+	count = 0;				
+	start = (char *)*pc;	
+	rdy = 0;
+	sts = 0;
 
-	while ((*pctr>0) && (!rdy)) {
+	while ( *pctr > 0 && !rdy && sts == noErr ) {
 		VSIw->prbuf2=(VSIw->prbuf>>24);
 		VSIw->prbuf=(VSIw->prbuf<<8) + **pc;
 		if (VSIw->prbuf==ENDOFPRT) {
@@ -284,7 +281,7 @@ void VSpr(unsigned char **pc, short *pctr)
 		if (**pc == 0) {								// RAB BetterTelnet 1.0fc7
 														// We don't want NULLs here!
 			count--;
-			VStranslatewrite(start, count);
+			sts = VStranslatewrite(start, count);
 			start += (count + 1);
 			count = 0;
 		}
@@ -294,7 +291,7 @@ void VSpr(unsigned char **pc, short *pctr)
 	sts = VStranslatewrite(start, count);
 	if ( sts != noErr ) {
 		SysBeep(1);
-		sprintf(tmp,"FSWrite: ERROR %d",sts); putln(tmp);
+		VSprintf("FSWrite: ERROR %d\n",sts);
 	}
 	if (rdy || sts)
 		VSprOFF();
