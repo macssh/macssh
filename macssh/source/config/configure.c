@@ -1391,7 +1391,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	SetCntrl(dptr, 47, TermPrefsPtr->realBlink);
 	SetCntrl(dptr, 48, TermPrefsPtr->vt7bits);
 	
-	SetCntrl(dptr, 50, TermPrefsPtr->hideScrollBars);
+	SetCntrl(dptr, 50, TermPrefsPtr->hideScrollBars);	
 	
 	scratchlong = (long)(TermPrefsPtr->vtwidth);
 	NumToString(scratchlong, scratchPstring);
@@ -1779,6 +1779,7 @@ void ShowSessPanel(DialogPtr dptr, short panel)
 		ShowDialogItem(dptr, 32);
 		ShowDialogItemRange(dptr, 42, 44);
 		ShowDialogItem(dptr, 91);
+		ShowDialogItem(dptr, 94);
 		break;
 
 		case 4: // security
@@ -1840,6 +1841,7 @@ void HideSessPanel(DialogPtr dptr, short panel)
 		HideDialogItem(dptr, 32);
 		HideDialogItemRange(dptr, 42, 44);
 		HideDialogItem(dptr, 91);
+		HideDialogItem(dptr, 94);
 		break;
 
 		case 4:
@@ -1975,9 +1977,9 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	CheckPortPopup( dptr, (unsigned short)SessPrefsPtr->port, 90 );
 	SetCntrl(dptr, 91, SessPrefsPtr->launchurlesc);
 	SetCntrl(dptr, 93, SessPrefsPtr->x11forward);
+	SetCntrl(dptr, 94, SessPrefsPtr->keepselection);
+//	SetCntrl(dptr, 95, SessPrefsPtr->autoreconnect);
 
-//	SetCntrl(dptr, 94, SessPrefsPtr->autoreconnect);
-	
 /* NONO */
 
 	if (!authOK) {
@@ -2178,6 +2180,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 				case	91:
 				case	92:
 				case	93:
+				case	94:
 /* NONO */
 					FlipCheckBox(dptr, ditem);
 					break;
@@ -2470,8 +2473,8 @@ void SetSessionData(DialogPtr dptr, SessionPrefs *SessPrefsPtr,
 	SessPrefsPtr->ssh2guests = GetCntlVal(dptr, 87);
 	SessPrefsPtr->launchurlesc = GetCntlVal(dptr, 91);
 	SessPrefsPtr->x11forward = GetCntlVal(dptr, 93);
-
-//	SessPrefsPtr->autoreconnect = GetCntlVal(dptr, 94);
+	SessPrefsPtr->keepselection = GetCntlVal(dptr, 94);
+//	SessPrefsPtr->autoreconnect = GetCntlVal(dptr, 95);
 /* NONO */
 
 	memset(SessPrefsPtr->otppassword, 0, sizeof(SessPrefsPtr->otppassword));
