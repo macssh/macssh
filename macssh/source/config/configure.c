@@ -156,6 +156,11 @@ void Cenviron( void)
 	} else {
 		cachePass = TRUE;
 	}
+	if ( !TelInfo->haveKeyChain ) {
+		HideDialogItem(dptr, 41);
+	} else {
+		SetCntrl(dptr, 41, gApplicationPrefs->useKeyChain);
+	}
 /* NONO */
 
 	scratchPstring[0] = 4;
@@ -199,6 +204,7 @@ void Cenviron( void)
 			case 35:
 			case 36:
 			case 37:
+			case 41:
 				FlipCheckBox( dptr, ditem);
 				break;
 			case PrefStag:
@@ -312,6 +318,7 @@ void Cenviron( void)
 	GetTEText(dptr,24, scratchPstring);
 	StringToNum(scratchPstring, &scratchlong);
 	gApplicationPrefs->cacheDelay = scratchlong;
+	gApplicationPrefs->useKeyChain = GetCntlVal(dptr, 41);					
 /* NONO */
 
 	gApplicationPrefs->CommandKeys = GetCntlVal(dptr, PrefCMDkey);					

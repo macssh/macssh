@@ -255,8 +255,8 @@ typedef	struct	{
 
 /* NONO */
 	Boolean
-		cachePassphrase,		// Connection's windows remain open after connection close
-		unused1,				// free
+		cachePassphrase,		// 
+		useKeyChain,			// 
 		unused2,				// free
 		unused3;				// free
 	long

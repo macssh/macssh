@@ -66,6 +66,7 @@ typedef struct lshcontext {
 	char			_kpassword[64];
 	int				_kindex;
 	int				_pindex;
+	char			_keychainprompt[256];
 
 } lshcontext;
 

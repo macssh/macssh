@@ -152,6 +152,8 @@ PaletteHandle
 	AnsiColors;		//The Global ANSI Color palette
 Boolean 
 	haveColorQuickDraw;
+Boolean
+	haveKeyChain;
 NewMacroInfo
 	newMacros;
 };

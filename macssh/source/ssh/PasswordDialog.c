@@ -24,14 +24,22 @@
 #include <Notification.h>
 #include <Dialogs.h>
 #include <TextEdit.h>
+#include <Keychain.h>
 
 #include "PasswordDialog.h"
 #include "movableModal.h"
 #include "event.proto.h"
 #include "netevent.proto.h"
 #include "DlogUtils.proto.h"
+#include "wind.h"
+
+#include <pthread.h>
 
 extern void ssh2_sched();
+extern WindRec *ssh2_window();
+
+extern void setctxprompt(const char *prompt);
+extern char *getctxprompt();
 
 extern TelInfoRec	*TelInfo;
 extern Boolean		gAEavail;
@@ -368,11 +376,144 @@ Boolean SSH2LoginDialog(StringPtr host, StringPtr login, StringPtr password)
 	return item == 1;
 }
 
-Boolean SSH2PasswordDialog(StringPtr prompt, StringPtr password)
+#if GENERATINGCFM
+
+/*
+ * GetPassFromKeychain
+ */
+
+static void GetLabelFromPrompt(const char *prompt, StringPtr host, StringPtr user)
+{
+	WindRec *wind = ssh2_window();
+	if ( wind && strstr(prompt, "assword for") ) {
+		StringPtr p = wind->sshdata.host;
+		memcpy( host, p, *p + 1 );
+		p = wind->sshdata.login;
+		memcpy( user, p, *p + 1 );
+	} else {
+		/* use key label as both host name and user name */
+		int l = strlen(prompt);
+		*host = 4 + l;
+		memcpy(host + 1, "Key ", 4);
+		memcpy(host + 5, prompt, l);
+		*user = l;
+		memcpy(user + 1, prompt, l);
+	}
+}
+
+/*
+ * GetPassFromKeychain
+ */
+
+static Boolean GetPassFromKeychain(const char *prompt, StringPtr password)
+{
+	OSStatus	theStatus;
+	UInt32		theLength;
+	KCItemRef	theItem;
+
+	if ( TelInfo->haveKeyChain && gApplicationPrefs->useKeyChain ) {
+		Str255 phost;
+		Str255 puser;
+		GetLabelFromPrompt(prompt, phost, puser);
+		theStatus = KCFindGenericPassword(phost, puser, 255,
+					password + 1, &theLength, &theItem);
+		if ( theStatus == noErr ) {
+			password[0] = theLength;
+			if (theItem != NULL)
+				KCReleaseItem( &theItem );
+			return true;
+		}
+	}
+	return false;				
+}
+
+/*
+ * AddPassToKeychain
+ */
+
+static void AddPassToKeychain(const char *prompt, StringPtr password)
+{
+	OSStatus	theStatus;
+	UInt32		theLength;
+	KCItemRef	theItem = NULL;
+	Str255		phost;
+	Str255		puser;
+	Str255		ppass;
+	KCAttribute theAttribute;
+	OSType		theTypeCreator;
+
+	if ( !TelInfo->haveKeyChain || !gApplicationPrefs->useKeyChain )
+		return;
+
+	GetLabelFromPrompt(prompt, phost, puser);
+	theStatus = KCFindGenericPassword(phost, puser, 255,
+				ppass + 1, &theLength, &theItem);
+	if ( theStatus == noErr && theItem != NULL) {
+		ppass[0] = theLength;
+		if ( memcmp(ppass, password, *ppass + 1) ) {
+			theStatus = KCSetData(theItem, *password, password + 1);
+			if (theStatus == noErr)
+				theStatus = KCUpdateItem(theItem);
+		}
+	} else {
+		theStatus = KCAddGenericPassword(phost, puser,
+			*password, password + 1, &theItem);
+		if (theStatus == noErr) {
+			unsigned char *theDescriptionText = "\pMacSSH password";
+			theAttribute.tag = kDescriptionKCItemAttr;
+			theAttribute.length = *theDescriptionText;
+			theAttribute.data = theDescriptionText + 1;
+			theStatus = KCSetAttribute(theItem, &theAttribute);
+		}
+		if (theStatus == noErr) {
+			theTypeCreator = 'Ssh2';
+			theAttribute.tag = kCreatorKCItemAttr;
+			theAttribute.length = sizeof(theTypeCreator);
+			theAttribute.data = &theTypeCreator;
+			theStatus = KCSetAttribute(theItem, &theAttribute);
+		}
+		if (theStatus == noErr) {
+			theTypeCreator = 'APPL';
+			theAttribute.tag = kTypeKCItemAttr;
+			theStatus = KCSetAttribute(theItem, &theAttribute);
+		}
+		if (theStatus == noErr) {
+			Boolean theCustomIcon = true;
+			theAttribute.tag = kCustomIconKCItemAttr;
+			theAttribute.length = sizeof(theCustomIcon);
+			theAttribute.data = &theCustomIcon;
+			theStatus = KCSetAttribute(theItem, &theAttribute);
+		}
+		if (theStatus == noErr)
+			theStatus = KCUpdateItem(theItem);
+	}
+	if (theItem != NULL)
+		KCReleaseItem(&theItem);
+}
+#endif
+
+
+/*
+ * SSH2PasswordDialog
+ */
+
+
+
+Boolean SSH2PasswordDialog(const char *prompt, StringPtr password)
 {
 	DialogPtr		dlog;
 	short			item = 0;
+	Boolean			addKey = false;
 	ModalFilterUPP  internalBufferFilterUPP;
+	ConstStringPtr	keyPrompt = "\pEnter passphrase for private key ";
+	WindRec			*wind;
+
+#if GENERATINGCFM
+	if ( strcmp(prompt, getctxprompt()) && GetPassFromKeychain(prompt, password) ) {
+		setctxprompt(prompt);
+		return true;
+	}
+#endif
 
 	InteractWithUser( true, 128, 128 );
 
@@ -381,12 +522,29 @@ Boolean SSH2PasswordDialog(StringPtr prompt, StringPtr password)
 	*password = '\0';
 	dlog = GetNewMyDialog(rSSH2PasswordDialog, 0L, (WindowPtr)-1L, NULL);
 	if ( dlog ) {
+		Str255 pprompt;
 		SInt16 itemType;
 		Handle itemHandle;
 		Rect itemRect;
+		ControlHandle cntlHandle;
+		WindRec *wind = ssh2_window();
 		// set prompt
+		if ( wind && strstr(prompt, "assword for") ) {
+			pprompt[0] = strlen(prompt);
+			memcpy(pprompt + 1, prompt, pprompt[0]);
+		} else {
+			memcpy(pprompt, keyPrompt, keyPrompt[0] + 1);
+			memcpy(pprompt + pprompt[0] + 1, prompt, strlen(prompt));
+			pprompt[0] += strlen(prompt);
+		}
 		GetDialogItem(dlog, 5, &itemType, &itemHandle, &itemRect);
-		SetDialogItemText(itemHandle, prompt);
+		SetDialogItemText(itemHandle, pprompt);
+		if ( TelInfo->haveKeyChain && gApplicationPrefs->useKeyChain ) {
+			GetDialogItem(dlog, 6, &itemType, (Handle *)&cntlHandle, &itemRect);
+			SetControlValue(cntlHandle, addKey = true);
+		} else {
+			HideDialogItem(dlog, 6);
+		}
 		SetDialogDefaultItem(dlog, 1);
 		SetDialogCancelItem(dlog, 2);
 		SetDialogTracksCursor(dlog, 1);
@@ -394,16 +552,25 @@ Boolean SSH2PasswordDialog(StringPtr prompt, StringPtr password)
 		SetWRefCon(dlog, (long)password);	// Stash the buffer's address
 		do {
 			movableModalDialog(internalBufferFilterUPP, &item);
+			if (item == 6) {
+				SetControlValue(cntlHandle, !GetControlValue(cntlHandle));
+			} 
 		} while (item != 1 && item != 2);	// Until the OK button is hit
+		addKey = GetControlValue(cntlHandle);
 		DisposeDialog(dlog);
 	}
 	DisposeRoutineDescriptor(internalBufferFilterUPP);
 	ResetMenus();
+#if GENERATINGCFM
+	if ( item == 1 && addKey ) {
+		AddPassToKeychain( prompt, password );
+	}
+#endif
 	return item == 1;
 }
 
 
-static short SSH2SOCDialog(char *fingerprint, int id)
+static short SSH2SOCDialog(const char *fingerprint, int id)
 {
 	DialogPtr		dlog;
 	short			item = 3;	/* cancel */
@@ -442,12 +609,12 @@ static short SSH2SOCDialog(char *fingerprint, int id)
 	return item;
 }
 
-short SSH2SOC1Dialog(char *fingerprint)
+short SSH2SOC1Dialog(const char *fingerprint)
 {
 	return SSH2SOCDialog(fingerprint, rSSH2SOC1Dialog);
 }
 
-short SSH2SOC2Dialog(char *fingerprint)
+short SSH2SOC2Dialog(const char *fingerprint)
 {
 	return SSH2SOCDialog(fingerprint, rSSH2SOC2Dialog);
 }

@@ -781,11 +781,9 @@ char *getpass( const char *prompt )
 			wind->sshdata.password[0] = '\0';
 			valid = 1;
 		} else {
-			pprompt[0] = strlen(prompt);
-			memcpy(pprompt + 1, prompt, pprompt[0]);
 			ppassword[0] = 0;
 			pthread_mutex_lock( &dialock );
-			valid = SSH2PasswordDialog(pprompt, ppassword);
+			valid = SSH2PasswordDialog(prompt, ppassword);
 			pthread_mutex_unlock( &dialock );
 			if (valid) {
 				memcpy(password, ppassword + 1, ppassword[0]);
@@ -805,12 +803,9 @@ char *getpass( const char *prompt )
 		  && getnextcachedpassphrase(prompt, context->_kpassword, &context->_kindex) ) {
 			return context->_kpassword;
 		}
-		PLstrcpy(pprompt, "\pEnter passphrase for private key ");
-		memcpy(pprompt + pprompt[0] + 1, prompt, strlen(prompt));
-		pprompt[0] += strlen(prompt);
 		context->_kpassword[0] = 0;
 		pthread_mutex_lock( &dialock );
-		valid = SSH2PasswordDialog(pprompt, (StringPtr)context->_kpassword);
+		valid = SSH2PasswordDialog(prompt, (StringPtr)context->_kpassword);
 		pthread_mutex_unlock( &dialock );
 		if (valid) {
 			plen = context->_kpassword[0];
@@ -823,6 +818,23 @@ char *getpass( const char *prompt )
 		}
 	}
 	return (valid) ? password : NULL;
+}
+
+/*
+ * setctxprompt
+ */
+void setctxprompt(const char *prompt)
+{
+	strcpy(((lshcontext *)pthread_getspecific(ssh2threadkey))->_keychainprompt, prompt);
+}
+
+/*
+ * getctxprompt
+ */
+
+char *getctxprompt()
+{
+	return ((lshcontext *)pthread_getspecific(ssh2threadkey))->_keychainprompt;
 }
 
 /*
@@ -1110,6 +1122,7 @@ void init_context(lshcontext *context, short port)
 	context->_kpassword[0] = 0;
 	context->_kindex = 0;
 	context->_pindex = 0;
+	context->_keychainprompt[0] = 0;
 }
 
 /*

@@ -45,6 +45,8 @@
 #include "memory.proto.h"
 #include "AddressXLation.h"
 
+#include <KeyChain.h>
+
 #define _POSIX_SOURCE 1
 #include <unistd.h>
 #include <sys/stat.h>
@@ -253,6 +255,11 @@ void InquireEnvironment( void)
 	}
 
 	TelInfo->haveColorQuickDraw = theWorld.hasColorQD;
+#if GENERATINGCFM
+	TelInfo->haveKeyChain = KeychainManagerAvailable();
+#else
+	TelInfo->haveKeyChain = false;
+#endif
 }
 
 #define	kURLEventClass	'GURL'
