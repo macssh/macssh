@@ -22,6 +22,7 @@ extern WindRec	*screens;
 
 #define DEBUG_FACILITIES
 
+extern MenuHandle myMenus[NMENUS];		/* Menu Handles .... */
 
 void InitDebug(void)
 {
@@ -190,6 +191,7 @@ long dumpln(long base, char *dest, void *src, long len)
 //	HandleKeyDown should do an immediate return after calling us.
 Boolean	DebugKeys(Boolean cmddwn, unsigned char ascii, short s)
 {
+	Str255	scratchPstring;
 #ifdef DEBUG_FACILITIES
 	if (cmddwn && (ascii == ';')) {	// 2.6b16.1
 		char hackhackhack[80];
@@ -202,6 +204,10 @@ Boolean	DebugKeys(Boolean cmddwn, unsigned char ascii, short s)
 	if (cmddwn && (ascii == 39)) { //single quote
 		if (TelInfo->debug) HideDebugWindow();
 		else ShowDebugWindow();
+
+		GetIndString( scratchPstring, MISC_STRINGS, (TelInfo->debug) ? HIDE_LOG : SHOW_LOG);
+		SetMenuItemText( myMenus[Conn], COshowlog, scratchPstring);
+
 		return(FALSE);
 	}
 #endif
