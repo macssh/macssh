@@ -10,20 +10,21 @@ short RSTextSelected(short w);
 void RSskip(short w, Boolean on);
 short RSsize(GrafPtr window, long *where, long modifiers);
 void RSshow(short w);
-Boolean RSsetcolor(short w, short n, RGBColor *color);
+Boolean RSsetcolors(short w, short n, RGBColor *color);
 void RSsendstring(short w, char *ptr, short len);
 short RSnewwindow(RectPtr wDims,short scrollback, short width, short lines, StringPtr name, short wrapon, 
 	short fnum, short fsiz, short showit, short goaway, short forcesave, short screenNumber, short allowBold,
 	short colorBold, short ignoreBeeps, short bfnum, short bfsiz, short bfstyle, short realbold, short oldScrollback, short jump, short);
 short RSmouseintext(short w, Point myPoint);
 void RSkillwindow(short w);
-void RSgetcolor(short w, short n, RGBColor *color);
+void RSgetcolors(short w, short n, RGBColor *color);
 void RShide(short w);
 GrafPtr RSgetwindow(short w);
 char **RSGetTextSel(short w, short table);
 RgnHandle RSGetTextSelRgn(short w);
 short RSfindvwind(GrafPtr wind);
 void RSdeactivate(short w);
+void RSsetcurstype( short w, long cursType );
 void RScursblink(short w);
 void RScursblinkon(short w);
 void RScursblinkoff(short w);
