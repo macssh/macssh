@@ -10,7 +10,7 @@ short RSTextSelected(short w);
 void RSskip(short w, Boolean on);
 short RSsize(GrafPtr window, long *where, long modifiers);
 void RSshow(short w);
-Boolean RSsetcolor(short w, short n, RGBColor Color);
+Boolean RSsetcolor(short w, short n, RGBColor *color);
 void RSsendstring(short w, char *ptr, short len);
 short RSnewwindow(RectPtr wDims,short scrollback, short width, short lines, StringPtr name, short wrapon, 
 	short fnum, short fsiz, short showit, short goaway, short forcesave, short screenNumber, short allowBold,

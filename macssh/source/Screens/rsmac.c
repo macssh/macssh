@@ -132,8 +132,8 @@ static RgnHandle revealedRgn;
 Boolean gHasSetWindowContentColor = 0;
 #endif
 
-short RSw=-1,         /* last window used */
-    RSa=0;          /* last attrib used */
+short       RSw=-1;         /* last window used */
+VSAttrib    RSa=0;          /* last attrib used */
 extern long RScolors[];
 
 // initializes handling of terminal windows
@@ -156,8 +156,11 @@ void RSinitall(short max) //max windows to allow
 		RScurrent->cursor.right = 0;
 	}
 	RSuRgn = NewRgn();
-	if (!TelInfo->haveColorQuickDraw)
-		DisposeHandle((Handle)TelInfo->AnsiColors);
+	if (!TelInfo->haveColorQuickDraw) {
+		if ( TelInfo->AnsiColors ) {
+			DisposeHandle((Handle)TelInfo->AnsiColors);
+		}
+	}
 	hiddenRgn = NewRgn();
 	revealedRgn = NewRgn();
 #if GENERATINGPOWERPC
@@ -300,7 +303,7 @@ void RScurson
   } /* RScurson */
 
 
-void RSsetattr(short a)
+void RSsetattr(VSAttrib a)
 {
  	short fg, bg, tempFontID; // RAB BetterTelnet 1.0fc4
   	short face;
@@ -332,7 +335,8 @@ void RSsetattr(short a)
 		fg = 4 + ((a>>8)&0x7);
 		if (RScurrent->colorBold && VSisbold(a))
 			fg += 8;
-    } else if (RScurrent->colorBold && VSisbold(a)) {
+    } else if (RScurrent->colorBold && VSisbold(a)
+    	   && gApplicationPrefs->defaultBoldColor != -1) {
 		fg = gApplicationPrefs->defaultBoldColor + 4;
 	} else
 		fg = 0;
@@ -368,7 +372,7 @@ void RSsetattr(short a)
 	//set up colors
 	if (TelInfo->haveColorQuickDraw) 
 	{
-		if (VSisblnk(a) && (!gBlink || !VSIgetblinkflag()))
+		if ((VSisblnk(a) || VSisfastblnk(a)) && (!gBlink || !VSIgetblinkflag()))
 		{
 			PmForeColor(2);				//use colors for blink
 			PmBackColor(3);
@@ -381,7 +385,7 @@ void RSsetattr(short a)
 	}
 	else 
 	{
-		if (VSisblnk(a))
+		if (VSisblnk(a) || VSisfastblnk(a))
 		{
 			ForeColor(RScolors[7]);	//use colors for blink
 			BackColor(RScolors[0]);	
@@ -393,7 +397,7 @@ void RSsetattr(short a)
 		}
 	}
 	
-} /* RSsetattr */
+} /* RSTextFont */
 
 void RSTextFont(short myfnum, short myfsiz, short myface) 				/* BYU */
 {										/* BYU */
@@ -536,7 +540,7 @@ void RSdraw
 	short w, /* window number */
 	short x, /* starting column */
 	short y, /* line on which to draw */
-	short a, /* text attributes */
+	VSAttrib a, /* text attributes */
 	short len, /* length of text to draw */
 	char *ptr /* pointer to text */
   )
@@ -892,7 +896,7 @@ void RSinsstring
 	short w, /* affected window */
 	short x, /* starting column at which to insert */
 	short y, /* line on which to insert */
-	short a, /* attributes for inserted text */
+	VSAttrib a, /* attributes for inserted text */
 	short len, /* length of inserted text */
 	char *ptr /* pointer to inserted text */
   )
@@ -950,6 +954,8 @@ void RSinsstring
 		/* highlight any part of selection covering the newly-inserted text */
 		RSinvText(w, *(Point *) &RScurrent->anchor,
 			*(Point *) &RScurrent->last, &rect);
+
+	ValidRect(&rect);
 } /* RSinsstring */
 
 
@@ -1204,29 +1210,30 @@ void RSbackground(short w, short value)
 			GetEntryColor(RSlocal[w].pal,1,&temp2);
 			SetEntryColor(RSlocal[w].pal,0,&temp2);
 			SetEntryColor(RSlocal[w].pal,1,&temp1);
+
+			/* set background color */
+#if GENERATINGPOWERPC
+			if (gHasSetWindowContentColor ) {
+				SetWindowContentColor(RSlocal[w].window, &temp1);
+			} else
+#endif
+			{
+				WCTabHandle colorTable = (WCTabHandle)myNewHandle(sizeof(WinCTab));
+				if (colorTable != NULL) {
+					(**colorTable).wCSeed = 0;
+					(**colorTable).wCReserved = 0;
+					(**colorTable).ctSize = 0;
+					(**colorTable).ctTable[0].value = wContentColor;
+					(**colorTable).ctTable[0].rgb = temp1;
+					SetWinColor(RSlocal[w].window, colorTable);
+					/* heap becomes corrupted after CloseWindow() */
+					/* if I call DisposeHandle... but no leak ? */
+					/*DisposeHandle((Handle)colorTable);*/
+				}
+			}
+
 		}
 		InvalRect(&RSlocal[w].window->portRect);
-	}
-}
-
-
-void RSdefaultForeColor(short w)
-{
-	RSsetwind(w);
-	if (TelInfo->haveColorQuickDraw) {
-		PmForeColor(0);
-	} else {
-		ForeColor(RScolors[0]);
-	}
-}
-
-void RSdefaultBackColor(short w)
-{
-	RSsetwind(w);
-	if (TelInfo->haveColorQuickDraw) {
-		PmBackColor(1);
-	} else {
-		BackColor(RScolors[7]);
 	}
 }
 
