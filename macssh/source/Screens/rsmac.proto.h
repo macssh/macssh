@@ -26,7 +26,7 @@ void RSregnconv(RgnHandle regn, short *x1, short *y1, short *x2, short *y2, shor
 short RSupdprint(WindowPeek wind);
 Point normalize(Point in_long, short w, Boolean autoScroll);
 void	RSsortAnchors(short w);
-void RSsetsize(short w, short v, short h);
+void RSsetsize(short w, short v, short h, short screenIndex);
 void RSdrawsep(short w, short y1, short draw);
 void RSbackground(short w, short value);
 void RScheckmaxwind(Rect *origRect, short origW, short origH, short *endW, short *endH);
