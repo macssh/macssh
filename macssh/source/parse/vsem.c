@@ -485,6 +485,7 @@ void VSem
 					trflush(tw);
 					break;
 				case 0x0c: /* ff */
+					VSIw->linest[VSIw->y]->lattr &= ~kVSwrap;
 					VSIindex();
 					break;
 				case 0x09: /* ht */		/* Later change for versatile tabbing */
@@ -493,14 +494,17 @@ void VSem
 						VScapture(c,1);				
 					break;
 				case 0x0a: /* lf */
+					VSIw->linest[VSIw->y]->lattr &= ~kVSwrap;
 					VSIindex();
 					break;
 				case 0x0d: /* cr */
 					VSIw->x = 0;
 					if (!captured)
 						VScapture(c,1);				
+					trflush(tw);
 					break;
 				case 0x0b: /* vt */
+					VSIw->linest[VSIw->y]->lattr &= ~kVSwrap;
 					VSIindex();
 					break;
 				default:
@@ -519,10 +523,12 @@ void VSem
 			// VT220 eightbit starts here
 			switch (*c) {									
 				case 0x84: /* ind */		//same as ESC D
+					VSIw->linest[VSIw->y]->lattr &= ~kVSwrap;
 					VSIindex();		
 					goto ShortCut;			
 				case 0x85: /* nel */		//same as ESC E
 					VSIw->x = 0;				
+					VSIw->linest[VSIw->y]->lattr &= ~kVSwrap;
 					VSIindex();				
 					goto ShortCut;			
 				case 0x88: /* hts */		//same as ESC H 
@@ -649,7 +655,7 @@ void VSem
 						// translation ok, or no data yet
 						if ( inlen ) {
 							// keep a few chars
-							for (i = inlen; i <= VSIw->trincount; i++) {
+							for (i = inlen; i < VSIw->trincount; i++) {
 								pbuf[i - inlen] = pbuf[i];
 							}
 							VSIw->trincount -= inlen;
@@ -791,10 +797,12 @@ void VSem
 					VSIreset();
 					goto ShortCut;
 				case 'D':
+					VSIw->linest[VSIw->y]->lattr &= ~kVSwrap;
 					VSIindex();
 					goto ShortCut;
 				case 'E':
 					VSIw->x = 0;
+					VSIw->linest[VSIw->y]->lattr &= ~kVSwrap;
 					VSIindex();
 					goto ShortCut;
 				case 'M':
@@ -855,10 +863,10 @@ void VSem
 						break;
 					}
 					goto ShortCut;
-				case 'n':	// Lock Shift G2, Left
-				case '}':	// Lock Shift G2, Right
-				case 'o':	// Lock Shift G3, Left
-				case '|':	// Lock Shift G3, Right
+				case 'n':	// Lock Shift G2, Left   (VT200 mode only)
+				case '}':	// Lock Shift G2, Right  (VT200 mode only)
+				case 'o':	// Lock Shift G3, Left   (VT200 mode only)
+				case '|':	// Lock Shift G3, Right  (VT200 mode only)
 					// switch to charset
 					// FIXME
 					goto ShortCut;
@@ -932,9 +940,9 @@ void VSem
 					savedChar = VSIw->lastchar;
 					VSIw->lastchar = ' ';
 					/* leave current attribute as-is for linux ??? */
-					if (VSIw->vtemulation != 3) {
+					attrib = VSIw->attrib;
+					if (VSIw->vtemulation != 3)
       					VSIw->attrib &= (kVSansi2b | kVSgrph); // all off, keep multi-byte / graphic
-      				}
       				// FALL-THROUGH
 				case 'b':	/* repeat last char n times ? */
 					while ( VSIw->parms[0] > 0 ) {
@@ -962,6 +970,7 @@ void VSem
 						VSIw->x = savedX;
 						VSIw->y = savedY;
 						VSIw->lastchar = savedChar;
+      					VSIw->attrib = attrib;
 					}
 					goto ShortCut;
 
@@ -1127,8 +1136,6 @@ void VSem
 						case  2:
 							VSIes();
 							break;
-						default:
-							goto ShortCut;
 					}
 					goto ShortCut;
 
@@ -1145,8 +1152,6 @@ void VSem
 						case  2:
 							VSIel(-1);
 							break;
-						default:
-							goto ShortCut;
 					}
 					goto ShortCut;
 
@@ -1409,8 +1414,10 @@ void VSem
 						switchintranslation(tw, kTRJIS, kJISX0201_1976);
 					goto ShortCut;
 				case 'I': /* Not Std ISO-2022-JP */
-					if (tw)
-						switchintranslation(tw, kTRJIS, kJISX0201_1976Kana);
+					if (tw) {
+						//switchintranslation(tw, kTRJIS, kJISX0201_1976Kana);
+						switchintranslation(tw, kTRJISX0201_76kana, 0);
+					}
 					goto ShortCut;
 				default:
 					goto ShortCut;
@@ -1510,7 +1517,6 @@ void VSem
 						}
 						if (tw)
 							switchintranslation(tw, kTRJIS, kJISX0208_1983);
-							//switchintranslation(tw, JISX0208_83, 0);
 					}
 					goto ShortCut;
 
@@ -1545,8 +1551,8 @@ void VSem
 							VSIw->attrib = VSnotgraph(VSIw->attrib);
 						}
 						if (tw)
-							switchintranslation(tw, kTRJIS, kJISX0212_1990);
-							//switchintranslation(tw, JISX0212, 0);
+							//switchintranslation(tw, kTRJIS, kJISX0212_1990);
+							switchintranslation(tw, kTRJISX0212_1990, 0);
 					}
 					goto ShortCut;
 
