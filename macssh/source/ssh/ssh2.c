@@ -829,6 +829,7 @@ char *getpass( const char *prompt )
 	Str255			ppassword;
 	char			*password;
 	Boolean			valid;
+	short			index;
 
 	if ( wind && strstr(prompt, "assword for") ) {
 		/* password authentication */
@@ -838,11 +839,13 @@ char *getpass( const char *prompt )
 		strcpy(cprompt, prompt);
 		strncat(cprompt, (char *)wind->sshdata.host + 1, wind->sshdata.host[0]);
 
+		index = context->_pindex;
 		if ( gApplicationPrefs->cachePassphrase
 		  && getnextcachedpassphrase(cprompt, password, &context->_pindex) ) {
 			return password;
 		}
 		LockDialog();
+		context->_pindex = index;
 		if ( gApplicationPrefs->cachePassphrase
 		  && getnextcachedpassphrase(cprompt, password, &context->_pindex) ) {
 			UnlockDialog();
@@ -872,11 +875,13 @@ char *getpass( const char *prompt )
 		/* encrypted private key */
 		int plen;
 		assert(context != NULL);
+		index = context->_kindex;
 		if ( gApplicationPrefs->cachePassphrase
 		  && getnextcachedpassphrase(prompt, context->_kpassword, &context->_kindex) ) {
 			return context->_kpassword;
 		}
 		LockDialog();
+		context->_kindex = index;
 		if ( gApplicationPrefs->cachePassphrase
 		  && getnextcachedpassphrase(prompt, context->_kpassword, &context->_kindex) ) {
 			UnlockDialog();
