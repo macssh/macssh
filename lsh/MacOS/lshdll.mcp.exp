@@ -10,3 +10,7 @@ lsh_current
 lsh_running
 lsh_init
 lsh_terminate
+GusiLSHSetWriteConsole
+GusiLSHSetErrConsole
+GusiLSHSetInConsole
+GusiLSHSetHandleEvent
