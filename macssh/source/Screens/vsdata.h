@@ -24,8 +24,8 @@
 #define MAXWID 255      /* The absolute maximum number of chars/line */
 /* NONO */
 
-//typedef long VSAttrib;
-typedef short VSAttrib;
+typedef long VSAttrib;
+//typedef short VSAttrib;
 
 typedef struct VSline
   {
@@ -111,7 +111,9 @@ struct VSscrn {
     short parms[maxparms];   /* Ansi Parameters 							*/
     char *tabs;             /* pointer to array for tab settings 			*/
                             /* contains 'x' at each tab position, blanks elsewhere */
+	unsigned long escflags;
     };
+
 
 typedef struct VSscrn VSscrn;
 
