@@ -203,6 +203,20 @@ void RSbell
   )
   /* gives an audible signal associated with the specified window. */
   {
+
+/* NONO : #@%! bell ! I'm not deaf, It's my autokey buffer... */
+	static unsigned long sLastBellTicks = 0;
+	static short sConsecutiveBeeps = 0;
+	if ((LMGetTicks() - sLastBellTicks) < 15) {
+		++sConsecutiveBeeps;
+	} else {
+		sConsecutiveBeeps = 0;
+	}
+	sLastBellTicks = LMGetTicks();
+	if ( sConsecutiveBeeps >= 5 )
+		return;
+/* NONO */
+
     RSsetwind(w);
 	if (FrontWindow() != RScurrent->window)
 	  {
@@ -278,7 +292,7 @@ void RScurson
 void RSsetattr(short a)
 {
  	short fg, bg, tempFontID; // RAB BetterTelnet 1.0fc4
-  	
+  	short face;
  	static GrafPtr lastPort;	
 	
 	if (RSa!=-1 && RSa==a && qd.thePort==lastPort) return;			
@@ -290,22 +304,18 @@ void RSsetattr(short a)
         TextFont(tempFontID); /* use "NCSA VT" (74) font for special graphics */
     }
 	else
-		RSTextFont(RScurrent->fnum,RScurrent->fsiz,((a & bold) && RScurrent->allowBold)); 	/* BYU - use user-selected text font */
+		RSTextFont(RScurrent->fnum,RScurrent->fsiz,VSisbold(a) && RScurrent->allowBold); 	/* BYU - use user-selected text font */
 
 	TextSize(RScurrent->fsiz);
 
-/* BYU - bold system fonts don't work (they overwrite the scroll bars), 
-         but NCSA's 9 point Monaco bold works okay. */
-
-	if (VSisbold(a) && RScurrent->realbold) {
-/* NONO : use compressed bold fonts */
+	face = VSisundl(a) ? underline : 0;
+	if ( VSisbold(a) && RScurrent->allowBold && RScurrent->realbold ) {
+		face += bold;
 		if (RScurrent->boldislarger) {
-			TextFace(((a & outline) >> 1) + bold + condense);
-		} else {
-			TextFace(((a & outline) >> 1) + 1);
+			face += condense;
 		}
-/* NONO */
-    } else TextFace((a & outline) >> 1); 	/* BYU - do outline as underline setting */
+	}
+    TextFace(face);
 
 	if (VSisansifg(a)) {
 		fg = 4 +((a>>8)&0x7);
@@ -1095,7 +1105,7 @@ void	RSsortAnchors(short w)
 		}
 }	
 
-void	RSsetsize( short w, short v, short h)
+void	RSsetsize( short w, short v, short h, short screenIndex)
 /*	saves the new size settings for a window, and repositions
 	the scroll bars accordingly. */
 {
@@ -1123,12 +1133,24 @@ void	RSsetsize( short w, short v, short h)
 		MoveControl(RSlocal[w].scroll, (h - 15) + CHO, -1 + CVO);
 		ShowControl(RSlocal[w].scroll);
 		}
-	if (RSlocal[w].left != NULL ) {
-		SizeControl(RSlocal[w].left, (h - 13), 16);
-		MoveControl(RSlocal[w].left, -1 + CHO,  (v - 15) + CVO);
-		ShowControl(RSlocal[w].left);
+	if ( RSlocal[w].left != NULL ) {
+		short i;
+		if (screenIndex == -1)
+			screenIndex = findbyVS(w);
+		if ( screenIndex >= 0 && screens[screenIndex].protocol == 4 ) {
+			i = LOCKWIDTH + 1;
+		} else {
+			i = 0;
 		}
-		
+		SizeControl(RSlocal[w].left, (h - 13) - i, 16);
+		MoveControl(RSlocal[w].left, -1 + CHO + i,  (v - 15) + CVO);
+		ShowControl(RSlocal[w].left);
+	}
+
+/* draw the locker once the scrollbars has moved */
+
+	RSdrawlocker(w, RSlocal[w].window->visRgn);
+
 	SetRect(&RSlocal[w].textrect, 0, 0, RSlocal[w].rwidth, RSlocal[w].rheight);
 } /* RSsetsize */
 
