@@ -501,11 +501,19 @@ OSErr InteractWithUser(
 		//notice.nmPrivate = 0L;
 		//notice.nmReserved = 0L;
 		notice.nmMark = 1;
+/*
 		if ( ( mySmallIcon = GetResource( 'SICN', sicnResID ) ) != nil) {
 			sicnState = HGetState( mySmallIcon );
 			HNoPurge(mySmallIcon);
 		}
 		notice.nmIcon = mySmallIcon;
+*/
+		err = GetIconSuite(&mySmallIcon, kNCSAIconFamilyId, svAllSmallData);
+		if ( !err )
+			notice.nmIcon = mySmallIcon;
+		else
+			notice.nmIcon = NULL;
+
 		//notice.nmSound = 0L;
 		notice.nmSound = (Handle)-1L;	// play system alert sound
 		if (isUrgent && strResID != -1 && (notificationString = (Handle)GetString(strResID)) != nil) {
@@ -532,8 +540,8 @@ OSErr InteractWithUser(
 		//if ( !err )
 		//	TelInfo->suspended = false;
 
-		if ( mySmallIcon )
-			HSetState( mySmallIcon, sicnState );
+		//if ( mySmallIcon )
+		//	HSetState( mySmallIcon, sicnState );
 		if ( notificationString )
 			HSetState( notificationString, strState );
 	}
