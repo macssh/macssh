@@ -762,25 +762,23 @@ char *getpass( const char *prompt )
 	char			*password;
 	Boolean			valid;
 
-	if ( wind && /*!strchr(prompt, '@')*/ strstr(prompt, "assword for") ) {
+	if ( wind && strstr(prompt, "assword for") ) {
 		/* password authentication */
 		password = wind->sshdata.currentpass;
 		password[0] = '\0';
-		if (wind && wind->sshdata.password[0]) {
+		/* add host name to avoid sending password to another host... */
+		strcpy(cprompt, prompt);
+		strncat(cprompt, (char *)wind->sshdata.host + 1, wind->sshdata.host[0]);
+		if ( gApplicationPrefs->cachePassphrase
+		  && getnextcachedpassphrase(cprompt, password, &context->_pindex) ) {
+			return password;
+		}
+		if ( wind->sshdata.password[0] ) {
 			memcpy(password, wind->sshdata.password + 1, wind->sshdata.password[0]);
 			password[wind->sshdata.password[0]] = '\0';
 			wind->sshdata.password[0] = '\0';
 			valid = 1;
 		} else {
-			/* add host name to avoid sending password to another host... */
-			strcpy(cprompt, prompt);
-			if ( wind ) {
-				strncat(cprompt, (char *)wind->sshdata.host + 1, wind->sshdata.host[0]);
-			}
-			if ( gApplicationPrefs->cachePassphrase
-			  && getnextcachedpassphrase(cprompt, password, &context->_pindex) ) {
-				return password;
-			}
 			pprompt[0] = strlen(prompt);
 			memcpy(pprompt + 1, prompt, pprompt[0]);
 			ppassword[0] = 0;
@@ -790,9 +788,11 @@ char *getpass( const char *prompt )
 			if (valid) {
 				memcpy(password, ppassword + 1, ppassword[0]);
 				password[ppassword[0]] = '\0';
-				if ( gApplicationPrefs->cachePassphrase ) {
-					addcachedpassphrase(context, cprompt, password);
-				}
+			}
+		}
+		if (valid) {
+			if ( gApplicationPrefs->cachePassphrase ) {
+				addcachedpassphrase(context, cprompt, password);
 			}
 		}
 	} else {
