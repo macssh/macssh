@@ -37,7 +37,7 @@ pascal void GUSIOTNotify(
 		break;
 	default:
 		if (code != kOTProviderWillClose
-		 && code != kOTProviderWillClose)
+		 && code != kOTProviderIsClosed)
 			result = 0;
 		else if (!result) {
 			result = kENETDOWNErr;
