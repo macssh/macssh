@@ -71,38 +71,42 @@
 #define	ColorBB			6
 
 #define ANSIColorDLOG   1002
-#define	ANSIBlack		3
-#define	ANSIBlackRadio	29
-#define	ANSIRed			4
-#define	ANSIRedRadio	30
-#define	ANSIGreen		5
-#define	ANSIGreenRadio	31
-#define	ANSIYellow		6
-#define	ANSIYellowRadio	32
-#define	ANSIBlue		7
-#define	ANSIBlueRadio	33
-#define	ANSIMagenta		8
-#define	ANSIMagentaRadio 34
-#define	ANSICyan		9
-#define	ANSICyanRadio	35
-#define	ANSIWhite		10
-#define	ANSIWhiteRadio	36
-#define	ANSIBoldBlack	11
-#define	ANSIBoldBlackRadio 37
-#define	ANSIBoldRed		12
-#define	ANSIBoldRedRadio 38
-#define	ANSIBoldGreen	13
-#define	ANSIBoldGreenRadio 39
-#define	ANSIBoldYellow	14
-#define	ANSIBoldYellowRadio 40
-#define	ANSIBoldBlue	15
-#define	ANSIBoldBlueRadio 41
-#define	ANSIBoldMagenta	16
-#define	ANSIBoldMagentaRadio 42
-#define	ANSIBoldCyan	17
-#define	ANSIBoldCyanRadio 43
-#define	ANSIBoldWhite	18
-#define	ANSIBoldWhiteRadio 44
+
+
+#define	ANSIBlack		15
+#define	ANSIRed			16
+#define	ANSIGreen		17
+#define	ANSIYellow		18
+#define	ANSIBlue		19
+#define	ANSIMagenta		20
+#define	ANSICyan		21
+#define	ANSIWhite		22
+#define	ANSIBoldBlack	23
+#define	ANSIBoldRed		24
+#define	ANSIBoldGreen	25
+#define	ANSIBoldYellow	26
+#define	ANSIBoldBlue	27
+#define	ANSIBoldMagenta	28
+#define	ANSIBoldCyan	29
+#define	ANSIBoldWhite	30
+
+#define	ANSIBlackRadio	31
+#define	ANSIRedRadio	32
+#define	ANSIGreenRadio	33
+#define	ANSIYellowRadio	34
+#define	ANSIBlueRadio	35
+#define	ANSIMagentaRadio 36
+#define	ANSICyanRadio	37
+#define	ANSIWhiteRadio	38
+#define	ANSIBoldBlackRadio 39
+#define	ANSIBoldRedRadio 40
+#define	ANSIBoldGreenRadio 41
+#define	ANSIBoldYellowRadio 42
+#define	ANSIBoldBlueRadio 43
+#define	ANSIBoldMagentaRadio 44
+#define	ANSIBoldCyanRadio 45
+#define	ANSIBoldWhiteRadio 46
+#define	ANSIForegroundRadio 47
 
 
 
@@ -167,6 +171,8 @@
 #define TermRemapKeypad			32
 #define TermVT100				33	/* VT-100 emulation radio button */
 #define TermVT220				34	/* VT-220 emulation radio button */
+#define TermANSIE				51	/* ANSI emulation radio button */
+
 #define TermName				18	/* Terminal configuration name TE */
 #define TermWidth				14	/* Terminal width TE */
 #define TermHeight				16	/* Terminal height TE */

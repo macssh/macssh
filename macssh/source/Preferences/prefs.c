@@ -169,11 +169,16 @@ OSErr LoadPreferences(void)
 			UseResFile(TelInfo->ApplicationFile);
 			TelInfo->AnsiColors = GetNewPalette(9999);
 			DetachResource((Handle)TelInfo->AnsiColors);
-			UseResFile(TelInfo->SettingsFile);
-			AddResource((Handle)TelInfo->AnsiColors, 'pltt', 10001, "\pANSI Colors");//make the new resource
-			UpdateResFile(TelInfo->SettingsFile);
+			HNoPurge((Handle)TelInfo->AnsiColors);
+			if (TelInfo->AnsiColors != NULL) {
+				UseResFile(TelInfo->SettingsFile);
+				AddResource((Handle)TelInfo->AnsiColors, 'pltt', 10001, "\pANSI Colors");//make the new resource
+				UpdateResFile(TelInfo->SettingsFile);
+			}
+		} else {
+			DetachResource((Handle)TelInfo->AnsiColors);
+			HNoPurge((Handle)TelInfo->AnsiColors);
 		}
-		DetachResource((Handle)TelInfo->AnsiColors);
 	}
 	CheckPrefsVersion();
 	return(noErr);

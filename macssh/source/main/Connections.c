@@ -967,10 +967,10 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	theScreen->pastemethod = SessPtr->pastemethod;
 	theScreen->pastesize = SessPtr->pasteblocksize;
 	
-	scratchBoolean = RSsetcolor( theScreen->vs, 0, TermPtr->nfcolor);
-	scratchBoolean = RSsetcolor( theScreen->vs, 1, TermPtr->nbcolor);
-	scratchBoolean = RSsetcolor( theScreen->vs, 2, TermPtr->bfcolor);
-	scratchBoolean = RSsetcolor( theScreen->vs, 3, TermPtr->bbcolor);
+	scratchBoolean = RSsetcolor( theScreen->vs, 0, &TermPtr->nfcolor);
+	scratchBoolean = RSsetcolor( theScreen->vs, 1, &TermPtr->nbcolor);
+	scratchBoolean = RSsetcolor( theScreen->vs, 2, &TermPtr->bfcolor);
+	scratchBoolean = RSsetcolor( theScreen->vs, 3, &TermPtr->bbcolor);
 
 	addinmenu(cur, (**Params).WindowName, diamondMark);
 	theScreen->active = CNXN_DNRWAIT;			// Signal we are waiting for DNR.
@@ -1396,9 +1396,12 @@ void removeport(WindRecPtr tw)
 	if ((gApplicationPrefs->destroyKTickets)&&(numberLiveConnections() == 1))//if this is last window
 		DestroyTickets();
 		
-	if (!gApplicationPrefs->WindowsDontGoAway)
-		destroyport(findbyVS(tw->vs));
-	else {
+	if (!gApplicationPrefs->WindowsDontGoAway) {
+		short vs = findbyVS(tw->vs);
+		if ( vs > -1 ) {
+			destroyport(vs);
+		}
+	} else {
 		Str255	temp;
 		
 		GetWTitle(tw->wind, scratchPstring);

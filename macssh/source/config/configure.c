@@ -1193,6 +1193,7 @@ void ShowTermPanel(DialogPtr dptr, short panel)
 		ShowDialogItemRange(dptr, 30, 31);
 		ShowDialogItemRange(dptr, 33, 34);
 		ShowDialogItemRange(dptr, 48, 49);
+		ShowDialogItem(dptr, TermANSIE);
 		break;
 
 		case 2:
@@ -1227,6 +1228,7 @@ void HideTermPanel(DialogPtr dptr, short panel)
 		HideDialogItemRange(dptr, 30, 31);
 		HideDialogItemRange(dptr, 33, 34);
 		HideDialogItemRange(dptr, 48, 49);
+		HideDialogItem(dptr, TermANSIE);
 		break;
 
 		case 2:
@@ -1355,6 +1357,8 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	SetCntrl(dptr, Termclearsave, TermPrefsPtr->clearsave);
 	SetCntrl(dptr, TermVT100, (TermPrefsPtr->vtemulation == 0));
 	SetCntrl(dptr, TermVT220, (TermPrefsPtr->vtemulation == 1));
+	SetCntrl(dptr, TermANSIE, (TermPrefsPtr->vtemulation == 2));
+
 	SetCntrl(dptr, TermRemapKeypad, TermPrefsPtr->remapKeypad);
 	SetCntrl(dptr, 50, TermPrefsPtr->realBlink);
 	scratchlong = (long)(TermPrefsPtr->vtwidth);
@@ -1388,7 +1392,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	NumOnly[1] = TermWidth; NumOnly[2] = TermHeight; NumOnly[3] = TermFontSize;
 	NumOnly[4] = TermScrollback;
 	NumOnly[5] = 0;
-//	if (TermPrefsPtr->vtemulation != 1)
+//	if (TermPrefsPtr->vtemulation == 0)
 //	{
 //		HideDialogItem(dptr,TermRemapKeypad);
 //		HideDialogItem(dptr,TermMAT);
@@ -1478,6 +1482,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 				case	TermVT100:
 					SetCntrl(dptr, TermVT100, 1);
 					SetCntrl(dptr, TermVT220, 0);
+					SetCntrl(dptr, TermANSIE, 0);
 					SetTEText(dptr, TermAnswerback, "\pvt100");
 					//HideDialogItem(dptr,TermRemapKeypad);
 					//HideDialogItem(dptr,TermMAT);
@@ -1486,10 +1491,22 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 				case	TermVT220:
 					SetCntrl(dptr, TermVT100, 0);
 					SetCntrl(dptr, TermVT220, 1);
+					SetCntrl(dptr, TermANSIE, 0);
 					SetTEText(dptr, TermAnswerback, "\pvt220");
 					//ShowDialogItem(dptr,TermRemapKeypad);
 					//ShowDialogItem(dptr,TermMAT);
 					break;
+
+				case	TermANSIE:
+					SetCntrl(dptr, TermVT100, 0);
+					SetCntrl(dptr, TermVT220, 0);
+					SetCntrl(dptr, TermANSIE, 1);
+					SetTEText(dptr, TermAnswerback, "\pansi");
+					//ShowDialogItem(dptr,TermRemapKeypad);
+					//ShowDialogItem(dptr,TermMAT);
+					break;
+
+
 				case	TermMetaIsCmdCntrol:
 					SetCntrl(dptr, TermMetaIsOption, 0);
 					SetCntrl(dptr, TermMetaIsOff, 0);
@@ -1589,7 +1606,13 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	TermPrefsPtr->eightbit = GetCntlVal(dptr, Termeightbit);
 	TermPrefsPtr->clearsave = GetCntlVal(dptr, Termclearsave);
 	TermPrefsPtr->remapKeypad = GetCntlVal(dptr, TermRemapKeypad);
-	TermPrefsPtr->vtemulation = (GetCntlVal(dptr, TermVT220) != 0);
+
+	if (GetCntlVal(dptr, TermVT220))
+		TermPrefsPtr->vtemulation = 1;
+	else if (GetCntlVal(dptr, TermANSIE))
+		TermPrefsPtr->vtemulation = 2;
+	else
+		TermPrefsPtr->vtemulation = 0;
 
 	GetTEText(dptr, TermWidth, scratchPstring);
 	StringToNum(scratchPstring, &scratchlong);
@@ -2512,12 +2535,17 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 	SetDialogCancelItem(dptr, 2);
 	SetDialogTracksCursor(dptr, 1);
 	NumberOfColorBoxes = 16;
-	if (allowDefaultBoldSelect)
-		SetCntrl(dptr, ANSIBlackRadio+(*defaultBoldColor), 1);
-	else {
+	if ( allowDefaultBoldSelect && defaultBoldColor ) {
+		if ( *defaultBoldColor == -1 )
+			SetCntrl(dptr, ANSIForegroundRadio, 1);
+		else
+			SetCntrl(dptr, ANSIBlackRadio + *defaultBoldColor, 1);
+	} else {
 		for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++)
 			HideDialogItem(dptr, scratchshort + ANSIBlackRadio);
-		HideDialogItem(dptr, 45);
+		HideDialogItem(dptr, 13);
+		HideDialogItem(dptr, 14);
+		HideDialogItem(dptr, 47);
 	}
 	for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++) 
 	{
@@ -2576,10 +2604,12 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 			case	ANSIBoldMagentaRadio:
 			case	ANSIBoldCyanRadio:
 			case	ANSIBoldWhiteRadio:
+			case	ANSIForegroundRadio:
 				for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++)
 					SetCntrl(dptr, ANSIBlackRadio + scratchshort, 0);
+				if ( ditem != ANSIForegroundRadio )
+					SetCntrl(dptr, ANSIForegroundRadio, 0);
 				SetCntrl(dptr, ditem, 1);
-
 			default:
 				break;
 			
@@ -2592,11 +2622,18 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 		ResetMenus();
 		return -1;
 	}
-	if (allowDefaultBoldSelect)
-		for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++)
-			if (GetCntlVal(dptr, ANSIBlackRadio + scratchshort))
-				*defaultBoldColor = scratchshort;
-
+	if ( allowDefaultBoldSelect && defaultBoldColor ) {
+		if ( GetCntlVal(dptr, ANSIForegroundRadio) ) {
+			*defaultBoldColor = -1;
+		} else {
+			for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++) {
+				if (GetCntlVal(dptr, ANSIBlackRadio + scratchshort)) {
+					*defaultBoldColor = scratchshort;
+					break;
+				}
+			}
+		}
+	}
 	for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++) 
 		SetEntryColor(TelInfo->AnsiColors, scratchshort, &(BoxColorData[scratchshort]));
 
