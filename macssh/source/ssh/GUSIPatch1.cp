@@ -348,11 +348,10 @@ pascal void GUSIOTNetDBNotify(
 	default:
 		if (code != kOTProviderWillClose)
 			result = 0;
-		else {
-			/* NONO : need to re-create the fSvc  */
+		if (code == kOTProviderIsClosed) {
+			OTCloseProvider(netdb->fSvc);
 			netdb->fSvc = static_cast<InetSvcRef>(NULL);
 			netdb->fCreationContext = static_cast<GUSIContext *>(NULL);
-			/* NONO */
 		}
 		break;
 	}
