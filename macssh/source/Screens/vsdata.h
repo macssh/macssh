@@ -24,6 +24,9 @@
 #define MAXWID 255      /* The absolute maximum number of chars/line */
 /* NONO */
 
+//typedef long VSAttrib;
+typedef short VSAttrib;
+
 typedef struct VSline
   {
 	struct VSline       /* doubly-linked list of lines */
@@ -31,7 +34,7 @@ typedef struct VSline
 		*prev;          /* Pointer to previous line */
 	char  	// Text for the line -- may be part of a block 
 		*text;          /* of memory containing more than one line */
-	unsigned short
+	VSAttrib
 		*attr;          /* 16 bit attribute; 8 for normal, 8 for ansi color */
 	short                /* flag for memory allocation coordination */
 		mem;            /* nonzero for first line in memory block */
@@ -44,7 +47,7 @@ typedef struct VSattrline	//CCP 2.7 ANSI needs shorts
 	  /* doubly-linked list of lines */
 		*next,          /* Pointer to next line */
 		*prev;          /* Pointer to previous line */
-	unsigned short  	// macblue, now use 16 bit attribute; 8 for normal, 8 for ansi color
+	VSAttrib            // macblue, now use 16 bit attribute; 8 for normal, 8 for ansi color
 		*text;			/* of memory containing more than one line */
 	char
 		*dummy;			// keep the pointer lists the same length - RAB BetterTelnet 1.2.1
@@ -73,10 +76,11 @@ struct VSscrn {
  		 forcesave,			/* NCSA 2.5: always force lines to be saved off top */
          possibleForce,		//we have receive a "move to 0,0"; if next is EEOl, forcesave
          ESscroll;			/* Scroll screen when ES received				*/
-    unsigned short attrib;  /* current character writing attributes         */
-    short x,y,              /* current cursor positon                       */
-         Px,Py;             /* saved cursor position and writing attributes */
-    unsigned short Pattrib; /* current character writing attributes         */
+    VSAttrib attrib;        /* current character writing attributes         */
+    short x,y;              /* current cursor positon                       */
+    short Px,Py;            /* saved cursor position and writing attributes */
+    VSAttrib Pattrib;       /* current character writing attributes         */
+	unsigned char lastchar; /* last character displayed */
     short DECAWM,           /* Auto Wrap Mode 0=off 						*/
          DECCKM,            /* Cursor Key Mode      						*/
          DECPAM,            /* keyPad Application Mode						*/
