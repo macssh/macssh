@@ -523,19 +523,23 @@ goodUrl:
 		BlockMoveData(host, favorite+1, favorite[0] = strlen(host));
 		if ( (theParams = NameToConnInitParams(favorite, false, "\p", &wasAlias)) != NULL ) {
 			SessionPrefs *SessPtr = *((**theParams).session);
-			if ( user != nil ) {
+			if ( user != NULL ) {
 				BlockMoveData(user, (unsigned char *)SessPtr->username + 1, ((unsigned char *)SessPtr->username)[0] = strlen(user));
-				if ( password != nil ) {
+				if ( password != NULL ) {
 					BlockMoveData(password, (unsigned char *)SessPtr->password + 1, ((unsigned char *)SessPtr->password)[0] = strlen(password));
 				}
 			}
-			if ( portstring != nil ) {
+			if ( portstring != NULL ) {
 				BlockMoveData(portstring, favorite+1, favorite[0] = strlen(portstring));
 				StringToNum(favorite, &port);
 				SessPtr->port = port;
 			}
 		}
 	}
+	if ( user == NULL )
+		user = "";
+	if ( password == NULL )
+		password = "";
 	if ( theParams && CreateConnectionFromParams(theParams) ) {
 		TelInfo->gotDocument = 1;
 		err = noErr;
