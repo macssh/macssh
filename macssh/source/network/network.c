@@ -1104,6 +1104,13 @@ short netclose(short pnum)
 	if ( (i = WindByPort(pnum)) >= 0 && screens[i].protocol == 4 ) {
 		WindRec *wind = &screens[i];
 		TRACEN(PRINTF("netclose\n"));
+
+		pbp = getPB( TCPd, TCPStatus, p->stream, 11 );			/* Make status call */
+		if (pbp) {
+			clearPB( pbp, TCPd, TCPRelease, p->stream );			/* Make Release call */
+			xPBControlSync( pbp );
+		}
+
 		DisposePtr( p->buffer);				/* Free Receive Buffer */
 		DisposePtr( p->sbuffer);				/* Free Send Buffer */
 		DisposePtr((Ptr) p);					/* Free Stream Structure */
