@@ -14,5 +14,6 @@ typedef enum TURLKind {
 	kTn3270URL,
 	kFingerURL,
 	kWhoisURL,
-	kSSHURL
+	kSSHURL,
+	kSSH2URL
 } TURLKind;
