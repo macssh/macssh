@@ -650,6 +650,10 @@ short confile( char *s)
 		case 93: // x11forward
 			SetSessionPtr->x11forward = affirmative(s);
 			break;
+		case 94:
+			SetSessionPtr->autoreconnect = affirmative(s);
+			break;
+			
 /* NONO */
 	}
 	return(0);
@@ -1071,6 +1075,8 @@ void SaveSet(short doSaveMacros, short dontSaveTitle)
 		//PStringItemToFile(fn, 87, tw->password );			// password
 		PStringItemToFile(fn, 88, tw->command );			// command
 		BoolItemToFile(fn, 93, tw->x11forward );			// x11forward
+		BoolItemToFile(fn, 94, tw->autoreconnect );			// autoreconnect
+
 /* NONO */
 
 	} /* for i */
@@ -1239,6 +1245,8 @@ void SaveSetFromSession(SessionPrefs* setSession, TerminalPrefs* setTerminal, sh
 	//PStringItemToFile(fn, 87, setSession->password );		// password
 	PStringItemToFile(fn, 88, setSession->command );		// command
 	BoolItemToFile(fn, 93, setSession->x11forward );		// x11forward
+	BoolItemToFile(fn, 94, setSession->autoreconnect );		// autoreconnect
+
 /* NONO */
 
   	FSClose(fn);
