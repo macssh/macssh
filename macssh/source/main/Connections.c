@@ -62,6 +62,10 @@ extern	Boolean	encryptOK;
 extern	unsigned char *gReadspace;
 extern	short	gBlocksize;
 
+/*
+extern void LockDialog();
+extern void UnlockDialog();
+*/
 
 static	void setSessStates(DialogPtr dptr);
 static short FindMenuItemText(MenuHandle hMenu, StringPtr itemString);
@@ -208,12 +212,16 @@ Boolean PresentOpenConnectionDialog(void)
 	
 	SetCursor(theCursors[normcurs]);
 
+	//LockDialog();
+
 	SetUpMovableModalMenus();
 	dptr = GetNewMyDialog(NewCnxnDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
 	if (dptr == NULL) {
+		//UnlockDialog();
+		ResetMenus();
 		OutOfMemory(1000);
 		return;
-		}
+	}
 		
 	SetDialogDefaultItem(dptr, 1);
 	SetDialogCancelItem(dptr, 2);
@@ -225,9 +233,11 @@ Boolean PresentOpenConnectionDialog(void)
 	SessPopupHdl = NewMenu(668, scratchPstring);
 	if (SessPopupHdl == NULL) {
 		DisposeDialog(dptr);
+		//UnlockDialog();
+		ResetMenus();
 		OutOfMemory(1000);
 		return;
-		}
+	}
 	UseResFile(TelInfo->SettingsFile);
 	numberOfTerms = Count1Resources(SESSIONPREFS_RESTYPE);
 	theHead  = createSortedList(SESSIONPREFS_RESTYPE,numberOfTerms,"\p<Default>");
@@ -245,6 +255,8 @@ Boolean PresentOpenConnectionDialog(void)
 //	if (TermPopupHdl == NULL) {
 //		DisposeHandle((Handle)SessPopupHdl);
 //		DisposeDialog(dptr);
+//		//UnlockDialog();
+//		ResetMenus();
 //		OutOfMemory(1000);
 //		return;
 //		}
@@ -472,6 +484,7 @@ Boolean PresentOpenConnectionDialog(void)
 		DisposeMenu(SessPopupHdl);	// drh Ñ Bug fix: memory leak
 		DisposeDialog(dptr);
 		ResetMenus();
+		//UnlockDialog();
 		return;
 		}
 	
@@ -481,6 +494,7 @@ Boolean PresentOpenConnectionDialog(void)
 		DisposeMenu(SessPopupHdl);	// drh Ñ Bug fix: memory leak
 		DisposeDialog(dptr);
 		ResetMenus();
+		//UnlockDialog();
 		return;
 		}
 	
@@ -502,6 +516,7 @@ Boolean PresentOpenConnectionDialog(void)
 		DisposeMenu(SessPopupHdl);	// drh Ñ Bug fix: memory leak
 		DisposeDialog(dptr);
 		ResetMenus();
+		//UnlockDialog();
 		OutOfMemory(1000);
 		return;
 		}
@@ -514,6 +529,8 @@ Boolean PresentOpenConnectionDialog(void)
 //		if (InitParams == NULL) {
 //			OutOfMemory(1000);
 //			DisposeDialog(dptr);
+//			ResetMenus();
+//			//UnlockDialog();
 //			return;
 //			}
 //	}
@@ -564,6 +581,7 @@ Boolean PresentOpenConnectionDialog(void)
 	DisposeMenu(SessPopupHdl);	// drh Ñ Bug fix: memory leak
 	DisposeDialog(dptr);
 	ResetMenus();
+	//UnlockDialog();
 	
 	success = CreateConnectionFromParams(InitParams);
 	return success;

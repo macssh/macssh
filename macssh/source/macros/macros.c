@@ -821,10 +821,15 @@ void CancelMacros(NewMacroInfo *macrost, DialogPtr dtemp)
 {
 	DisposeDialog(dtemp);
 	DisposeHandle(macrost->handle);
+
 	*macrost = oldMacroIndexes;
 	macrost->handle = oldMacros;
-	AdjustMenus();
-	DoTheMenuChecks();
+
+	if ( TelInfo->macrosModeless ) {
+		TelInfo->macrosModeless = 0;
+		AdjustMenus();
+		DoTheMenuChecks();
+	}
 }
 
 void CloseMacros(NewMacroInfo *macrost, DialogPtr dtemp)
@@ -844,9 +849,12 @@ void CloseMacros(NewMacroInfo *macrost, DialogPtr dtemp)
 
 	DisposeHandle(oldMacros);
 	DisposeDialog(dtemp);
-
-	AdjustMenus();
-	DoTheMenuChecks();
+	
+	if ( TelInfo->macrosModeless ) {
+		TelInfo->macrosModeless = 0;
+		AdjustMenus();
+		DoTheMenuChecks();
+	}
 }
 
 #if 0

@@ -21,6 +21,7 @@ extern void ssh2_sched();
 
 extern MenuHandle myMenus[];
 
+int gSetUpMovableModal = 0;
 int gMovableModal = 0;
 
 pascal void movableModalDialog(ModalFilterUPP filter, short *theItem)
@@ -28,6 +29,8 @@ pascal void movableModalDialog(ModalFilterUPP filter, short *theItem)
 	EventRecord theEvent;
 	DialogPtr	d,thisDialog;
 	GrafPtr		oldPort;
+	WindowPeek	front;
+	WindowPtr	dialog;
 	
 	thisDialog = FrontWindow();
 	GetPort(&oldPort);
@@ -35,6 +38,12 @@ pascal void movableModalDialog(ModalFilterUPP filter, short *theItem)
 	
 	++gMovableModal;
 	for(;;) {
+
+		/* ssh2_sched can process terminal opening... */
+		if (thisDialog != FrontWindow()) {
+			SelectWindow(thisDialog);
+		}
+
 		WaitNextEvent(everyEvent, &theEvent, gApplicationPrefs->TimeSlice, 0L);
 
 		DoNetEvents();
@@ -188,78 +197,82 @@ void diskEvent(EventRecord *theEvent)
 
 void SetUpMovableModalMenus(void)
 {
-	DisableItem(myMenus[Fil], 0);
-	DisableItem(myMenus[0], 1);
-	DisableItem(myMenus[Emul], 0);
-	DisableItem(myMenus[Conn], 0);
-	DisableItem(myMenus[Net], 0);
-	DisableItem(myMenus[OpSpec], 0);
-	DisableItem(myMenus[Keypad], 0);
-	DisableItem(myMenus[Function], 0);
+	if (++gSetUpMovableModal == 1) {
+		DisableItem(myMenus[Fil], 0);
+		DisableItem(myMenus[0], 1);
+		DisableItem(myMenus[Emul], 0);
+		DisableItem(myMenus[Conn], 0);
+		DisableItem(myMenus[Net], 0);
+		DisableItem(myMenus[OpSpec], 0);
+		DisableItem(myMenus[Keypad], 0);
+		DisableItem(myMenus[Function], 0);
 
-	DisableItem(myMenus[Edit], EDundo);
-	EnableItem(myMenus[Edit], EDcut);
-	EnableItem(myMenus[Edit], EDcopy);
-	EnableItem(myMenus[Edit], EDpaste);
-	EnableItem(myMenus[Edit], EDclear);
-	DisableItem(myMenus[Edit], EDcopyt);
-	DisableItem(myMenus[Edit], EDretype);
-	DisableItem(myMenus[Edit], EDmacros);
-	DisableItem(myMenus[Edit], EDprefs+1);
-	DisableItem(myMenus[Edit], EDprefs+2);
-	DisableItem(myMenus[Edit], EDprefs+4);
-	DisableItem(myMenus[Edit], EDprefs+5);
+		DisableItem(myMenus[Edit], EDundo);
+		EnableItem(myMenus[Edit], EDcut);
+		EnableItem(myMenus[Edit], EDcopy);
+		EnableItem(myMenus[Edit], EDpaste);
+		EnableItem(myMenus[Edit], EDclear);
+		DisableItem(myMenus[Edit], EDcopyt);
+		DisableItem(myMenus[Edit], EDretype);
+		DisableItem(myMenus[Edit], EDmacros);
+		DisableItem(myMenus[Edit], EDprefs+1);
+		DisableItem(myMenus[Edit], EDprefs+2);
+		DisableItem(myMenus[Edit], EDprefs+4);
+		DisableItem(myMenus[Edit], EDprefs+5);
 
-	DrawMenuBar();
-	HiliteMenu(0);
+		DrawMenuBar();
+		HiliteMenu(0);
+	}
 }
 
 void ResetMenus(void)
 {
 	short i;
 
-	EnableItem(myMenus[Fil], 0);
-	EnableItem(myMenus[0], 1);
-	EnableItem(myMenus[Net], 0);
-	EnableItem(myMenus[OpSpec], 0);
+	if (--gSetUpMovableModal == 0) {
+		EnableItem(myMenus[Fil], 0);
+		EnableItem(myMenus[0], 1);
+		EnableItem(myMenus[Net], 0);
+		EnableItem(myMenus[OpSpec], 0);
 
-	DisableItem(myMenus[Edit], EDcut);
-	DisableItem(myMenus[Edit], EDclear);
-	EnableItem(myMenus[Edit], EDcopyt);
-	EnableItem(myMenus[Edit], EDretype);
-	EnableItem(myMenus[Edit], EDmacros);
-	EnableItem(myMenus[Edit], EDprefs+1);
-	EnableItem(myMenus[Edit], EDprefs+2);
-	EnableItem(myMenus[Edit], EDprefs+4);
-	EnableItem(myMenus[Edit], EDprefs+5);
+		DisableItem(myMenus[Edit], EDcut);
+		DisableItem(myMenus[Edit], EDclear);
+		EnableItem(myMenus[Edit], EDcopyt);
+		EnableItem(myMenus[Edit], EDretype);
+		EnableItem(myMenus[Edit], EDmacros);
+		EnableItem(myMenus[Edit], EDprefs+1);
+		EnableItem(myMenus[Edit], EDprefs+2);
+		EnableItem(myMenus[Edit], EDprefs+4);
+		EnableItem(myMenus[Edit], EDprefs+5);
 
-	AdjustMenus();
-	DoTheMenuChecks();
-	DrawMenuBar();
+		AdjustMenus();
+		DoTheMenuChecks();
+		DrawMenuBar();
 
-	if (!FrontWindow()) return;
+		if (!FrontWindow()) return;
 
-	if ((i=RSfindvwind(FrontWindow()))>=0) 
-	{
-		if (RSTextSelected(i)) 
-		{					
-			EnableItem(myMenus[Edit],EDcopy);	
-			EnableItem(myMenus[Edit],EDcopyt);		
+		if ((i=RSfindvwind(FrontWindow()))>=0) 
+		{
+			if (RSTextSelected(i)) 
+			{					
+				EnableItem(myMenus[Edit],EDcopy);	
+				EnableItem(myMenus[Edit],EDcopyt);		
+			} 
+			else 
+			{								
+				DisableItem(myMenus[Edit],EDcopy);		
+				DisableItem(myMenus[Edit],EDcopyt);		
+			}										
 		} 
 		else 
-		{								
-			DisableItem(myMenus[Edit],EDcopy);		
-			DisableItem(myMenus[Edit],EDcopyt);		
-		}										
-	} 
-	else 
-	{					
-		if ( (i = RGgetdnum(FrontWindow())) >-1)
-		{
-			if (( i = RGgetVS( i)) >-1) 
+		{					
+			if ( (i = RGgetdnum(FrontWindow())) >-1)
 			{
-				EnableItem(myMenus[Edit],EDcopy);	// - enable copying 
-				DisableItem(myMenus[Edit],EDcopyt);	
+				if (( i = RGgetVS( i)) >-1) 
+				{
+					EnableItem(myMenus[Edit],EDcopy);	// - enable copying 
+					DisableItem(myMenus[Edit],EDcopyt);	
+				}
 			}
 		}
 	}

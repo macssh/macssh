@@ -67,6 +67,7 @@
 extern ApplicationPrefs		*gApplicationPrefs;
 
 extern int gMovableModal;
+extern int gSetUpMovableModal;
 
 extern int appl_main(int argc, char **argv);
 extern char *applname;
@@ -786,6 +787,8 @@ Boolean				gThreadModal = false;
 
 void LockDialog()
 {
+	while (gSetUpMovableModal)
+		ssh2_sched();
 	pthread_mutex_lock( &dialock );
 	gThreadModal = true;
 }
@@ -1009,7 +1012,7 @@ void ssh2_doevent(long sleepTime)
 	extern Boolean haveNotifiedLowMemory;
 
 	if ( key_gen == 0 ) {
-		if (!gThreadModal && !gMovableModal) {
+		if (!gThreadModal && !gSetUpMovableModal) {
 			DoEvents(NULL);
 		}
 		if (!TelInfo->done) {
@@ -1023,7 +1026,7 @@ void ssh2_doevent(long sleepTime)
 			haveNotifiedLowMemory = true;
 		}
 	} else {
-		if (!gThreadModal && !gMovableModal) {
+		if (!gThreadModal && !gSetUpMovableModal) {
 			static unsigned long lastTicks = 0L;
 			if ( (LMGetTicks() - lastTicks) >= 10 ) {
 				EventRecord	myEvent;

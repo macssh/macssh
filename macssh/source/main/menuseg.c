@@ -65,6 +65,7 @@ static short lastMenyCommandKeys = -1; //whether last menu set had command keys
 
 //char *tempspot;				/* temporary storage ~255 bytes malloc-ed */
 
+extern int			gMovableModal;
 
 /*
  * External variable declarations (those which we borrow )
@@ -129,7 +130,11 @@ void	AdjustMenus(void)
 {
 	short		i;
 	WindowPtr	wind;
-	
+
+	if (gMovableModal) {
+		return;
+	}
+
 	if ((wind = FrontWindow()) != NULL &&
 			((((WindowPeek)wind)->windowKind >= userKind)
 			|| (((WindowPeek)wind)->windowKind == dialogKind)))
@@ -2033,6 +2038,10 @@ void DoTheMenuChecks(void)
 	short	active;
 	short	windownum;
 
+	if (gMovableModal) {
+		return;
+	}
+
 	if (TelInfo->numwindows>0)
 		{
 		EnableItem( myMenus[Conn],0);
@@ -2143,6 +2152,7 @@ long SetOtherFontSize(short currentSize)
 
 		if (ditem == DLOGCancel) {
 			DisposeDialog( dtemp);
+			ResetMenus();
 			return currentSize;
 		}
 	
@@ -2199,6 +2209,7 @@ void SetScreenDimensions(short scrn, short modifiers)
 
 		if (ditem == DLOGCancel) {
 			DisposeDialog( dtemp);
+			ResetMenus();
 			return;
 			}
 		

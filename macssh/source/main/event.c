@@ -61,6 +61,7 @@ extern WindRec		*screens,
 extern Cursor		*theCursors[];
 extern Boolean 		gHaveDragMgr;
 
+
 static gHaveInstalledNotification = 0;
 NMRec *nRecPtr;
 
@@ -1085,8 +1086,10 @@ void HandleEvent(EventRecord *myEvent) //CCP split this from DoEvents so we can 
 				KeyScript(smRoman);	
 				haveChangedKCHR = FALSE;
 			}
+
 			AdjustMenus();
 			DrawMenuBar();
+
 			i=WindowPtr2ScreenIndex((GrafPtr) myEvent->message);	/* We need to know who */
 			if (i>=0) 
 			{
@@ -1135,7 +1138,6 @@ void HandleEvent(EventRecord *myEvent) //CCP split this from DoEvents so we can 
 					}
 				}
 			}
-
 		} 
 		else //its a disable event
 		{
@@ -1328,11 +1330,9 @@ void HandleModeless(EventRecord *theEvent, DialogPtr dlogp, short theItem)
 		if (theItem == 1) {
 			updateCursor(1);
 			CloseMacros(&TelInfo->newMacros, dlogp);
-			TelInfo->macrosModeless = 0;
 		} else if (theItem == 2) {
 			updateCursor(1);
 			CancelMacros(&TelInfo->newMacros, dlogp);
-			TelInfo->macrosModeless = 0;
 		}
 /* NONO */
 	} else if (dlogp == key_dlog) {
