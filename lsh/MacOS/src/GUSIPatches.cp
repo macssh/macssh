@@ -190,10 +190,9 @@ pascal void GUSIOTNetDBNotify(
 		if (code != kOTProviderWillClose)
 			result = 0;
 		else {
-			/* NONO : need to re-create the fSvc  */
-			netdb->fSvc = static_cast<InetSvcRef>(NULL);
-			netdb->fCreationContext = static_cast<GUSIContext *>(NULL);
-			/* NONO */
+			OTCloseProvider(netdb->fSvc);
+			netdb->fSvc = NULL;
+			netdb->fCreationContext = NULL;
 		}
 		break;
 	}
@@ -201,6 +200,9 @@ pascal void GUSIOTNetDBNotify(
 		netdb->fAsyncError = result;
 	context->Wakeup();
 }
+
+
+
 
 
 /*
