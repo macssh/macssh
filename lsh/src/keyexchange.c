@@ -68,7 +68,8 @@
 #define NLISTS 10
 
 /* Arbitrary limit on list length */
-#define KEXINIT_MAX_ALGORITMS 47
+//#define KEXINIT_MAX_ALGORITMS 47
+#define KEXINIT_MAX_ALGORITMS 1024
 
 static struct kexinit *
 parse_kexinit(struct lsh_string *packet)
