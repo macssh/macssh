@@ -243,7 +243,8 @@ static struct catch_command catch_sexp_exceptions
 = STATIC_CATCH_COMMAND(EXC_ALL, EXC_SEXP_EOF, 1);
 
 /* Arbitrary limit on file size. */
-#define MAX_SEXP_SIZE 10000
+/*#define MAX_SEXP_SIZE 10000*/
+#define MAX_SEXP_SIZE 65536
 
 static struct read_sexp_command read_sexp
 = STATIC_READ_SEXP(SEXP_TRANSPORT, 1, MAX_SEXP_SIZE);
