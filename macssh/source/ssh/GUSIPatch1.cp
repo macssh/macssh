@@ -255,7 +255,7 @@ void GUSIProcess::Yield(GUSIYieldMode wait)
 	}
 	if (fExistingThreads < 2) // Single threaded process skips sleep only once
 		fDontSleep = false;
-	if (wait == kGUSIYield && LMGetTicks() - fResumeTicks < 12) {
+	if (wait == kGUSIYield && LMGetTicks() - fResumeTicks < 0) {
 		fWillSleep 		= false;
 		return;
 	}
