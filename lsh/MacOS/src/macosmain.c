@@ -7,6 +7,7 @@
 
 #include "format.h"
 #include "io.h"
+#include "tty.h"
 #include "xalloc.h"
 #include "werror.h"
 
@@ -804,6 +805,7 @@ static void run_app()
 	context->_gConsoleOutBufMax = CONSOLEBUFSIZE;
 	context->_all_objects = NULL;
 	context->_number_of_objects = 0;
+	context->_number_of_strings = 0;
 	context->_live_objects = 0;
 	context->_quiet_flag = 0;
 	context->_verbose_flag = 0;
