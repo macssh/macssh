@@ -10,6 +10,7 @@
 #define _ERRNO_H
 
 #ifdef __MWERKS__
+#include <Types.h>
 #include <cerrno>
 /*
  * Undef error codes defined by MSL. We are overriding the MSL implementations, so
@@ -31,6 +32,12 @@
 #undef ENOMEM
 #undef ENOSYS
 #undef ENAMETOOLONG
+
+#if UNIVERSAL_INTERFACES_VERSION >= 0x0340
+#undef EDEADLK
+#undef EAGAIN
+#endif
+
 #else
 #include <mpw/errno.h>
 #endif
