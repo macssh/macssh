@@ -1008,7 +1008,7 @@ void SaveSet(short doSaveMacros, short dontSaveTitle)
 			short j;
 			for (j = 0; j < 4; j++)
 			{
-				RSgetcolor( screens[i].vs, j, &theColor);
+				RSgetcolors( screens[i].vs, j, &theColor);
 				sprintf(temp2, "rgb%d = {%u,%u,%u}\015",
 					j, theColor.red, theColor.green, theColor.blue);
 				CStringToFile(fn,(unsigned char *) temp2);
