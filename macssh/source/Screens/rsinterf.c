@@ -75,6 +75,7 @@ SIMPLE_UPP(ScrollProc,ControlAction);
 SIMPLE_UPP(ActiveScrollProc,ControlAction);
 
 static void HandleDoubleClick(short w, short modifiers);
+static void HandleTripleClick(short w, short modifiers);
 
 void	RSunload(void) {}
 
@@ -97,6 +98,7 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 {
 	static	long 	lastClick = 0;
 	static 	Point 	lastClickLoc = {0,0};
+	static 	Boolean	sDblClick = false;
 	GrafPtr tempwndo;
 	Point	curr, temp, lastm;
 	long	clickTime;
@@ -115,100 +117,124 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 	   &&  EqualPt(curr, lastClickLoc) ) {
 		/* NCSA: SB - check to see if this is a special click */
 		/* NCSA: SB - It has to be in the right time interval, and in the same spot */
-		curr = RSlocal[w].anchor = RSlocal[w].last = normalize(pt, w, TRUE);
-		HandleDoubleClick(w, theEvent.modifiers);
-		RSlocal[w].selected = 1;
+		if ( !sDblClick ) {
+			curr = RSlocal[w].anchor = RSlocal[w].last = normalize(pt, w, TRUE);
+			HandleDoubleClick(w, theEvent.modifiers);
+			RSlocal[w].selected = 1;
+// doesn't work yet. need to change WaitMouseMoved in DragText
+//			sDblClick = true;
+		} else {
+			// unhighlight current selection
+			RSinvText(w, RSlocal[w].anchor, RSlocal[w].last, &noConst);
+			curr = RSlocal[w].anchor = RSlocal[w].last = normalize(pt, w, TRUE);
+			HandleTripleClick(w, theEvent.modifiers);
+			RSlocal[w].selected = 1;
+			sDblClick = false;
+		}
 		lastClick = clickTime;
 		lastClickLoc = curr;
-	} else if ((theEvent.modifiers & cmdKey)) {
-		// a command click means we should look for a url
-		if ( RSTextSelected(w) && PointInSelection(curr, w) ) {
-			// we have a selection already 
-			HandleURL(w);
-		} else {
-			// we need to find the url around this pnt
-			if (FindURLAroundPoint(curr, w))
-				HandleURL(w);
-			else
-				SysBeep(1);
-		}
+	} else if (sDblClick
+		   &&  clickTime - lastClick <= GetDblTime()
+		   &&  EqualPt(curr, lastClickLoc) ) {
+			// unhighlight current selection
+			RSinvText(w, RSlocal[w].anchor, RSlocal[w].last, &noConst);
+			curr = RSlocal[w].anchor = RSlocal[w].last = normalize(pt, w, TRUE);
+			HandleTripleClick(w, theEvent.modifiers);
+			RSlocal[w].selected = 1;
+			sDblClick = false;
 	} else {
-		lastClick = clickTime;
-		lastClickLoc = curr;
-		if (RSlocal[w].selected) {
-			if (!shift) {
-				RSlocal[w].selected = 0;
-				// unhighlight current selection
-				RSinvText(w, RSlocal[w].anchor, RSlocal[w].last, &noConst);
-				// start new selection
-				curr = normalize(pt, w, TRUE);
-				RSlocal[w].last = RSlocal[w].anchor = curr;
+		sDblClick = false;
+		if ((theEvent.modifiers & cmdKey)) {
+			// a command click means we should look for a url
+			if ( RSTextSelected(w) && PointInSelection(curr, w) ) {
+				// we have a selection already 
+				HandleURL(w);
 			} else {
-				RSsortAnchors(w);
-				if ((curr.v < RSlocal[w].anchor.v) || ((curr.v == RSlocal[w].anchor.v) && (curr.h < RSlocal[w].anchor.h))) {
-					temp = RSlocal[w].anchor;
-					RSlocal[w].anchor = RSlocal[w].last;
-					RSlocal[w].last = temp;
-				}
+				// we need to find the url around this pnt
+				if (FindURLAroundPoint(curr, w))
+					HandleURL(w);
+				else
+					SysBeep(1);
 			}
 		} else {
-			// start new selection
-			curr = normalize(pt, w, TRUE);
-			RSlocal[w].anchor = RSlocal[w].last = curr;
-		}
+			lastClick = clickTime;
+			lastClickLoc = curr;
 
-		if (EqualPt(RSlocal[w].anchor, RSlocal[w].last) && RSlocal[w].anchor.h > -1) {
-			if (VSgetattr(w, RSlocal[w].anchor.h - 1, curr.v, RSlocal[w].anchor.h, curr.v, &attrib, sizeof(VSAttrib))) {
-				if (VSisansi2b(attrib)) {
-					--RSlocal[w].anchor.h;
-					--RSlocal[w].last.h;
-				}
-			}
-		}
-
-		while ( StillDown() ) {
-			// wait for mouse position to change
-			do {
-				unsigned long finalTicks;
-				temp = getlocalmouse(tempwndo);
-
-				// FIXME: I'm lazy. this could be tiny.
-				if (temp.v < -30) {
-					// no delay
-				} else if (temp.v < -20 ) {
-					Delay( 2, &finalTicks);
-				} else if (temp.v < -10 ) {
-					Delay( 6, &finalTicks);
-				} else if (temp.v < 0 ) {
-					Delay( 10, &finalTicks);
-				} else if (temp.v > RSlocal[w].height + 30) {
-					// no delay
-				} else if (temp.v > RSlocal[w].height + 20) {
-					Delay( 2, &finalTicks);
-				} else if (temp.v > RSlocal[w].height + 10) {
-					Delay( 6, &finalTicks);
-				} else if (temp.v > RSlocal[w].height) {
-					Delay( 10, &finalTicks);
-				}
-
-				curr = normalize(temp, w,TRUE);
-				if ( curr.h > -1 ) {
-					if (VSgetattr(w, curr.h - 1, curr.v, curr.h, curr.v, &attrib, sizeof(VSAttrib))) {
-						if (VSisansi2b(attrib)) {
-							++curr.h;
-						}
+			if (RSlocal[w].selected) {
+				if (!shift) {
+					RSlocal[w].selected = 0;
+					// unhighlight current selection
+					RSinvText(w, RSlocal[w].anchor, RSlocal[w].last, &noConst);
+					// start new selection
+					curr = normalize(pt, w, TRUE);
+					RSlocal[w].last = RSlocal[w].anchor = curr;
+				} else {
+					RSsortAnchors(w);
+					if ((curr.v < RSlocal[w].anchor.v) || ((curr.v == RSlocal[w].anchor.v) && (curr.h < RSlocal[w].anchor.h))) {
+						temp = RSlocal[w].anchor;
+						RSlocal[w].anchor = RSlocal[w].last;
+						RSlocal[w].last = temp;
 					}
 				}
+			} else {
+				// start new selection
+				curr = normalize(pt, w, TRUE);
+				RSlocal[w].anchor = RSlocal[w].last = curr;
+			}
 
-			} while (StillDown() && (EqualPt(curr, RSlocal[w].last) /*|| EqualPt(pt, temp)*/));
+			if (EqualPt(RSlocal[w].anchor, RSlocal[w].last) && RSlocal[w].anchor.h > -1) {
+				if (VSgetattr(w, RSlocal[w].anchor.h - 1, curr.v, RSlocal[w].anchor.h, curr.v, &attrib, sizeof(VSAttrib))) {
+					if (VSisansi2b(attrib)) {
+						--RSlocal[w].anchor.h;
+						--RSlocal[w].last.h;
+					}
+				}
+			}
 
-			RSlocal[w].selected = !EqualPt(RSlocal[w].anchor, curr);
+			while ( StillDown() ) {
+				// wait for mouse position to change
+				do {
+					unsigned long finalTicks;
+					temp = getlocalmouse(tempwndo);
 
-			if ( !EqualPt(pt, temp) || RSlocal[w].selected ) {
-				// toggle highlight state of text between current and last mouse positions
-				RSinvText(w, curr, RSlocal[w].last, &noConst);
-				RSlocal[w].last = curr;
-				pt = temp;
+					// FIXME: I'm lazy. this could be tiny.
+					if (temp.v < -30) {
+						// no delay
+					} else if (temp.v < -20 ) {
+						Delay( 2, &finalTicks);
+					} else if (temp.v < -10 ) {
+						Delay( 6, &finalTicks);
+					} else if (temp.v < 0 ) {
+						Delay( 10, &finalTicks);
+					} else if (temp.v > RSlocal[w].height + 30) {
+						// no delay
+					} else if (temp.v > RSlocal[w].height + 20) {
+						Delay( 2, &finalTicks);
+					} else if (temp.v > RSlocal[w].height + 10) {
+						Delay( 6, &finalTicks);
+					} else if (temp.v > RSlocal[w].height) {
+						Delay( 10, &finalTicks);
+					}
+
+					curr = normalize(temp, w,TRUE);
+					if ( curr.h > -1 ) {
+						if (VSgetattr(w, curr.h - 1, curr.v, curr.h, curr.v, &attrib, sizeof(VSAttrib))) {
+							if (VSisansi2b(attrib)) {
+								++curr.h;
+							}
+						}
+					}
+
+				} while (StillDown() && (EqualPt(curr, RSlocal[w].last) /*|| EqualPt(pt, temp)*/));
+
+				RSlocal[w].selected = !EqualPt(RSlocal[w].anchor, curr);
+
+				if ( !EqualPt(pt, temp) || RSlocal[w].selected ) {
+					// toggle highlight state of text between current and last mouse positions
+					RSinvText(w, curr, RSlocal[w].last, &noConst);
+					RSlocal[w].last = curr;
+					pt = temp;
+				}
 			}
 		}
 	}
@@ -305,7 +331,7 @@ Boolean RSisInFront(short w)
 void RSdrawlocker(short w, RgnHandle visRgn)
 {
 	/* draw locker icon */
-	if ( RSlocal[w].left ) {
+	if ( RSlocal[w].left  && !RSlocal[w].hideScrollBars ) {
 		short sn = findbyVS(w);
 		if ( sn >= 0 && screens[sn].protocol == 4 ) {
 			Rect iconRect = (**RSlocal[w].left).contrlRect;
@@ -387,7 +413,7 @@ short RSupdate
 
 		DrawGrowIcon(wind);
 
-		if (RSlocal[w].active) {
+		if (RSlocal[w].active && !RSlocal[w].hideScrollBars) {
 			UpdateControls(wind, wind->visRgn);
 		} else {
 			ControlHandle ctrl;
@@ -834,6 +860,8 @@ short RSnewwindow
 
 	pRect.bottom = pRect.top + RMAXWINDOWHEIGHT;
 
+	RScurrent->hideScrollBars = ((flags & RSWHideScroll) != 0);
+
   /* create scroll bars for window */
 	pRect.top = -1 + CVO;
 	pRect.bottom = wheight - 14 + CVO;
@@ -1174,11 +1202,14 @@ void RSactivate( short w )
 	/* display the grow icon */
 	DrawGrowIcon(RSlocal[w].window);
 	/* and activate the scroll bars */
-	if (RSlocal[w].scroll != 0L) {
-		ShowControl(RSlocal[w].scroll);
-	}
-	if (RSlocal[w].left != 0L) {
-		ShowControl(RSlocal[w].left);
+
+	if ( !RSlocal[w].hideScrollBars ) {
+		if (RSlocal[w].scroll != 0L) {
+			ShowControl(RSlocal[w].scroll);
+		}
+		if (RSlocal[w].left != 0L) {
+			ShowControl(RSlocal[w].left);
+		}
 	}
 
 	RSlocal[w].active = 1;
@@ -1211,12 +1242,14 @@ void RSdeactivate( short w )
 
 	BackColor(whiteColor);
 
-  	/* deactivate the scroll bars */
-	if (RSlocal[w].scroll != 0L) {
-		HideControl(RSlocal[w].scroll);
-	}
-	if (RSlocal[w].left != 0L) {
-		HideControl(RSlocal[w].left);
+	if ( !RSlocal[w].hideScrollBars ) {
+	  	/* deactivate the scroll bars */
+		if (RSlocal[w].scroll != 0L) {
+			HideControl(RSlocal[w].scroll);
+		}
+		if (RSlocal[w].left != 0L) {
+			HideControl(RSlocal[w].left);
+		}
 	}
 
 	/* update the appearance of the grow icon */
@@ -1608,6 +1641,178 @@ static	void HandleDoubleClick(short w, short modifiers)
 	}																		
 
 	if (leftLoc.h != rightLoc.h) {				// we selected something
+
+		HiliteThis(w, leftLoc, rightLoc);
+
+		if (modifiers & cmdKey)					// Possible URL selection
+			HandleURL(w);
+		else {																		
+	
+			curr.h = 0; curr.v = 0;
+	
+			pt = getlocalmouse(RSlocal[w].window);
+			while (StillDown()) {
+				// wait for mouse position to change
+				do {
+					oldcurr = curr;
+					temp = getlocalmouse(RSlocal[w].window);
+					curr = normalize(temp, w,TRUE);
+					if ( curr.h > -1 ) {
+						if (VSgetattr(w, curr.h - 1, curr.v, curr.h, curr.v, &attrib, sizeof(VSAttrib))) {
+							if (VSisansi2b(attrib)) {
+								++curr.h;
+							}
+						}
+					}
+				} while (StillDown() && (EqualPt(curr, oldcurr) || EqualPt(pt, temp)));
+
+				if ( !EqualPt(pt, temp) /*|| RSlocal[w].selected*/ ) {
+					pt = temp;
+				
+					if ((curr.v < leftLoc.v) || ((curr.v == leftLoc.v) && (curr.h < leftLoc.h))) {
+						newmode = 1;	// up
+					} else if ((curr.v > leftLoc.v) || ((curr.v == leftLoc.v) && (curr.h > rightLoc.h))) {
+						newmode = 2;	// down
+					} else 
+						newmode = -1;	// inside dbl-clicked word
+						
+					/* toggle highlight state of text between current and last mouse positions */
+					if (mode == -1) {
+						if (newmode == 2) {
+							RSlocal[w].anchor = leftLoc;
+							RSinvText(w, curr, rightLoc, &noConst);
+							RSlocal[w].last = curr;
+						}
+						if (newmode == 1) {
+							RSlocal[w].anchor = rightLoc;
+							RSinvText(w, curr, leftLoc, &noConst);
+							RSlocal[w].last = curr;
+						}
+					}
+		
+					if (mode == 1) {
+						if (newmode == 2) {
+							RSlocal[w].anchor = leftLoc;
+							RSinvText(w, oldcurr, leftLoc, &noConst);
+							RSinvText(w, rightLoc, curr, &noConst);
+							RSlocal[w].last = curr;
+						}
+						if (newmode == -1) {
+							RSlocal[w].anchor = leftLoc;
+							RSinvText(w, oldcurr, leftLoc, &noConst);
+							RSlocal[w].last = rightLoc;
+						}
+						if (newmode == mode) {
+							RSinvText(w, oldcurr, curr, &noConst);
+							RSlocal[w].last = curr;
+						}
+					}
+					
+					if (mode == 2) {
+						if (newmode == 1) {
+							RSlocal[w].anchor = rightLoc;
+							RSinvText(w, oldcurr, rightLoc, &noConst);
+							RSinvText(w, leftLoc, curr, &noConst);
+							RSlocal[w].last = curr;
+						}
+						if (newmode == -1) {
+							RSlocal[w].anchor = leftLoc;
+							RSinvText(w, oldcurr, rightLoc, &noConst);
+							RSlocal[w].last = rightLoc;
+						}
+						if (newmode == mode) {
+							RSinvText(w, oldcurr, curr, &noConst);
+							RSlocal[w].last = curr;
+						}
+					}
+						
+					mode = newmode;
+				}
+			}
+		}
+	}	
+}
+
+/*--------------------------------------------------------------------------*/
+/* HandleTripleClick														*/
+/* This is the routine that does the real dirty work.  Since it is not a	*/
+/* true TextEdit window, we have to kinda "fake" the double clicking.  By	*/
+/* this time, we already know that a double click has taken place, so check	*/
+/* the chars to the left and right of our location, and select all chars 	*/
+/* that are appropriate	-- SMB												*/
+/*--------------------------------------------------------------------------*/
+static	void HandleTripleClick(short w, short modifiers)													
+{																				
+	Point	leftLoc, rightLoc, curr, oldcurr;
+	long	mySize;
+	char	theChar;
+	short	mode = -1, newmode, foundEnd;
+	Point	pt;
+	Point	temp;
+	VSAttrib attrib;
+	short	mw;
+	VSlinePtr ypt;
+
+	RSsetConst(w);								// get window dims
+	leftLoc = RSlocal[w].anchor;				// these two should be the same
+	rightLoc = RSlocal[w].last;
+
+	mw = VSgetcols(w);
+
+	rightLoc.h = mw;
+	ypt = VSIGetLineStart(w, rightLoc.v);
+	foundEnd = 0;																
+	while ( !foundEnd ) {
+		// scan to the right first
+		if ( rightLoc.v == 0 ) {
+			ypt = VSIGetLineStart(w, rightLoc.v);
+		}
+		if ( ypt && VSiswrap(ypt->lattr) ) {
+			ypt = ypt->next;
+			++rightLoc.v;
+		} else {
+			foundEnd = 1;														
+		}
+	}
+
+	leftLoc.h = -1;
+	ypt = VSIGetLineStart(w, leftLoc.v);
+	foundEnd = 0;																
+	while ( !foundEnd ) {																		
+		// ...and then scan to the left
+		if ( leftLoc.v == -1 ) {
+			ypt = VSIGetLineStart(w, leftLoc.v);
+		}
+		if ( ypt && VSiswrap(ypt->prev->lattr) ) {
+			ypt = ypt->prev;
+			--leftLoc.v;
+		} else {
+			foundEnd = 1;														
+		}
+/*
+		// ...and then scan to the left
+		mySize = VSgettext(w, leftLoc.h-1, leftLoc.v, leftLoc.h, leftLoc.v,		
+			&theChar, (long)1, "\015", 0, 0);
+		if ( mySize == 0 || isspace(theChar) ) {		// STOP!
+			foundEnd = 1;
+		} else if ( --leftLoc.h < 0 ) {
+			if ( leftLoc.v == -1 ) {
+				ypt = VSIGetLineStart(w, leftLoc.v);
+			}
+			if ( ypt && VSiswrap(ypt->prev->lattr) ) {
+				ypt = ypt->prev;
+				leftLoc.h = mw;
+				--leftLoc.v;
+			} else {
+				foundEnd = 1;														
+			}
+		}
+*/
+	}																		
+
+syslog(0, "leftLoc.h:%d rightLoc.h:%d\n", leftLoc.h, rightLoc.h);
+
+	if (leftLoc.h != rightLoc.h) { // we selected something
 
 		HiliteThis(w, leftLoc, rightLoc);
 

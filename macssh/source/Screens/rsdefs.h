@@ -101,6 +101,8 @@ struct RSdata {
 		cursType;
 	RGBColor
 		savedColors[16];
+	Boolean
+		hideScrollBars;
 };
 
 typedef struct RSdata RSdata;

@@ -1323,7 +1323,8 @@ void	RSsetsize( short w, short v, short h, short screenIndex)
 	if (RSlocal[w].scroll != NULL ) {
 		SizeControl(RSlocal[w].scroll, 16, (v - 13));
 		MoveControl(RSlocal[w].scroll, (h - 15) + CHO, -1 + CVO);
-		ShowControl(RSlocal[w].scroll);
+		if (!RSlocal[w].hideScrollBars)
+			ShowControl(RSlocal[w].scroll);
 	}
 	if ( RSlocal[w].left != NULL ) {
 		short i;
@@ -1336,7 +1337,8 @@ void	RSsetsize( short w, short v, short h, short screenIndex)
 		}
 		SizeControl(RSlocal[w].left, (h - 13) - i, 16);
 		MoveControl(RSlocal[w].left, -1 + CHO + i,  (v - 15) + CVO);
-		ShowControl(RSlocal[w].left);
+		if (!RSlocal[w].hideScrollBars)
+			ShowControl(RSlocal[w].left);
 	}
 
 	/* draw the locker once the scrollbars has moved */

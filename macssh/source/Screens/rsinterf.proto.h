@@ -14,7 +14,8 @@ enum {
 	RSWoldscrollback	=	0x00000100,
 	RSWjumpscroll		=	0x00000200,
 	RSWrealBlink		=	0x00000400,
-	RSWvt7bit			=	0x00000800
+	RSWvt7bit			=	0x00000800,
+	RSWHideScroll		=	0x00001000
 };
 
 
