@@ -15,7 +15,7 @@
 
 // based on NCSA Telnet 2.7b5
 
-#define SAVE_SET_STRINGS_COUNT 92
+#define SAVE_SET_STRINGS_COUNT 96
 
 #include "macros.proto.h"
 #include "wind.h"			/* For WindRec definition */
@@ -653,6 +653,12 @@ short confile( char *s)
 		case 94:
 			SetSessionPtr->autoreconnect = affirmative(s);
 			break;
+		case 95: // forward
+			SetSessionPtr->forward = affirmative(s);
+			break;
+		case 96: // keepselection
+			SetSessionPtr->keepselection = affirmative(s);
+			break;
 			
 /* NONO */
 	}
@@ -1076,6 +1082,8 @@ void SaveSet(short doSaveMacros, short dontSaveTitle)
 		PStringItemToFile(fn, 88, tw->command );			// command
 		BoolItemToFile(fn, 93, tw->x11forward );			// x11forward
 		BoolItemToFile(fn, 94, tw->autoreconnect );			// autoreconnect
+		BoolItemToFile(fn, 95, tw->forward );				// forward
+		BoolItemToFile(fn, 96, tw->keepselection );			// keepselection
 
 /* NONO */
 
@@ -1246,6 +1254,8 @@ void SaveSetFromSession(SessionPrefs* setSession, TerminalPrefs* setTerminal, sh
 	PStringItemToFile(fn, 88, setSession->command );		// command
 	BoolItemToFile(fn, 93, setSession->x11forward );		// x11forward
 	BoolItemToFile(fn, 94, setSession->autoreconnect );		// autoreconnect
+	BoolItemToFile(fn, 95, setSession->forward );			// forward
+	BoolItemToFile(fn, 96, setSession->keepselection );	// keepselection
 
 /* NONO */
 
