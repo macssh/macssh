@@ -49,10 +49,10 @@ BytePtr	DefaultTable,
 		FTPinTable,
 		FTPoutTable;
 		
-Handle	transTablesHdl;
-short	nNational = 0;
-short	gTableCount;
-
+Handle			transTablesHdl;
+short			nNational = 0;
+short			gTableCount = 0;
+TextEncoding	gLocalEncoding = 0;
 
 short	transBuffer(short oldtable, short newtable)		/* translate entire buffer */
 {
@@ -176,6 +176,8 @@ void BuildTranslateMenu(MenuHandle whichMenu)
 		SetMenuItemText(whichMenu, gTableCount + 3, "\pEUC-JP");
 		AppendMenu(whichMenu, "\p ");
 		SetMenuItemText(whichMenu, gTableCount + 4, "\pShift-JIS");
+		AppendMenu(whichMenu, "\p ");
+		SetMenuItemText(whichMenu, gTableCount + 5, "\pBig-5");
 		/* tests */
 /*
 		AppendMenu(whichMenu, "\p ");
@@ -254,8 +256,12 @@ static void trTECInit()
 		return;
 	if (FindSymbol( connID, "\pTECCreateConverter", NULL, NULL ) != noErr)
 		return;
- 	nNational = 3;	// 3 hard-coded translations actually
+ 	nNational = 4;	// 4 hard-coded translations actually
  	//nNational = 7;	// tests
+
+	// use current system settings for local encoding
+	UpgradeScriptInfoToTextEncoding(smSystemScript, kTextLanguageDontCare,
+									kTextRegionDontCare, NULL, &gLocalEncoding);
 #endif
 }
 
@@ -334,6 +340,12 @@ void switchintranslation(WindRec *tw, short national, short charset)
 				inputEncoding  = kTextEncodingShiftJIS;
 				outputEncoding = kTextEncodingMacJapanese;
 				break;
+			case kTRBig5:
+				cname = "kTRBig5";
+				inputEncoding  = kTextEncodingBig5;
+				outputEncoding = (gLocalEncoding == 0) ? kTextEncodingMacChineseTrad : gLocalEncoding;
+				break;
+
 			case kTRJISX0208_1978:
 				cname = "kTRJISX0208_1978";
 				inputEncoding  = kTextEncodingISO_2022_JP;
@@ -495,6 +507,11 @@ void switchouttranslation(WindRec *tw, short national, short charset)
 				cname = "kTRShiftJIS";
 				inputEncoding  = kTextEncodingMacJapanese;
 				outputEncoding = kTextEncodingShiftJIS;
+				break;
+			case kTRBig5:
+				cname = "kTRBig5";
+				inputEncoding = (gLocalEncoding == 0) ? kTextEncodingMacChineseTrad : gLocalEncoding;
+				outputEncoding = kTextEncodingBig5;
 				break;
 
 			case kTRJISX0208_1978:
@@ -731,6 +748,7 @@ int trbuf_nat_mac(WindRec *tw, unsigned char *buf, long *len, unsigned char *out
 				break;
 			case kTREUC_JP:
 			case kTRShiftJIS:
+			case kTRBig5:
 			//case kTRJISX0208_1978:
 			//case kTRJISX0208_1983:
 			case kTRJISX0212_1990:
@@ -775,6 +793,7 @@ int trbuf_mac_nat(WindRec *tw, unsigned char *buf, long *len, unsigned char *out
 			case kTRJIS:
 			case kTREUC_JP:
 			case kTRShiftJIS:
+			case kTRBig5:
 			case kTRJISX0208_1978:
 			case kTRJISX0208_1983:
 			case kTRJISX0212_1990:
