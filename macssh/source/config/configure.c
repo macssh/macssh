@@ -379,6 +379,7 @@ void Cftp(void)
 	FInfo				fi;			
 	Point				where = {100,100};
 	
+	SetUpMovableModalMenus();
 	dptr = GetNewMySmallStrangeDialog( FTPDLOG, NULL, kInFront, (void *)ThirdCenterDialog);	
 
 	SetCntrl(dptr, FTPServerOff, (gFTPServerPrefs->ServerState == 0));
@@ -407,7 +408,8 @@ void Cftp(void)
 	ShowWindow(dptr);
 	ditem=0;									/* initially no hits */
 	while((ditem>2) || (ditem==0)) {	
-		ModalDialog(DLOGwOK_CancelUPP,&ditem);
+		/*ModalDialog(DLOGwOK_CancelUPP,&ditem);*/
+		movableModalDialog(DLOGwOK_CancelUPP,&ditem);
 		switch(ditem) {
 			case	FTPShowFTPlog:
 			case	FTPrevDNS:
@@ -458,6 +460,7 @@ void Cftp(void)
 	
 	if (ditem==DLOGCancel) {
 			DisposeDialog( dptr);
+			ResetMenus();
 			return;
 			}
 
@@ -1265,6 +1268,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 						{43, (MenuHandle) 0, 1},
 						{0, (MenuHandle) 0, 0}};
 
+	SetUpMovableModalMenus();
 	dptr = GetNewMySmallStrangeDialog(TermDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
 	ditem = 3;
 	SetDialogDefaultItem(dptr, 1);
@@ -1546,6 +1550,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 
 		TelInfo->lastPanelTerminal = currentPanel - 1;
 		DisposeDialog(dptr);
+		ResetMenus();
 		return(FALSE);			// No changes should be made.
 		}
 	
@@ -1590,13 +1595,14 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	StringToNum(scratchPstring, &scratchlong);
 /* NONO */
 /*	BoundsCheck(&scratchlong, 133, 10);*/
-	BoundsCheck(&scratchlong, 255, 10);
+	BoundsCheck(&scratchlong, 255, 1);
 /* NONO */
 	TermPrefsPtr->vtwidth = (short) scratchlong;
 	
 	GetTEText(dptr, TermHeight, scratchPstring);
 	StringToNum(scratchPstring, &scratchlong);
-	BoundsCheck(&scratchlong, 80, 10);
+//	BoundsCheck(&scratchlong, 80, 10);
+	BoundsCheck(&scratchlong, 200, 1);
 	TermPrefsPtr->vtheight = (short) scratchlong;
 
 	GetTEText(dptr, TermFontSize, scratchPstring);
@@ -1633,6 +1639,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 
 	TelInfo->lastPanelTerminal = currentPanel - 1;
 	DisposeDialog(dptr);
+	ResetMenus();
 	return(TRUE);			// A resource has changed or been added.	
 }
 
@@ -1788,6 +1795,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 						{SessTransTablePopup, (MenuHandle) 0, 1},
 						{0, (MenuHandle) 0, 0}};
 
+	SetUpMovableModalMenus();
 	dptr = GetNewMySmallStrangeDialog(SessionConfigDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
 	ditem = 3;
 	SetDialogDefaultItem(dptr, 1);
@@ -2219,6 +2227,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 		else ReleaseResource((Handle) SessPrefsHdl);
 		TelInfo->lastPanelSession = currentPanel - 1;
 		DisposeDialog(dptr);
+		ResetMenus();
 		return(FALSE);			// No changes should be made.
 		}
 
@@ -2243,6 +2252,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 
 	TelInfo->lastPanelSession = currentPanel - 1;
 	DisposeDialog(dptr);
+	ResetMenus();
 	return(TRUE);			// A resource has changed or been added.	
 }
 
@@ -2385,6 +2395,7 @@ Boolean EditFTPUser(StringPtr PrefRecordNamePtr)
 	FTPUser*	FTPUptr;
 	Str255		scratchPstring, scratchPstring2;
 
+	SetUpMovableModalMenus();
 	dptr = GetNewMySmallStrangeDialog(FTPUserDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
 	ditem = 3;
 
@@ -2420,7 +2431,8 @@ Boolean EditFTPUser(StringPtr PrefRecordNamePtr)
 	ShowWindow(dptr);
 	
 	while (ditem > 2) {
-		ModalDialog(DLOGwOK_CancelUPP, &ditem);
+		/*ModalDialog(DLOGwOK_CancelUPP, &ditem);*/
+		movableModalDialog(DLOGwOK_CancelUPP, &ditem);
 		switch (ditem) {
 			case	FTPUcanchangeCWD:
 				FlipCheckBox(dptr, ditem);
@@ -2443,6 +2455,7 @@ Boolean EditFTPUser(StringPtr PrefRecordNamePtr)
 		else ReleaseResource((Handle) FTPUHdl);
 		
 		DisposeDialog(dptr);
+		ResetMenus();
 		return(FALSE);			// No changes should be made.
 		}
 		
@@ -2477,6 +2490,7 @@ Boolean EditFTPUser(StringPtr PrefRecordNamePtr)
 		}
 	
 	DisposeDialog(dptr);
+	ResetMenus();
 	return(TRUE);			// A resource has changed or been added.	
 }
 
@@ -2491,6 +2505,7 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 	Boolean			UserLikesNewColor;
 	RGBColorPtr 	scratchRGB;
 
+	SetUpMovableModalMenus();
 	scratchRGB = (RGBColorPtr) myNewPtr(sizeof(RGBColor));
 	dptr = GetNewMySmallDialog(ANSIColorDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
 	SetDialogDefaultItem(dptr, 1);
@@ -2574,6 +2589,7 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 	if (ditem == DLOGCancel)
 	{
 		DisposeDialog(dptr);
+		ResetMenus();
 		return -1;
 	}
 	if (allowDefaultBoldSelect)
@@ -2585,6 +2601,7 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 		SetEntryColor(TelInfo->AnsiColors, scratchshort, &(BoxColorData[scratchshort]));
 
 	DisposeDialog(dptr);
+	ResetMenus();
 }
 
 void

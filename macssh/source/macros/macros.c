@@ -694,6 +694,7 @@ short ModalMacros(NewMacroInfo *macrost)
 	Str255 temp;
 	Handle MacString[10], rubbish;
 
+	SetUpMovableModalMenus();
 	dtemp=GetNewMyDialog( MacroDLOG + 2, NULL, kInFront, (void *)ThirdCenterDialog);
 	SetDialogDefaultItem(dtemp, 1);
 	SetDialogCancelItem(dtemp, 2);
@@ -731,6 +732,7 @@ short ModalMacros(NewMacroInfo *macrost)
 
 	if (dItem == 2) CancelMacros(macrost, dtemp);
 	else CloseMacros(macrost, dtemp);
+	ResetMenus();
 	return dItem;
 }
 		

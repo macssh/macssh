@@ -56,6 +56,7 @@
 #include "maclook.proto.h"
 #include "DlogUtils.proto.h"
 #include "telneterrors.h"
+#include "movableModal.h"
 
 extern	Cursor *theCursors[];
 extern	WindRec
@@ -249,6 +250,7 @@ void setupkeys( void)
 	if (tempspot == NULL)
 		return; //BUGG signal error here
 		
+	SetUpMovableModalMenus();
 	dtemp=GetNewMyDialog( SetupDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
 
 	SetCursor(theCursors[normcurs]);
@@ -279,7 +281,8 @@ void setupkeys( void)
 	
 		dItem=0;								/* initially no hits */
 		while((dItem>3) || (dItem==0)) {		/* While we are in the loop */
-			ModalDialog(DLOGwOK_CancelUPP,&dItem);
+			/*ModalDialog(DLOGwOK_CancelUPP,&dItem);*/
+			movableModalDialog(DLOGwOK_CancelUPP,&dItem);
 
 /*
 *  intermediate check.  If they hit a key, put its number in the box.
@@ -314,6 +317,7 @@ void setupkeys( void)
 	
 		if (dItem==DLOGCancel) {
 			DisposeDialog( dtemp);
+			ResetMenus();
 			return;
 			}
 			
@@ -339,5 +343,6 @@ void setupkeys( void)
 			screens[scrn].TELgo = toupper(*(tempspot+1)) ^ 64;
 			
 	DisposeDialog( dtemp);
+	ResetMenus();
 	updateCursor(1);
 }

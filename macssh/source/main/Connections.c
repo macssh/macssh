@@ -501,6 +501,7 @@ Boolean PresentOpenConnectionDialog(void)
 	{
 		DisposeMenu(SessPopupHdl);	// drh Ñ Bug fix: memory leak
 		DisposeDialog(dptr);
+		ResetMenus();
 		OutOfMemory(1000);
 		return;
 		}

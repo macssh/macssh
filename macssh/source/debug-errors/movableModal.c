@@ -35,7 +35,9 @@ pascal void movableModalDialog(ModalFilterUPP filter, short *theItem)
 		WaitNextEvent(everyEvent, &theEvent, gApplicationPrefs->TimeSlice, 0L);
 
 		DoNetEvents();
+
 		ssh2_sched();
+
 		SetPort(thisDialog);
 
 		if ((*theItem = preFilterEvent(thisDialog, &theEvent)) != 0)

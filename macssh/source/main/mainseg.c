@@ -66,6 +66,7 @@ unsigned long	gPresentOpenConnectionTicks;
 
 
 extern void ssh2_sched();
+extern Boolean gThreadModal;
 
 void	main(void)
 {
@@ -111,7 +112,9 @@ void	main(void)
 
 	do {						/* BYU - Do this forever */
 		UnloadSegments();
-		DoEvents(NULL);
+		if (!gThreadModal) {
+			DoEvents(NULL);
+		}
 		ssh2_sched();
 		if (!TelInfo->done) {
 			DoNetEvents();

@@ -776,6 +776,27 @@ void clearcachedpassphrase()
 
 /* let the user deal with only one dialog at a time */
 pthread_mutex_t		dialock = NULL;
+Boolean				gThreadModal = false;
+
+/*
+ * getpass
+ */
+
+void LockDialog()
+{
+	pthread_mutex_lock( &dialock );
+	gThreadModal = true;
+}
+
+/*
+ * getpass
+ */
+
+void UnlockDialog()
+{
+	gThreadModal = false;
+	pthread_mutex_unlock( &dialock );
+}
 
 /*
  * getpass
@@ -809,9 +830,9 @@ char *getpass( const char *prompt )
 			valid = 1;
 		} else {
 			ppassword[0] = 0;
-			pthread_mutex_lock( &dialock );
+			LockDialog();
 			valid = SSH2PasswordDialog(prompt, ppassword);
-			pthread_mutex_unlock( &dialock );
+			UnlockDialog();
 			if (valid) {
 				memcpy(password, ppassword + 1, ppassword[0]);
 				password[ppassword[0]] = '\0';
@@ -831,9 +852,9 @@ char *getpass( const char *prompt )
 			return context->_kpassword;
 		}
 		context->_kpassword[0] = 0;
-		pthread_mutex_lock( &dialock );
+		LockDialog();
 		valid = SSH2PasswordDialog(prompt, (StringPtr)context->_kpassword);
-		pthread_mutex_unlock( &dialock );
+		UnlockDialog();
 		if (valid) {
 			plen = context->_kpassword[0];
 			password = (wind != NULL) ? wind->sshdata.currentpass : context->_kpassword;
@@ -872,9 +893,9 @@ short save_once_cancel1(char *fingerprint)
 {
 	short		result;
 
-	pthread_mutex_lock( &dialock );
+	LockDialog();
 	result = SSH2SOC1Dialog(fingerprint);
-	pthread_mutex_unlock( &dialock );
+	UnlockDialog();
 	return result;
 }
 
@@ -886,9 +907,9 @@ short save_once_cancel2(char *fingerprint)
 {
 	short		result;
 
-	pthread_mutex_lock( &dialock );
+	LockDialog();
 	result = SSH2SOC2Dialog(fingerprint);
-	pthread_mutex_unlock( &dialock );
+	UnlockDialog();
 	return result;
 }
 
@@ -912,9 +933,9 @@ int yes_or_no(struct lsh_string *s, int def, int free)
 					pprompt[i] = 0x0d;
 				}
 			}
-			pthread_mutex_lock( &dialock );
+			LockDialog();
 			def = YesNoDialog( pprompt );
-			pthread_mutex_unlock( &dialock );
+			UnlockDialog();
 		}
 		lsh_string_free(prompt);
 	}
@@ -986,7 +1007,9 @@ void ssh2_doevent(long sleepTime)
 	extern Boolean haveNotifiedLowMemory;
 
 	if ( key_gen == 0 ) {
-		DoEvents(NULL);
+		if (!gThreadModal) {
+			DoEvents(NULL);
+		}
 		if (!TelInfo->done) {
 			DoNetEvents();
 		}
@@ -998,12 +1021,14 @@ void ssh2_doevent(long sleepTime)
 			haveNotifiedLowMemory = true;
 		}
 	} else {
-		static unsigned long lastTicks = 0L;
-		if ( (LMGetTicks() - lastTicks) >= 10 ) {
-			EventRecord	myEvent;
-			lastTicks = LMGetTicks();
-			if ( WaitNextEvent(everyEvent, &myEvent, 0, 0L) ) {
-				HandleEvent(&myEvent);
+		if (!gThreadModal) {
+			static unsigned long lastTicks = 0L;
+			if ( (LMGetTicks() - lastTicks) >= 10 ) {
+				EventRecord	myEvent;
+				lastTicks = LMGetTicks();
+				if ( WaitNextEvent(everyEvent, &myEvent, 0, 0L) ) {
+					HandleEvent(&myEvent);
+				}
 			}
 		}
 	}

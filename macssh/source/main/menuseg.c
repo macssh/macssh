@@ -2123,6 +2123,7 @@ long SetOtherFontSize(short currentSize)
 	Boolean GoodValue;
 	short ditem;
 	
+	SetUpMovableModalMenus();
 	dtemp=GetNewMyDialog( OtherFontDLOG, NULL, kInFront, (void *)ThirdCenterDialog); 
 	InitCursor();
 
@@ -2135,9 +2136,11 @@ long SetOtherFontSize(short currentSize)
 		SetTEText(dtemp, FontSizeTE, currentSizeStr);
 	
 		ditem = 0;
-		while(ditem != DLOGOk && ditem != DLOGCancel)
-			ModalDialog(DLOGwOK_CancelUPP, &ditem);
-	
+		while(ditem != DLOGOk && ditem != DLOGCancel) {
+			//ModalDialog(DLOGwOK_CancelUPP, &ditem);
+			movableModalDialog(DLOGwOK_CancelUPP, &ditem);
+		}
+
 		if (ditem == DLOGCancel) {
 			DisposeDialog( dtemp);
 			return currentSize;
@@ -2152,7 +2155,7 @@ long SetOtherFontSize(short currentSize)
 		if (!GoodValue) SysBeep(4);
 	}
 	DisposeDialog( dtemp);
-	
+	ResetMenus();
 	return (newSize);
 }
 /*----------------------------------------------------------------------*/
@@ -2171,6 +2174,7 @@ void SetScreenDimensions(short scrn, short modifiers)
 	short		oldlines;
 	short		oldcols;
 	
+	SetUpMovableModalMenus();
 	dtemp=GetNewMyDialog( SizeDLOG, NULL, kInFront, (void *)ThirdCenterDialog); 
 	
 	SetCursor(theCursors[normcurs]);
@@ -2188,9 +2192,11 @@ void SetScreenDimensions(short scrn, short modifiers)
 		SelectDialogItemText( dtemp, ColumnsNumber, 0, 32767);
 	
 		ditem = 3;
-		while(ditem>2)
-			ModalDialog(DLOGwOK_CancelUPP, &ditem);
-	
+		while(ditem>2) {
+			/*ModalDialog(DLOGwOK_CancelUPP, &ditem);*/
+			movableModalDialog(DLOGwOK_CancelUPP, &ditem);
+		}
+
 		if (ditem == DLOGCancel) {
 			DisposeDialog( dtemp);
 			return;
@@ -2228,8 +2234,8 @@ void SetScreenDimensions(short scrn, short modifiers)
 		
 		if (notgood) SysBeep(4);
 	}
-	
 	DisposeDialog( dtemp);
+	ResetMenus();
 
 	oldlines = VSgetlines(screens[scrn].vs);
 	oldcols = VSgetcols(screens[scrn].vs);
@@ -2260,6 +2266,7 @@ void	ChangeWindowName(WindowPtr	theWindow)
 
 	if( theWindow != NULL) {
 		InitCursor();
+		SetUpMovableModalMenus();
 		dptr = GetNewMySmallDialog(WinTitlDLOG, NULL, kInFront, (void *)ThirdCenterDialog );
 
 		GetWTitle(theWindow, theName); 
@@ -2267,14 +2274,16 @@ void	ChangeWindowName(WindowPtr	theWindow)
 		SelectDialogItemText( dptr, kWinNameTE, 0, 250 );
 
 		itemHit = 0;
-		while(itemHit != DLOGOk && itemHit != DLOGCancel)
-			ModalDialog(DLOGwOK_CancelUPP, &itemHit);
-		
+		while(itemHit != DLOGOk && itemHit != DLOGCancel) {
+			//ModalDialog(DLOGwOK_CancelUPP, &itemHit);
+			movableModalDialog(DLOGwOK_CancelUPP, &itemHit);
+		}
+
 		if(itemHit == DLOGOk) {
 			GetTEText(dptr, kWinNameTE, theName);
 			set_new_window_name(theName, theWindow);
 			}
-			
+		ResetMenus();
 		DisposeDialog(dptr);
 		}
 }
