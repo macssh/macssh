@@ -29,11 +29,9 @@
 #include "TextCommon.h"
 #include "TextEncodingConverter.h"
 
-extern void syslog( int priority, const char *format, ...);
-extern long dumpln( long base, char *dest, void *src, long len );
 
-void VSprintf(char *fmt, ...);
-void VSdump(char *p, int len);
+extern void VSprintf(char *fmt, ...);
+extern void VSdump(char *p, int len);
 
 static void trTECInit();
 
@@ -133,12 +131,14 @@ BytePtr ReturnTablePtr(short table, Boolean out)
 {
 	BytePtr ptable;
 
-	if (table < 1 || table > gTableCount)
+	if ( table < 1 || table > gTableCount ) {
 		ptable = DefaultTable;
-	else
-		ptable = (BytePtr)*transTablesHdl + (table - 1) * 512;
-	if ( out && ptable )
+	} else {
+		ptable = ((BytePtr)*transTablesHdl) + ((table - 1) * 512);
+	}
+	if ( out && ptable ) {
 		ptable += 256;
+	}
 	return ptable;
 }
 
@@ -473,6 +473,15 @@ void switchouttranslation(WindRec *tw, short national, short charset)
 
 	//VSprintf("switchouttranslation : %d, %d\n", table, charset);
 
+/*
+if (table > 0) {
+	VSprintf("switchouttranslation, in:\n");
+	VSdump(ReturnTablePtr(table, FALSE), 256);
+	VSprintf("switchouttranslation, out:\n");
+	VSdump(ReturnTablePtr(table, TRUE), 256);
+}
+*/
+
 	if ( tw->outnational != national ) {
 		switch ( table ) {
 			case kTRJIS:
@@ -669,13 +678,14 @@ int trflush_mac_nat(WindRec *tw)
 /* WARNING: ouptut size can be twice as big as input */
 int trbuf_nat_mac(WindRec *tw, unsigned char *buf, long *len, unsigned char *out, long *outlen)
 {
-	OSStatus	res = 0;
-	short		table;
-	long		i = *len;
+	OSStatus		res = 0;
+	short			table;
+	long			i = *len;
+	BytePtr			table_data;
 
 	table = GetTranslationIndex(tw->innational);
 	if ( table >= 0 ) {
-		BytePtr table_data = ReturnTablePtr(table, FALSE);
+		table_data = ReturnTablePtr(table, FALSE);
 		if ( table_data ) {
 			while (i--)
 				*out++ = table_data[*buf++];
@@ -738,13 +748,14 @@ int trbuf_nat_mac(WindRec *tw, unsigned char *buf, long *len, unsigned char *out
 /* WARNING: ouptut size can be twice as big as input */
 int trbuf_mac_nat(WindRec *tw, unsigned char *buf, long *len, unsigned char *out, long *outlen)
 {
-	OSStatus	res = 0;
-	short		table;
-	short		i = *len;
+	OSStatus		res = 0;
+	short			table;
+	long			i = *len;
+	BytePtr			table_data;
 
 	table = GetTranslationIndex(tw->outnational);
 	if ( table >= 0 ) {
-		BytePtr table_data = ReturnTablePtr(table, TRUE);
+		table_data = ReturnTablePtr(table, TRUE);
 		if ( table_data ) {
 			while (i--)
 				*out++ = table_data[*buf++];
