@@ -1118,7 +1118,8 @@ short netclose(short pnum)
 		if (wind->sshdata.context) {
 			ssh_glue_close(wind);
 		} else {
-			netputuev(SCLASS, CLOSEDONE, pnum,0);
+			//netputuev(SCLASS, CLOSEDONE, pnum,0);
+			netputevent(SCLASS, CLOSEDONE, pnum,0);
 		}
 
 		return 0;
@@ -1328,10 +1329,12 @@ pascal void Notify(StreamPtr streamPtr, unsigned short code, Ptr uptr,
 	switch( code) {
 		case TCPTerminate:
 		case TCPClosing:
-			netputuev(CONCLASS, CONCLOSE, pnum,0);
+			//netputuev(CONCLASS, CONCLOSE, pnum,0);
+			netputevent(CONCLASS, CONCLOSE, pnum,0);
 			break;
 		case TCPULPTimeout:
-			netputuev(CONCLASS, CONFAIL, pnum,0);
+			//netputuev(CONCLASS, CONFAIL, pnum,0);
+			netputevent(CONCLASS, CONFAIL, pnum,0);
 			break;
 		case TCPDataArrival:
 		case TCPUrgent:
@@ -1376,15 +1379,19 @@ void	OpenComplete(MyTCPpbPtr pbp)
 		return;			 //I'll assume so (CCP)
 	}
 	if (pbp->pb.ioResult == -23017) {
-		netputuev(CONCLASS, CONFAIL, pnum, -23017);
+		//netputuev(CONCLASS, CONFAIL, pnum, -23017);
+		netputevent(CONCLASS, CONFAIL, pnum, -23017);
 		streams[pnum]->pbp = pbp; // save the params
 		return;					 // and return
 	} else streams[pnum]->pbp = 0;
 
-	if (pbp->pb.ioResult !=noError) 
-		netputuev(CONCLASS, CONFAIL, pnum,pbp->pb.ioResult);	/* Failure ... */
-	else 
-		netputuev(CONCLASS, CONOPEN, pnum,0);			/* Success ! */
+	if (pbp->pb.ioResult !=noError) {
+		//netputuev(CONCLASS, CONFAIL, pnum,pbp->pb.ioResult);	/* Failure ... */
+		netputevent(CONCLASS, CONFAIL, pnum,pbp->pb.ioResult);	/* Failure ... */
+	} else {
+		//netputuev(CONCLASS, CONOPEN, pnum,0);			/* Success ! */
+		netputevent(CONCLASS, CONOPEN, pnum,0);			/* Success ! */
+	}
 	
 	MyPBreturn( pbp);
 }
@@ -1440,15 +1447,19 @@ void	CloseComplete(MyTCPpbPtr pbp)
 	
 	if (pnum < 0 || (p = streams[pnum]) == 0L)
 	  {
-		netputuev(SCLASS, CLOSEDONE+1, pnum,0);
+		//netputuev(SCLASS, CLOSEDONE+1, pnum,0);
+		netputevent(SCLASS, CLOSEDONE+1, pnum,0);
 		MyPBreturn(pbp);
 		return;
 	  }
 		
-	if (pbp->pb.ioResult !=noError) 
-		netputuev(SCLASS, CLOSEDONE+1, pnum,0);
-	else 
-		netputuev(SCLASS, CLOSEDONE, pnum,0);			/* Success ! */
+	if (pbp->pb.ioResult !=noError) {
+		//netputuev(SCLASS, CLOSEDONE+1, pnum,0);
+		netputevent(SCLASS, CLOSEDONE+1, pnum,0);
+	} else {
+		//netputuev(SCLASS, CLOSEDONE, pnum,0);			/* Success ! */
+		netputevent(SCLASS, CLOSEDONE, pnum,0);			/* Success ! */
+	}
 
 	MyPBreturn( pbp);
 }
