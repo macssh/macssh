@@ -52,8 +52,12 @@ static unsigned char default_slc[] =
 	static char munger[255]; 
 #endif
 
+#define ESCAPED(ascii) (!(ascii > 31 && ascii < 127))
+
 void	LinemodeUnload(void) {}
 
+/* every connection setup needs to call this now (2.2a1) since it's needed for plain echo
+   (aka kludge-linemode) and not just traditional linemode */
 void initLinemode(struct WindRec *tw)
 {
 	short temp;
@@ -68,24 +72,180 @@ void initLinemode(struct WindRec *tw)
 	tw->lmodeBits = 0;
 	tw->litNext = 0;
 	tw->lmode = 0;
+	/* RAB 2.2a1 - command line editing */
+	tw->editPos = 0;
+	tw->commandHistory = 0;
+	tw->chEditPos = 0;
+	tw->commandHistoryLength = 0;
 }
 
-void process_key(unsigned char ascii,struct WindRec *tw)
+// of course there's a new function to dispose of the stuff... we don't like memory leaks!
+void disposeHistory(WindRec *tw)
 {
+	CommandHistoryEntry *histptr = tw->commandHistory;
+	CommandHistoryEntry *tempptr;
+
+	while (tw->commandHistoryLength) {
+		tempptr = histptr;
+		histptr = histptr->next;
+		DisposePtr((char *)tempptr);
+		tw->commandHistoryLength--;
+	}
+}
+
+void addToHistory(WindRec *tw)
+{
+	CommandHistoryEntry *histptr;
+	short commandHistoryLines = gApplicationPrefs->commandHistoryLines;
+
+	if (commandHistoryLines == -1) return;
+	if (!commandHistoryLines)
+		commandHistoryLines = DEFAULT_HISTORY_LINES;
+
+	if (tw->commandHistoryLength >= commandHistoryLines) { // we're at the limit here...
+		histptr = tw->commandHistory;
+		histptr = histptr->next; // so re-use what we have
+		tw->commandHistory = histptr;
+	} else if (!tw->commandHistory) { // or maybe we haven't even started yet...
+		histptr = (CommandHistoryEntry *) myNewPtr(sizeof(CommandHistoryEntry));
+		if (!histptr) return; // bad bad bad
+		histptr->next = histptr;
+		histptr->prev = histptr;
+		tw->commandHistory = histptr;
+		tw->commandHistoryLength = 1;
+	} else {
+		histptr = (CommandHistoryEntry *) myNewPtr(sizeof(CommandHistoryEntry));
+		if (!histptr) return; // bad bad bad
+		histptr->next = tw->commandHistory->next;
+		histptr->prev = tw->commandHistory;
+		tw->commandHistory->next->prev = histptr;
+		tw->commandHistory->next = histptr;
+		tw->commandHistory = histptr;
+		tw->commandHistoryLength++;
+	}
+
+	BlockMoveData(tw->kbbuf, tw->commandHistory->kbbuf, sizeof(tw->kbbuf));
+	tw->commandHistory->kblen = tw->kblen;
+	tw->chEditPos = 0;
+}
+
+void linemode_kbwrite(struct WindRec *tw, unsigned char ascii) {
+	if (tw->kblen < (MAXKB - 1)) {   /* Add to buffer if not full */
+		if (tw->editPos == tw->kblen + 1) tw->editPos = 0;
+		if (!tw->editPos)
+			tw->kbbuf[tw->kblen++] = ascii;
+		else {
+			BlockMoveData(&tw->kbbuf[tw->editPos-1], &tw->kbbuf[tw->editPos],
+							tw->kblen - tw->editPos + 1);
+			tw->kbbuf[tw->editPos-1] = ascii;
+			tw->kblen++; tw->editPos++;
+		}
+	}
+	else 
+	{                               
+		kbflush(tw);
+		tw->kbbuf[0]=ascii;
+		tw->kblen=1;
+	}
+}
+
+void delLinemodeChar(struct WindRec *tw) {
+	if (!tw->kblen) return; // sanity check
+	if (!tw->editPos)
+		tw->kblen--;
+	else {
+		if (tw->editPos == 1) return; // another sanity check
+		BlockMoveData(&tw->kbbuf[tw->editPos-1], &tw->kbbuf[tw->editPos-2],
+						tw->kblen - tw->editPos + 1);
+		tw->kblen--; tw->editPos--;
+	}
+}
+
+void displayHistory(WindRec *tw)
+{
+	static char tempkbbuf[MAXKB*2+1];
+	short kblen;
+	char *tempkbptr, *kbptr;
+
+// get rid of the old text first
+	while (tw->kblen >0) 
+	{
+		if (tw->echo) {
+			if (tw->editPos && tw->editPos <= tw->kblen) {
+				parse(tw,(unsigned char *) "\033[P",3);
+				if (ESCAPED(tw->kbbuf[tw->editPos - 2]))
+					parse(tw,(unsigned char *) "\033[P",3);
+			} else {
+				parse(tw,(unsigned char *) "\010 \010",3);
+				if (ESCAPED(tw->kbbuf[tw->kblen - 1]))
+					parse(tw,(unsigned char *) "\010\033[P", 4);
+			}
+		}
+		tw->kblen--;
+	}
+	tw->editPos = 0;
+
+// now find the new text to put in
+	if (!tw->chEditPos) {
+		tw->kblen = tw->oldkblen;
+		BlockMove(tw->oldkbbuf, tw->kbbuf, sizeof(tw->kbbuf));
+	} else {
+		BlockMove(tw->chEditPos->kbbuf, tw->kbbuf, sizeof(tw->kbbuf));
+		tw->kblen = tw->chEditPos->kblen;
+	}
+	kblen = tw->kblen;
+	tempkbptr = tempkbbuf;
+	kbptr = tw->kbbuf;
+
+// now draw it - but first, escape controls
+	while (kblen) {
+		if (ESCAPED(*kbptr)) {
+			*tempkbptr = '^';
+			tempkbptr++;
+			*tempkbptr = '@'+*kbptr;
+			tempkbptr++;
+		} else {
+			*tempkbptr = *kbptr;
+			tempkbptr++;
+		}
+		kbptr++;
+		kblen--;
+	}
+	parse(tw, (unsigned char *)tempkbbuf, tempkbptr-tempkbbuf);
+}
+
+// NB: this function can now get called if linemode is OFF (for kludge-pseudo-linemode)
+// so make sure no assumptions are made about whether linemode itself is on
+// (don't send linemode subnegotations without checking tw->lmode, for example)
+void process_key(unsigned char ascii, unsigned char keycode, struct WindRec *tw)
+{
+	if (!tw->lmode) tw->lmodeBits = L_EDIT; // edit, no trapsig if linemode is off
+/* signals? what signals? if you are actually telnetted into a un*x box, you should
+   be using real linemode, or else. kludge-linemode is designed for other services.
+   we never did flush the keybuffer on ^Z, etc., and we never will, unless you're
+   using REAL linemode. So there. */
+
 	if (tw->litNext) {
 		//do no processing on next key
 		tw->litNext = FALSE;
 
-		kbwrite(tw, &ascii, 1);
+		linemode_kbwrite(tw, ascii);
+		if (tw->editPos) tw->editPos++;
 
 		if (tw->echo) {
-			if (ascii>31 && ascii <127) {
+			if (!ESCAPED(ascii)) {
+				if (tw->editPos) /* make some room if we're not at the end */
+					parse(tw, (unsigned char*)"\033[@", 3); // insert char
 				/* add these chars to buffer */
 				parse(tw, &ascii, 1);
 			}
 			return;
 		}
 	}
+
+	/* make sure editing keys don't get confused for control codes */
+	if ((keycode == 0x75 || keycode == 0x7b || keycode == 0x7c)
+		&& (tw->lmodeBits & L_EDIT)) ascii = 64;
 
 	if (tw->lmodeBits & 2) {		
 		// TRAPSIG mode active
@@ -116,6 +276,7 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 //			if (tw->echo)
 //				parse(tw, &ascii, 1); // echo if we should
 			tw->kblen=0; //zero out the buffer
+			tw->editPos = 0;
 			netpush(tw->port);
 			netwrite(tw->port,toSend,2); //send IAC whatever
 			if (tw->slcLevel[whichSignal] & SLC_FLUSHIN)
@@ -139,12 +300,13 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 	if ((tw->lmodeBits & L_SOFT_TAB)&&(ascii == 0x09)) // SOFT_TAB mode active; expand tab into spaces
 	{
 		short numSpaces = VSIgetNextTabDistance();
-		unsigned char spacechar = ' ';
 		while (numSpaces-- > 0) {
-			kbwrite(tw, &spacechar, 1);
+			linemode_kbwrite(tw, ' ');
 		}
-		if (tw->echo)
+		if (tw->echo) {
+			if (tw->editPos) parse(tw, (unsigned char*)"\033[@", 3);
 			parse(tw, &ascii, 1);
+		}
 		return;
 	}
 	
@@ -152,10 +314,73 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 
 	if (tw->lmodeBits & L_EDIT) //handle editing functions
 	{
-			
+		if (keycode == 0x7b) { // left arrow
+			if (tw->editPos == 1 || !tw->kblen) return; // blah
+			if (!tw->editPos)
+				tw->editPos = tw->kblen;
+			else tw->editPos--;
+			parse(tw, (unsigned char *)"\033[D", 3);
+			if (ESCAPED(tw->kbbuf[tw->editPos - 1]))
+				parse(tw, (unsigned char *)"\033[D", 3);
+			return;
+		}
+
+		if (keycode == 0x7c) { // right arrow
+			short times = 1;
+
+			if (!tw->editPos) return; // blah
+			if (ESCAPED(tw->kbbuf[tw->editPos - 1]))
+				times = 2;
+			tw->editPos++;
+			if (tw->editPos > tw->kblen) tw->editPos = 0;
+			parse(tw, (unsigned char *) "\033[C\033[C", times*3);
+			return;
+		}
+		if (keycode == 0x7e) { // up arrow
+			if (!tw->commandHistory) return; // blah
+			if (!tw->chEditPos) {
+				tw->chEditPos = tw->commandHistory;
+				tw->oldkblen = tw->kblen;
+				BlockMoveData(tw->kbbuf, tw->oldkbbuf, sizeof(tw->kbbuf));
+					// save it
+			} else {
+				tw->chEditPos = tw->chEditPos->prev;
+				// we "insert" the entry defined by tw->chEditPos = 0
+				// (ie, the current line) between the bottom and top of the chain
+				if (tw->chEditPos == tw->commandHistory) tw->chEditPos = 0;
+			}
+			displayHistory(tw);
+			return;
+		}
+		if (keycode == 0x7d) { // down arrow
+			if (!tw->commandHistory) return;
+			if (tw->chEditPos == tw->commandHistory) tw->chEditPos = 0;
+			else {
+				if (!tw->chEditPos) {
+					BlockMoveData(tw->kbbuf, tw->oldkbbuf, sizeof(tw->kbbuf)); // save it
+					tw->oldkblen = tw->kblen;
+					tw->chEditPos = tw->commandHistory;
+				}
+				tw->chEditPos = tw->chEditPos->next;
+			}
+			displayHistory(tw);
+			return;
+		}
+		if (keycode == 0x75) { // forward delete
+			if (!tw->editPos) return; // blah
+			tw->editPos++;
+			if (tw->editPos > tw->kblen) tw->editPos = 0;
+			parse(tw, (unsigned char *) "\033[P", 3);
+			if (ESCAPED(tw->kbbuf[tw->editPos ? tw->editPos - 2 : tw->kblen - 1]))
+			parse(tw,(unsigned char *) "\033[P",3);
+			delLinemodeChar(tw);
+			return;
+		}
 
 		if (ascii == '\015') //CR
 		{ //since we are in edit, send the buffer and CR-LF
+			addToHistory(tw); /* since we're sending it, save it */
+			tw->chEditPos = 0;
 			kbflush(tw);
 			netpush(tw->port);
 			netwrite(tw->port,"\015\012",2);
@@ -166,29 +391,34 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 		
 		if (ascii == tw->slc[SLC_EC]) //kill the character
 		{
-			if (tw->echo)
-				parse(tw,(unsigned char *) "\010 \010",3);	
-			tw->kblen--;
-			return;
-		}
-		else if (ascii == tw->slc[SLC_AO]) //kill the line
-		{
-			while (tw->kblen >0) 
-			{
-				if (tw->echo)
-					parse(tw,(unsigned char *) "\010 \010",3);
-				tw->kblen--;
+			if (tw->kblen && tw->editPos != 1) {
+				if (tw->echo) {
+					parse(tw,(unsigned char *) "\010\033[P", 4);
+					if (ESCAPED(tw->kbbuf[tw->editPos ? tw->editPos - 2 : tw->kblen - 1]))
+					parse(tw,(unsigned char *) "\010\033[P",4);
+				}
+				delLinemodeChar(tw);
 			}
 			return;
 		}
-		else if (ascii == tw->slc[SLC_EL]) //kill the line
+		else if (ascii == tw->slc[SLC_AO] || ascii == tw->slc[SLC_EL]) //kill the line
 		{
 			while (tw->kblen >0) 
 			{
-				if (tw->echo)
-					parse(tw,(unsigned char *) "\010 \010",3);
+				if (tw->echo) {
+					if (tw->editPos && tw->editPos <= tw->kblen) {
+						parse(tw,(unsigned char *) "\033[P",3);
+						if (ESCAPED(tw->kbbuf[tw->editPos - 2]))
+							parse(tw,(unsigned char *) "\033[P",3);
+					} else {
+						parse(tw,(unsigned char *) "\010 \010",3);
+						if (ESCAPED(tw->kbbuf[tw->kblen - 1]))
+							parse(tw,(unsigned char *) "\010\033[P",4);
+					}
+				}
 				tw->kblen--;
 			}
+			tw->editPos = 0;
 			return;
 		}
 		else if ((ascii == tw->slc[SLC_EOF]) && (tw->lmodeBits & 2))
@@ -224,8 +454,8 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 			while ((tw->kbbuf[tw->kblen-1] != 0x20)&&(tw->kblen >= 0)) //while its not a space
 			{
 				if (tw->echo)
-					parse(tw,(unsigned char *)"\010 \010",3);
-				tw->kblen--;
+					parse(tw,(unsigned char *)"\010\033[P",4);
+				delLinemodeChar(tw);
 			}
 		}
 		else if (ascii == tw->slc[SLC_RP])
@@ -264,7 +494,7 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 		//ok, at this point, we are past all local editing functions.  Now, add the character to the buffer.
 		else
 		{
-			kbwrite(tw, &ascii, 1);
+			linemode_kbwrite(tw, ascii);
 		}
 
 	}
@@ -285,10 +515,10 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 
 	if (tw->echo)	/* Handle local ECHOs */
 	{
-		if (ascii>31 && ascii <127)	/* add these chars to buffer */
+		if (!ESCAPED(ascii)) {	/* add these chars to buffer */
 			parse(tw, &ascii, 1);
-		else			/* not printable char */
-		{
+			if (tw->editPos) parse(tw, (unsigned char *) "\033[@", 3);
+		} else {		/* not printable char */
 			if (!(tw->lmodeBits & L_LIT_ECHO)) //don't echo if this is set
 			{		
 				ascii='@'+ascii;
@@ -595,8 +825,8 @@ void doLinemode(struct WindRec *tw)
 	unsigned char subBeginSeq[4] = {IAC,TEL_SB,N_LINEMODE,L_SLC};
 	unsigned char subEndSeq[2] = {IAC,TEL_SE};
 	unsigned char toSend[3];
-	
-	
+
+	tw->editPos = 0;
 	tw->lmodeBits = 0;
 	tw->lmode = TRUE;
 	tw->litNext = FALSE;

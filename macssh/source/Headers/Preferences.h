@@ -279,6 +279,9 @@ typedef	struct	{
 /* NONO */
 
 	short
+		commandHistoryLines;	// RAB MacSSH 2.2a1
+
+	short
 		padding[96];			// Memory is getting cheap too.... (used to be [96])
 }	ApplicationPrefs;
 

@@ -190,6 +190,14 @@ void Cenviron( void)
 	NumToString(scratchlong,scratchPstring);
 	SetTEText(dptr,PrefSendTime, scratchPstring);
 
+	if (gApplicationPrefs->commandHistoryLines != -1) {
+		if (!gApplicationPrefs->commandHistoryLines)
+			NumToString(DEFAULT_HISTORY_LINES, scratchPstring);
+		else
+			NumToString(gApplicationPrefs->commandHistoryLines, scratchPstring);
+		SetTEText(dptr, 44, scratchPstring);
+	}
+
 	ShowWindow(dptr);
 	ditem=0;								/* initially no hits */
 	while((ditem>2) || (ditem==0)) {	
@@ -308,7 +316,12 @@ void Cenviron( void)
 	GetTEText(dptr,PrefSendTime, scratchPstring);
 	StringToNum(scratchPstring, &scratchlong);
 	gApplicationPrefs->SendTimeout = (short) scratchlong;
-	
+
+	GetTEText(dptr, 44, scratchPstring);
+	StringToNum(scratchPstring, &scratchlong);
+	if (!scratchlong) gApplicationPrefs->commandHistoryLines = -1;
+	else gApplicationPrefs->commandHistoryLines = scratchlong;
+
 	GetTEText(dptr, PrefCaptTE, scratchPstring);
 	BlockMoveData(&scratchPstring[1], &(gApplicationPrefs->CaptureFileCreator), sizeof(OSType));
 	GetTEText(dptr,PrefStaggerOffset, scratchPstring);

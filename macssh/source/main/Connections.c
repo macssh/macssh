@@ -802,7 +802,9 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 
 	theScreen->lmode = 0; // RAB BetterTelnet 2.0b1 - fix for a really bizarre bug
 	theScreen->lineAllow = SessPtr->linemode;
-	if (SessPtr->linemode) //we allow linemode
+
+	/* Other stuff uses the linemode code now, so we need to set it up all the time...
+	if (SessPtr->linemode) //we allow linemode */
 		initLinemode(&screens[cur]);
 
 	theScreen->launchurlesc = SessPtr->launchurlesc;

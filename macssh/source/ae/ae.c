@@ -189,7 +189,7 @@ pascal OSErr  MyHandleSendCR (AppleEvent *theAppleEvent, AppleEvent* reply, long
 	if (TelInfo->numwindows < 1) return noErr;
 
 	if (screens[scrn].lmode) {
-		process_key('\015', &screens[scrn]);
+		process_key('\015', 0, &screens[scrn]);
 		return noErr;
 	}
 

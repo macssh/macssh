@@ -1,6 +1,11 @@
 void	linemode_suboption(struct WindRec *tw);
 void	DemangleLineModeShort(char *s, short mode);
 void doLinemode(struct WindRec *tw);
-void process_key(unsigned char ascii,struct WindRec *tw);
+void process_key(unsigned char ascii, unsigned char keycode, struct WindRec *tw);
 void initLinemode(struct WindRec *tw);
 void	LinemodeUnload(void);
+void disposeHistory(WindRec *tw);
+void addToHistory(WindRec *tw);
+void linemode_kbwrite(struct WindRec *tw, unsigned char ascii);
+void delLinemodeChar(struct WindRec *tw);
+void displayHistory(WindRec *tw);

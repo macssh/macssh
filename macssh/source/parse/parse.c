@@ -80,7 +80,8 @@ void kbflush(struct WindRec *tw)
 {
 	if ( tw->kblen ) {
 		netwrite( tw->port, tw->kbbuf, tw->kblen);
-		tw->kblen = 0;	
+		tw->kblen = 0;
+		tw->editPos = 0;
 	}
 }
 

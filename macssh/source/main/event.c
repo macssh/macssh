@@ -436,6 +436,14 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 
 	ObscureCursor();
 
+// command line editing for linemode is a special case here
+	if (((tw->lmode && (tw->lmodeBits & 1)) ||
+		(tw->echo && !tw->halfdup)) && (code == 0x7b || code == 0x7c || code == 0x75
+		|| code == 0x7d || code == 0x7e)) {
+			process_key(ascii, code, tw);
+			return;
+	}
+
 	if ( tw->emacsmeta == 2 && optiondown ) {
 		// option key as emacs meta key: keep shift and control translation
 		ascii = translatekeycode( code, (theEvent.modifiers & (shiftKey|controlKey)) );
@@ -561,8 +569,11 @@ emacsHack:
 	}
 
 	if ( code == BScode ) {
+		// if linemode, give it what it wants
+		if ((tw->lmode || (tw->echo && !tw->halfdup)) && !optiondown)
+			ascii = tw->slc[10];
 		// handle mapping BS to DEL, flipping on option
-		if ( tw->bsdel ) {
+		else if ( tw->bsdel ) {
 			if ( (optiondown && tw->emacsmeta != 2) || commanddown )
 				ascii = BS;
 			else
@@ -697,7 +708,7 @@ emacsHack:
 	} else if ( tw->lmode ) {
 		for (res = 0; res < trlen; ++res) {
 			// Some form of linemode is active; we dont touch it after them
-			process_key( pbuf[res], tw );
+			process_key( pbuf[res], 0, tw );
 		}
 		return;
 	}
@@ -731,7 +742,8 @@ emacsHack:
 	}
 
 	if ( tw->echo && !tw->halfdup ) {
-		// Handle klude-linemode
+		// Handle kludge-linemode
+#if 0
 		if ( ascii > 31 && ascii < 127 && code < KPlowest ) {
 			// printable key 
 			kbwrite( tw, pbuf, trlen);
@@ -758,7 +770,10 @@ emacsHack:
 				parse( tw, &sendch, 1 );
 			}
 		}
-	} //end if klude-linemode
+#endif
+	process_key(ascii, code, tw); // let "linemode" handle this
+	return;
+	} //end if kludge-linemode
 
 
 	if (ascii == '\015') {

@@ -39,6 +39,17 @@ typedef struct sshinfo {
 	void		*context;
 } sshinfo;
 
+typedef struct CommandHistoryEntry CommandHistoryEntry;
+
+struct CommandHistoryEntry { // a doubly linked list to make removing off the top easier
+	CommandHistoryEntry *prev;
+	CommandHistoryEntry *next;
+	char kbbuf[MAXKB];
+	short kblen;
+};
+
+#define DEFAULT_HISTORY_LINES 10
+
 struct WindRec {
 short	
 	vs,				// virtual screen number
@@ -98,7 +109,8 @@ short
 	realbold,
 	ignoreBeeps,	// ignore beeps: RAB BetterTelnet 1.0fc7
 	inversebold,	// use inverse for bold: RAB BetterTelnet 1.0fc9
-	kblen,			// Pointer to next char in buffer to be used 
+	kblen,			// Pointer to next char in buffer to be used
+	oldkblen,		// same thing if we're stuck in history
 	clientflags,	// BYU mod - boolean flags for ftp client
 	jsNoFlush,		// RAB BetterTelnet 2.0b4 - don't flush jump scroller at all
 	realBlink;
@@ -202,7 +214,10 @@ short
 	lmodeBits,		// Current linemode MODE.  Currently support EDIT and TRAPSIG 
 	lmode,			// linemode is active 
 	forwardMask,	// should we forward on certain characters
-	numForwardKeys; // how many keys to forward on
+	numForwardKeys, // how many keys to forward on
+	editPos;		/* if we're editing the text stream, location past the insertion pt;
+					   otherwise, 0 */
+
 unsigned char	
 	slcLevel[SLC_ARRAY_SIZE+1], //levelBits
 	forwardKeys[32],// which keys to forward on 
@@ -212,7 +227,8 @@ char
 	TELstop,		// Character for scrolling to stop 
 	TELgo,			// Character for scrolling to go 
 	TELip,			// Character for interrupt process 
-	kbbuf[MAXKB];	// The keyboard buffer (echo mode ) 
+	kbbuf[MAXKB],	// The keyboard buffer (echo mode )
+	oldkbbuf[MAXKB]; // the real keyboard buffer if we're stuck in history
 	
 GrafPtr 
 	wind;
@@ -238,6 +254,9 @@ Boolean
 	forward;                // true if fowarding wanted
 
 NewMacroInfo sessmacros;
+
+CommandHistoryEntry *commandHistory, *chEditPos;
+short commandHistoryLength;
 
 /* NONO */
 short
