@@ -1880,6 +1880,7 @@ void *ssh2_randomize_thread(struct RandStruct *rnd)
 	memcpy(context->_gConsoleInBuf, buf + i, len);
 	init_context(context, -1);
 	context->_gConsoleInBufLen = len;
+	context->_gConsoleInEOF = true;
 
 	err = MPInit(65564, &context->_gMemPool, NULL);
 	if (err != noErr) {
