@@ -111,7 +111,7 @@ void GUSIOTSocket::MopupEvents()
 		
 		delete udErr;
 	}
-	if (fCurEvent & (T_DISCONNECT | T_ORDREL)) {
+	if ((fCurEvent & (T_DISCONNECT | T_ORDREL)) && !(fEvent & T_LISTEN)) {
 		fReadShutdown = true;
 	}
 }
@@ -170,6 +170,7 @@ void GUSIOTSocket::close()
 	
 	Unbind();
 	OTCloseProvider(fEndpoint);
+	fEvent = 0;
 	
 	GUSISocket::close();
 }
@@ -315,6 +316,16 @@ int GUSIOTSocket::ioctl(unsigned int request, va_list arg)
 	GUSI_ASSERT_CLIENT(false, ("ioctl: illegal request %d\n", request));
 	
 	return GUSISetPosixError(EOPNOTSUPP);
+}
+// <Member functions for class [[GUSIOTSocket]]>=                          
+bool GUSIOTSocket::pre_select(bool wantRead, bool wantWrite, bool wantExcept)
+{
+	size_t	sz;
+	
+	if (wantRead && OTCountDataBytes(fEndpoint, &sz) == kOTNoDataErr)
+		fEvent &= ~(T_DATA|T_EXDATA);
+	
+	return true;
 }
 // <Member functions for class [[GUSIOTSocket]]>=                          
 int GUSIOTSocket::getsockopt(int level, int optname, void *optval, socklen_t * optlen)
@@ -560,6 +571,7 @@ void GUSIOTStreamSocket::MopupEvents()
 	if (fCurEvent & T_CONNECT) {
 		GUSI_MESSAGE(("Connect\n"));
 		OTRcvConnect(fEndpoint, fPeerName);
+		fEvent |= T_GODATA;
 	}
 	if (fCurEvent & T_ORDREL) {
 		OTRcvOrderlyDisconnect(fEndpoint);
@@ -658,9 +670,9 @@ if (err) {
 		}
 		if (fNextListener) {
 			// <Call [[OTAccept]] and [[return]] if successful>=                       
-   GUSIOTSocket * sock = fNextListener;
+   GUSIOTStreamSocket * sock = fNextListener;
    fCompletion &= ~(CompleteMask(T_ACCEPTCOMPLETE));
-   SetAsyncMacError(OTAccept(fEndpoint, fNextListener->fEndpoint, fNextListener->fPeerName));
+   SetAsyncMacError(OTAccept(fEndpoint, sock->fEndpoint, sock->fPeerName));
    AddContext();
    MopupEvents();
    while (!fAsyncError && !(fCompletion & CompleteMask(T_ACCEPTCOMPLETE))) {
@@ -681,11 +693,13 @@ if (err) {
    	}
    	break;
    case 0:
-   	GUSI_MESSAGE(("GUSIOTStreamSocket::accept accepted %08x\n", fNextListener));
-   	fNextListener = fNextListener->fNextListener;
+   	GUSI_MESSAGE(("GUSIOTStreamSocket::accept accepted %08x\n", sock));
+   	fNextListener 		= sock->fNextListener;
+   	sock->fNextListener = nil;
    	
    	sock->getpeername(address, addrlen);
    	sock->fSockName = new (fEndpoint) GUSIOTTBind;
+   	sock->fEvent |= T_GODATA; /* Ready to write */
    	if (sock->fSockName && !fSockName->Copy(fStrategy, sock->fSockName))
    		return sock;
    	else
@@ -694,7 +708,7 @@ if (err) {
    default:
    deleteCandidate:
    	GUSI_MESSAGE(("GUSIOTStreamSocket::accept async error %d\n", error));
-   	fNextListener = fNextListener->fNextListener;
+   	fNextListener = sock->fNextListener;
    	
    	delete sock;
    }
@@ -772,6 +786,7 @@ ssize_t GUSIOTStreamSocket::recvfrom(
 	if (res == kOTNoDataErr) {
 		if (GUSISetPosixError(GetAsyncError()))
 			return -1;
+		fEvent &= ~(T_DATA|T_EXDATA);
 		if (!fBlocking)
 			return GUSISetPosixError(EWOULDBLOCK);
 		bool signal = false;
@@ -792,9 +807,15 @@ ssize_t GUSIOTStreamSocket::recvfrom(
 		buffer.SetLength(res);
 	if (from)
 		fPeerName->Unpack(fStrategy, from, fromlen);
-	if (exp && (otflags & (T_EXPEDITED|T_MORE)) != T_EXPEDITED) {
+	// When the [[T_EXDATA]] event arrives, we might first get some non-expedited data
+ // [[!(otflags & T_EXPEDITED)]] and then a packet of expedited data [[otflags & T_EXPEDITED]],
+ // possibly with the [[T_MORE]] flag set (although that should not happen in TCP/IP). We 
+ // therefore don't reset [[T_EXDATA]] until we have seen a packet with [[T_EXPEDITED]] set 
+ // and [[T_MORE]] not set.                                                 
+ //                                                                         
+ // <Keep [[T_EXDATA]] flag set until we finish reading expedited data>=    
+ if (exp && (otflags & (T_EXPEDITED|T_MORE)) != T_EXPEDITED) 
 		fEvent |= exp;
-	}
 	return res;
 }
 // <Member functions for class [[GUSIOTStreamSocket]]>=                    
@@ -814,6 +835,7 @@ ssize_t GUSIOTStreamSocket::sendto(
 		OTResult res = OTSnd(fEndpoint, buf, len, 0);
 		if (res <= 0)
 			if (res == kOTFlowErr) {
+				fEvent &= ~T_GODATA;
 				if (!fBlocking)
 					return done ? done : GUSISetPosixError(EWOULDBLOCK);
 				bool signal = GUSIContext::Yield(kGUSIBlock);
@@ -839,32 +861,34 @@ bool GUSIOTStreamSocket::select(bool * canRead, bool * canWrite, bool * except)
 	OTResult	state 	= OTGetEndpointState(fEndpoint);
 	
 	if (canRead) {
-		size_t	sz;
 		if (*canRead = 
 			fReadShutdown										// EOF
 		 || fAsyncError											// Asynchronous error
-		 ||	OTCountDataBytes(fEndpoint, &sz) != kOTNoDataErr	// Data available
+		 ||	fEvent & T_DATA										// Data available
 		 || state == T_INCON									// Connection pending
 		 || fNextListener										// Connection pending
 		) 
 			res = true;
 	}
-	if (canWrite)
-		if (fWriteShutdown || fAsyncError)
+	if (canWrite) {
+		if (fWriteShutdown || fAsyncError) {
 			res = *canWrite = true;
-		else
+		} else {
 			switch (state) {
 			case T_DATAXFER:
 			case T_INREL:
-				*canWrite = true;
-				res   	  = true;
+				if (*canWrite = (fEvent & T_GODATA) != 0)
+					res = true;
 				break;
 			default:
 				*canWrite = false;
 			}
-	if (except)
+		}
+	}
+	if (except) {
 		if (*except = (fEvent & T_EXDATA) != 0)
 			res = true;
+	}
 	return res;
 }	
 // <Member functions for class [[GUSIOTStreamSocket]]>=                    
@@ -1057,8 +1081,7 @@ bool GUSIOTDatagramSocket::select(bool * canRead, bool * canWrite, bool * except
 	OTResult	state 	= OTGetEndpointState(fEndpoint);
 	
 	if (canRead) {
-		size_t	sz;
-		if (*canRead = fAsyncError || OTCountDataBytes(fEndpoint, &sz) != kOTNoDataErr) 
+		if (*canRead = fAsyncError || fEvent & T_DATA) 
 			res = true;
 	}
 	if (canWrite)

@@ -55,6 +55,8 @@ pascal void GUSIOTNetDBNotify(
 	default:
 		if (code != kOTProviderWillClose)
 			result = 0;
+		else 
+			netdb->fCreationContext = nil;	// Close & reopen
 		break;
 	}
 	if (result)
@@ -84,6 +86,10 @@ void GUSIOTNetDB::Instantiate()
 bool GUSIOTNetDB::Resolver()
 {
 	if (!fCreationContext) {
+		if (fSvc) {
+			OTCloseProvider(fSvc);
+			fSvc = nil;
+		}
 		fCreationContext = GUSIContext::Current();
 		if (!GUSIOTFactory::Initialize())
 			return false;

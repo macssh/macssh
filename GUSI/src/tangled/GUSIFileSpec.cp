@@ -460,10 +460,12 @@ OSErr GUSIFileSpec::PrependPathComponent(char *&path, ConstStr63Param component,
 char *	GUSIFileSpec::RelativePath(const FSSpec & dir) const
 {
 	GUSIFileSpec current(dir);
+	if (current.fSpec.name[0])
+		++current;
+	long	relDirID= current.fSpec.parID;
 	if (current.GetVolume(0))
 		return FullPath();
 	short	relVRef = current.fSpec.vRefNum;
-	long	relDirID= dir.parID;
 	current = *this;
 	if (current.GetVolume(0) || current.fSpec.vRefNum != relVRef)
 		return FullPath();

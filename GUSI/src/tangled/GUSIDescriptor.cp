@@ -20,7 +20,7 @@ GUSIDescriptorTable::GUSIDescriptorTable()
 // <Member functions for class [[GUSIDescriptorTable]]>=                   
 #ifdef __MRC__
 #pragma noinline_func GUSISetupConsole, GUSISetupConsoleDescriptors, GUSISetupConsoleStdio
-#pragma noinline_func GUSIStdioClose, GUSIStdioFlush
+#pragma noinline_func GUSIStdioClose, GUSIStdioFlush, GUSISetupDescriptorTable
 #endif
 // <Member functions for class [[GUSIDescriptorTable]]>=                   
 GUSIDescriptorTable	* GUSIDescriptorTable::sGUSIDescriptorTable;
@@ -85,17 +85,38 @@ void GUSISetupConsoleDescriptors()
 #ifdef __MWERKS__
 #pragma dont_inline reset
 #endif
+// If, for any reason, the default descriptor table does not do the job for you, override
+// [[GUSISetupDescriptorTable]].                                           
+//                                                                         
+// <Default implementation of [[GUSISetupDescriptorTable]]>=               
+//
+// Prevent inlining to allow override
+//
+#ifdef __MWERKS__
+#pragma dont_inline on
+#endif
+
+void GUSISetupDescriptorTable()
+{
+}
+
+#ifdef __MWERKS__
+#pragma dont_inline reset
+#endif
 
 GUSIDescriptorTable * GUSIDescriptorTable::Instance()
 {
 	static bool sNeedConsoleSetup = true;
 	
 	if (!sGUSIDescriptorTable) {
-		sGUSIDescriptorTable = new GUSIDescriptorTable();
-		if (sNeedConsoleSetup) {
-			sNeedConsoleSetup = false;
-			GUSISetupConsole();
-		}
+		GUSISetupDescriptorTable();
+		
+		if (!sGUSIDescriptorTable)
+			sGUSIDescriptorTable = new GUSIDescriptorTable();
+	}
+	if (sNeedConsoleSetup) {
+		sNeedConsoleSetup = false;
+		GUSISetupConsole();
 	}
 	return sGUSIDescriptorTable;
 }

@@ -148,12 +148,15 @@ done:
 	return interrupt;
 }
 
+
 /*
  * The fSvc field of the GUSIOTNetDB instance is no longer valid after
  * an interface switch in the TCP/IP control panel.
  * Let's clear it upon kOTProviderWillClose message.
  */
 
+/* no longer needed: GUSI 2.1.6b2 fixes this */
+/*
 // <Asynchronous notifier function for [[GUSIOTNetDB]]>=                   
 inline uint32_t CompleteMask(OTEventCode code)	
 { 	
@@ -199,8 +202,7 @@ pascal void GUSIOTNetDBNotify(
 		netdb->fAsyncError = result;
 	context->Wakeup();
 }
-
-
+*/
 
 
 

@@ -380,7 +380,7 @@ void GUSIhostent::Alloc(size_t size)
 {
 	if (size > fAlloc) {
 		if (fName)
-			delete fName;
+			delete[] fName;
 		h_name = fName = new char[fAlloc = size];
 	}
 }

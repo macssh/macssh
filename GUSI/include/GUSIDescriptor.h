@@ -5,6 +5,9 @@
 // % Language	:	C++                                                        
 // %                                                                       
 // % $Log$
+// % Revision 1.1.1.1  2001/03/07 09:50:41  chombier
+// % First Imported.
+// %
 // % Revision 1.1.1.1  2001/03/03 21:50:10  chombier
 // % Initial import
 // %                                           
@@ -114,6 +117,7 @@ public:
 
 	static void SetInstance(GUSIDescriptorTable * table);
 	
+	GUSIDescriptorTable();
 	GUSIDescriptorTable(const GUSIDescriptorTable & parent);
 private:
 	// \section{Implementation of [[GUSIDescriptorTable]]}                     
@@ -123,7 +127,6 @@ private:
  // <Privatissima of [[GUSIDescriptorTable]]>=                              
  GUSISocket *	fSocket[SIZE];
  int				fInvalidDescriptor;
- GUSIDescriptorTable();
  // <Privatissima of [[GUSIDescriptorTable]]>=                              
  static	GUSIDescriptorTable	* sGUSIDescriptorTable;
 };
@@ -141,6 +144,7 @@ private:
 //                                                                         
 // <Hooks for ANSI library interfaces>=                                    
 extern "C" {
+void GUSISetupDescriptorTable();
 void GUSISetupConsole();
 void GUSIDefaultSetupConsole();
 void GUSISetupConsoleDescriptors();

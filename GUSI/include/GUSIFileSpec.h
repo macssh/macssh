@@ -5,6 +5,9 @@
 // % Language	:	C++                                                        
 // %                                                                       
 // % $Log$
+// % Revision 1.1.1.1  2001/03/07 09:50:44  chombier
+// % First Imported.
+// %
 // % Revision 1.1.1.1  2001/03/03 21:50:11  chombier
 // % Initial import
 // %                                             
@@ -333,8 +336,11 @@ public:
  // [[operator+]] provides a non-destructive variant of [[operator+=]].     
  //                                                                         
  // <Manipulating a [[GUSIFileSpec]]>=                                      
- friend GUSIFileSpec operator+(const FSSpec & spec, ConstStr31Param name);
- friend GUSIFileSpec operator+(const FSSpec & spec, const char * name);
+ //
+ // These don't need access to the GUSIFileSpec internals
+ //
+ // friend GUSIFileSpec operator+(const FSSpec & spec, ConstStr31Param name);
+ // friend GUSIFileSpec operator+(const FSSpec & spec, const char * name);
  // Array access replaces the file specification with the [[index]]th object in the
  // {\em parent directory} of the specification (allowing the same specification to
  // be reused for reading a directory).                                     

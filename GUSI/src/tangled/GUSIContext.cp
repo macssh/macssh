@@ -67,7 +67,8 @@ GUSIProcess::~GUSIProcess()
 			now += 300;			// Accelerate
 	}
 }
-// [[GUSIContext::Setup]] initializes the default context.                 
+// [[GUSIContext::Setup]] initializes the default context. We have to employ 
+// [[sCreatingCurrentContext]] to avoid nasty recursions.                  
 //                                                                         
 // <Implementation of completion handling>=                                
 void GUSIContext::Setup(bool threading)
@@ -75,11 +76,13 @@ void GUSIContext::Setup(bool threading)
 	bool	wasThreading = sHasThreading;
 	if (threading)
 		sHasThreading = true;
-	if (!sCurrentContext) {
+	if (!sCurrentContext && !sCreatingCurrentContext) {
 		MaxApplZone();		// It's about time, too!
 		
+		sCreatingCurrentContext = true;
 		sCurrentContext = 
-			new GUSIContext(kApplicationThreadID);
+			GUSIContextFactory::Instance()->CreateContext(kApplicationThreadID);
+		sCreatingCurrentContext = false;
 	} else if (!wasThreading && threading) {
 		// Sometimes we only recognize that we need threading after the application context
   // has already been created. Assuming a disciplined use of threads, we can assume
@@ -97,6 +100,7 @@ void GUSIContext::Setup(bool threading)
 // <Implementation of completion handling>=                                
 GUSIContext::Queue 		GUSIContext::sContexts;
 GUSIContext * 			GUSIContext::sCurrentContext;
+bool					GUSIContext::sCreatingCurrentContext;
 bool					GUSIContext::sHasThreading;
 OSErr					GUSIContext::sError;
 // <Implementation of completion handling>=                                
@@ -187,6 +191,7 @@ GUSIContext::~GUSIContext()
 // <Implementation of completion handling>=                                
 void GUSIContext::Queue::LiquidateAll()
 {
+	GUSIContextFactory::DeleteInstance();
 	GUSIDescriptorTable::CloseAllDescriptors();
 	while (!empty())
 		front()->Liquidate();
@@ -277,19 +282,46 @@ OSErr GUSINewThread(
 	return err;
 }
 // <Implementation of completion handling>=                                
-static auto_ptr<GUSIContextFactory> sGUSIContextFactory;
+#ifdef __MRC__
+#pragma noinline_func GUSISetupContextFactory
+#endif
+#ifdef __MWERKS__
+#pragma dont_inline on
+#endif
+
+void GUSISetupContextFactory()
+{
+}
+
+#ifdef __MWERKS__
+#pragma dont_inline reset
+#endif
+// <Implementation of completion handling>=                                
+static GUSIContextFactory *	sGUSIContextFactory;
+static bool					sGUSIContextFactorySetup;
 
 GUSIContextFactory * GUSIContextFactory::Instance()
 {
-	if (!sGUSIContextFactory.get()) 
+	if (!sGUSIContextFactorySetup) {
+		sGUSIContextFactorySetup = true;
+		GUSISetupContextFactory();
+	}
+
+	if (!sGUSIContextFactory) 
 		SetInstance(new GUSIContextFactory());
 	
-	return sGUSIContextFactory.get();
+	return sGUSIContextFactory;
 }
 
 void GUSIContextFactory::SetInstance(GUSIContextFactory * instance)
 {
-	sGUSIContextFactory = auto_ptr<GUSIContextFactory>(instance);
+	sGUSIContextFactory = instance;
+}
+
+void GUSIContextFactory::DeleteInstance()
+{
+	delete sGUSIContextFactory;
+	sGUSIContextFactory = 0;
 }
 
 GUSIContextFactory::GUSIContextFactory()

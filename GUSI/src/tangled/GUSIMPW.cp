@@ -184,7 +184,8 @@ class GUSIMPWDevice : public GUSIDevice {
 public:
 	static GUSIMPWDevice *	Instance();
 
-	// [[GUSIMPWDevice]] is prepared to handle an [[open]] on a limited set of names.
+	// [[GUSIMPWDevice]] is prepared to handle an [[open]] on a limited set of device names
+ // and on all files.                                                       
  //                                                                         
  // <Overridden member functions for class [[GUSIMPWDevice]]>=              
  virtual bool Want(GUSIFileToken & file);
@@ -285,7 +286,7 @@ bool GUSIMPWDevice::Want(GUSIFileToken & file)
 {
 	switch (file.WhichRequest()) {
 	case GUSIFileToken::kWillOpen:
-		return file.IsDevice() && (file.StrStdStream(file.Path()) > -1);
+		return !file.IsDevice() || (file.StrStdStream(file.Path()) > -1);
 	default:
 		return false;
 	}
@@ -338,6 +339,8 @@ static int TranslateOpenFlags(int mode)
 	return mpwMode;
 }
 // <Member functions for class [[GUSIMPWDevice]]>=                         
+extern int StandAlone;
+
 GUSISocket * GUSIMPWDevice::open(GUSIFileToken & file, int flags)
 {
 	if (!ConnectToMPWLibrary())
@@ -345,16 +348,17 @@ GUSISocket * GUSIMPWDevice::open(GUSIFileToken & file, int flags)
 
 	int fd 	= MPW_open(file.Path(), TranslateOpenFlags(flags));
 	
-	if (fd == -1)
+	if (fd == -1) {
 		return static_cast<GUSISocket *>(nil);
-	else
+	} else if (!file.IsDevice() && !StandAlone && MPW_ioctl(fd, FIOINTERACTIVE, nil) == -1) {
+		MPW_close(fd);
+		return GUSIMacFileDevice::Instance()->open(file, flags);
+	} else
 		return stdopen(fd, flags);
 }
 // [[stdopen]] handles the GUSI side of the opening.                       
 //                                                                         
 // <Member functions for class [[GUSIMPWDevice]]>=                         
-extern int StandAlone;
-
 GUSISocket * GUSIMPWDevice::stdopen(int fd, int flags)
 {
 	if (!ConnectToMPWLibrary())

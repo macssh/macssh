@@ -444,7 +444,7 @@ static int GetInterfaceList(ifconf * conf)
 				if (++interface == maxInterfaces)
 					goto bufferFull;
 			}
-			delete secondaries;
+			delete[] secondaries;
 		}
 		++numInterfaces;
 	}
@@ -472,7 +472,7 @@ static int GetInterfaceParam(ifreq * ifr, unsigned int request)
 		InetHost * secondaries = new InetHost[info.fIPSecondaryCount];
 		OTInetGetSecondaryAddresses(secondaries, &info.fIPSecondaryCount, ifnum);
 		info.fAddress = secondaries[ifalias-1];
-		delete secondaries;
+		delete[] secondaries;
 	}
 	switch (request) {
 	case SIOCGIFADDR:
