@@ -654,6 +654,8 @@ short VSredraw
 			VSIcuroff(w); 						// temporarily hide cursor
 		}
 
+		//RSerase(w, tx1, ty1, tx2, ty2);		// Erase the offending area
+
 		sx1 = tx1;
 		sx2 = tx2;
 
