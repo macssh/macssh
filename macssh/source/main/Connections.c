@@ -168,7 +168,9 @@ pascal short POCdlogfilter( DialogPtr dptr, EventRecord *evt, short *item)
 //	return(DLOGwOK_Cancel(dptr, evt, item));
 	result = CallStdFilterProc(dptr, evt, item);
 
-	if ( startautocomplete && LMGetTicks() - autoTicks >= 30 ) {
+	editField = ((DialogPeek)dptr)->editField + 1;
+	if ( startautocomplete &&
+		(LMGetTicks() - autoTicks >= 30 || editField != NChostname) ) {
 		startautocomplete = false;
 		doneautocomplete = true;
 		*item = NChostname;
@@ -379,11 +381,16 @@ Boolean PresentOpenConnectionDialog(void)
 						// check if the string matches a favorite name
 						scratchshort = FindMenuItemText(SessPopupHdl, scratchPstring);
 						if ( scratchshort /*&& sessMark != scratchshort*/ ) {
+							short editField = ((DialogPeek)dptr)->editField + 1;
+							short start = (**((DialogPeek)dptr)->textH).selStart;	// Get the current selection
+							short end = (**((DialogPeek)dptr)->textH).selEnd;
 							SetItemMark(SessPopupHdl, sessMark, 0);
 							sessMark = scratchshort;
 							SetItemMark(SessPopupHdl, sessMark, 18);
 							GetMenuItemText(SessPopupHdl, scratchshort, scratchPstring);
 							SetCurrentSession(dptr, scratchPstring);
+							if ( editField != NChostname )
+								SelectDialogItemText(dptr, editField, start, end);
 						}
 					}
 				}
