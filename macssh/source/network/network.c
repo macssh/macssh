@@ -881,6 +881,10 @@ short netgetport(short pnum)
 	if ( i >= 0 && screens[i].protocol == 4 ) {
 		WindRec *wind = &screens[i];
 		TRACEN(PRINTF("netgetport\n"));
+		// FIXME: this is completely wrong...
+		// we should return a local port to send
+		// unencrypted data from the module.
+		// but there's no such port...
 		return wind->port;
 	}
 /* NONO */
