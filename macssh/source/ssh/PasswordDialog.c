@@ -21,14 +21,23 @@
 #include <Memory.h>
 #include <Quickdraw.h>
 #include <Menus.h>
+#include <Notification.h>
 #include <Dialogs.h>
 #include <TextEdit.h>
 
 #include "PasswordDialog.h"
 #include "movableModal.h"
+#include "event.proto.h"
+#include "netevent.proto.h"
 #include "DlogUtils.proto.h"
 
+extern void ssh2_sched();
+
+extern TelInfoRec	*TelInfo;
+extern Boolean		gAEavail;
+
 static pascal Boolean RandomizeFilter(DialogPtr dlog,EventRecord *event,short *itemHit);
+OSErr InteractWithUser( Boolean isUrgent, short sicnResID, short strResID );
 static pascal Boolean InternalBufferFilter(DialogPtr dlog,EventRecord *event,short *itemHit);
 static void DeleteRange(char *buffer,short start,short end);
 static Boolean InsertChar(char *buffer,short pos,char c,short max);
@@ -279,6 +288,8 @@ void SSH2ErrorDialog(char *mess1)
 	short item;
 	char buf[256];
 
+	InteractWithUser( true, 128, 128 );
+
 	dlog = GetNewMyDialog(rSSH2ErrorDialog, 0L, (WindowPtr)-1L, (void *)ThirdCenterDialog);
 	if ( dlog ) {
 		buf[0]=0;		/* dont print extraneous garbage to the screen... */
@@ -305,6 +316,8 @@ Boolean SSH2LoginDialog(StringPtr host, StringPtr login, StringPtr password)
 	short			item = 0;
 	ModalFilterUPP  internalBufferFilterUPP;
 	Str255			temp;
+
+	InteractWithUser( true, 128, 128 );
 
 	SetUpMovableModalMenus();
 	internalBufferFilterUPP = NewModalFilterProc(InternalBufferFilter);
@@ -353,6 +366,8 @@ Boolean SSH2PasswordDialog(StringPtr prompt, StringPtr password)
 	short			item = 0;
 	ModalFilterUPP  internalBufferFilterUPP;
 
+	InteractWithUser( true, 128, 128 );
+
 	SetUpMovableModalMenus();
 	internalBufferFilterUPP = NewModalFilterProc(InternalBufferFilter);
 	*password = '\0';
@@ -384,6 +399,8 @@ static short SSH2SOCDialog(char *fingerprint, int id)
 {
 	DialogPtr		dlog;
 	short			item = 3;	/* cancel */
+
+	InteractWithUser( true, 128, 128 );
 
 	SetUpMovableModalMenus();
 	dlog = GetNewMyDialog(id, 0L, (WindowPtr)-1L, NULL);
@@ -420,6 +437,95 @@ short SSH2SOC1Dialog(char *fingerprint)
 short SSH2SOC2Dialog(char *fingerprint)
 {
 	return SSH2SOCDialog(fingerprint, rSSH2SOC2Dialog);
+}
+
+
+// ---------------------------------------------------------------------------
+//		¥ AEIdleProc
+// ---------------------------------------------------------------------------
+
+static pascal Boolean AEIdleProc(
+	EventRecord			*theEvent,
+	long				*sleepTime,
+	RgnHandle			*mouseRgn )
+{
+	DoEvents(NULL);
+	ssh2_sched();
+	if (!TelInfo->done) {
+		DoNetEvents();
+	}
+	ssh2_sched();
+	return false;
+}
+
+// ---------------------------------------------------------------------------
+//		¥ InteractWithUser
+// ---------------------------------------------------------------------------
+
+OSErr InteractWithUser(
+	Boolean			isUrgent,
+	short			sicnResID,
+	short			strResID )
+{
+	static NMRec	notice;
+	static AEIdleUPP sAEIdleProc;
+	Handle			mySmallIcon;
+	Handle			notificationString;
+	char			sicnState, strState;
+	OSErr			err = noErr;
+
+
+	if ( TelInfo->suspended && gAEavail ) {
+
+		if (sAEIdleProc == NULL) {
+			sAEIdleProc = NewAEIdleProc( AEIdleProc );
+		}
+
+		// Set up a notification which blinks a small icon and (optionally)
+		// shows a dialog to the user.
+		notice.qType = nmType;
+		//notice.nmFlags = 0L;
+		//notice.nmPrivate = 0L;
+		//notice.nmReserved = 0L;
+		notice.nmMark = 1;
+		if ( ( mySmallIcon = GetResource( 'SICN', sicnResID ) ) != nil) {
+			sicnState = HGetState( mySmallIcon );
+			HNoPurge(mySmallIcon);
+		}
+		notice.nmIcon = mySmallIcon;
+		//notice.nmSound = 0L;
+		notice.nmSound = (Handle)-1L;	// play system alert sound
+		if (isUrgent && strResID != -1 && (notificationString = (Handle)GetString(strResID)) != nil) {
+			strState = HGetState(notificationString);
+			MoveHHi( notificationString );
+			HLock( notificationString );
+			notice.nmStr = (StringPtr)*notificationString;
+		} else {
+			notificationString = nil;
+			notice.nmStr = nil;
+		}
+		notice.nmResp = 0L;
+		notice.nmRefCon = 0L;
+		// If we're in the background, the next call will either switch us to the front,
+		// call the Notification Manager, or return an error indicating that user interaction
+		// is not allowed.
+		// If interaction is allowed (and we're in the back), this call will wait for our
+		// application to become frontmost and then return noErr.
+		// If we're already in front, it returns noErr.
+		//err = AEInteractWithUser(kAEDefaultTimeout, &notice, gAEIdleProc);
+		//err = ::AEInteractWithUser(kNoTimeOut, &notice, gAEIdleProc);
+		err = AEInteractWithUser( kNoTimeOut, &notice, sAEIdleProc );
+
+		//if ( !err )
+		//	TelInfo->suspended = false;
+
+		if ( mySmallIcon )
+			HSetState( mySmallIcon, sicnState );
+		if ( notificationString )
+			HSetState( notificationString, strState );
+	}
+
+	return err;
 }
 
 void InternalBufferDialog(StringPtr prompt, StringPtr password)
