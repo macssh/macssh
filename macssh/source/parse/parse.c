@@ -821,7 +821,7 @@ static	void	process_suboption(struct WindRec *tw, unsigned char *start, unsigned
 				 * If we turned on encryption, we must decrypt the rest of the buffer.
 				 */
 				if (s == TNREP_START_DECRYPT) {
-					decrypt((tnParams *)tw->aedata, start, (long)(end-start));
+					kdecrypt((tnParams *)tw->aedata, start, (long)(end-start));
 				}
 
 				if (sizeof(sendbuffer) - sendlength)
