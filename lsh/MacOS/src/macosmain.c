@@ -492,44 +492,44 @@ pascal Ptr PLstrrchr(ConstStr255Param s, short c)
 /*
  * InstallTTY
  */
-int InstallTTY(int id, int flags)
+int InstallTTY(int id, void *context)
 {
-#pragma unused (id, flags)
+#pragma unused (id, context)
 	return 0;
 }
 
 /*
  * RemoveTTY
  */
-void RemoveTTY(int id, int flags)
+void RemoveTTY(int id, void *context)
 {
-#pragma unused (id, flags)
+#pragma unused (id, context)
 }
 
 /*
  * WriteCharsToTTY
  */
-int WriteCharsToTTY(int id, int flags, char *buffer, int n)
+int WriteCharsToTTY(int id, void *context, char *buffer, int n)
 {
-#pragma unused (id, flags)
+#pragma unused (id, context)
 	return WriteCharsToConsole(buffer, n);
 }
 
 /*
  * ReadCharsFromTTY
  */
-int ReadCharsFromTTY(int id, int flags, char *buffer, int n)
+int ReadCharsFromTTY(int id, void *context, char *buffer, int n)
 {
-#pragma unused (id, flags)
+#pragma unused (id, context)
 	return ReadCharsFromConsole(buffer, n);
 }
 
 /*
  * AvailableFromTTY
  */
-int AvailableFromTTY(int id, int flags)
+int AvailableFromTTY(int id, void *context)
 {
-#pragma unused (id, flags)
+#pragma unused (id, context)
 	extern short gSIOUXBufSize;
 	if ( !gSIOUXBufSize ) {
 		QHdrPtr eventQueue = LMGetEventQueue();

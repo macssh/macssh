@@ -90,9 +90,9 @@ void ssh2_init()
 		gethostid();
 
 		/*GUSISetupConsole();*/
-		sGUSISetup = true;
-
 		g_error_fd = open("dev:ttyerr", O_WRONLY );
+
+		sGUSISetup = true;
 	}
 }
 

@@ -544,29 +544,36 @@ pascal Ptr PLstrrchr(ConstStr255Param s, short c)
 /*
  * InstallTTY
  */
-int InstallTTY(int fd, int flags)
+int InstallTTY(int id, void *ctx)
 {
-#pragma unused (fd)
+#pragma unused (id, ctx)
 	return 0;
 }
 
 /*
  * RemoveTTY
  */
-void RemoveTTY(int fd, int flags)
+void RemoveTTY(int fd, void *ctx)
 {
-#pragma unused (fd)
+#pragma unused (id, ctx)
 }
 
 /*
  * WriteCharsToTTY
  */
-int WriteCharsToTTY(int fd, int flags, char *buffer, int n)
+int WriteCharsToTTY(int id, void *ctx, char *buffer, int n)
 {
 	long			written = 0;
-	lshcontext		*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+	lshcontext		*context = (lshcontext *)ctx;
 	char			*buf = buffer;
 	char			c;
+
+	if ( id == 2 ) {
+		// log stderr to console
+		syslog( 0, "%.*s", n, buffer );
+		/*putlln( buffer, n );*/
+		return n;							
+	}
 
 	if ( !context ) {
 		return 0;
@@ -634,10 +641,11 @@ int WriteCharsToTTY(int fd, int flags, char *buffer, int n)
 /*
  * ReadCharsFromTTY
  */
-int ReadCharsFromTTY(int fd, int flags, char *buffer, int n)
+int ReadCharsFromTTY(int id, void *ctx, char *buffer, int n)
 {
+#pragma unused (id)
 	long			len = 0;
-	lshcontext		*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+	lshcontext		*context = (lshcontext *)ctx;
 
 	if ( !context ) {
 		return 0;
@@ -675,9 +683,10 @@ int ReadCharsFromTTY(int fd, int flags, char *buffer, int n)
 /*
  * AvailableFromTTY
  */
-int AvailableFromTTY(int id, int flags)
+int AvailableFromTTY(int id, void *ctx)
 {
-	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+#pragma unused (id)
+	lshcontext *context = (lshcontext *)ctx;
 
 	if ( !context ) {
 		return 0;
@@ -1176,8 +1185,10 @@ void lsh_delete(lshctx *ctx)
 		lshcontext *context = ctx->context;
 		context->_gConsoleInEOF = true;
 		pthread_kill( ctx->pthread, SIGINT );
-		ctx->pthread = NULL;
-		ssh2_sched();
+		while (ctx->pthread) {
+			/* wait for thread to die */
+			ssh2_sched();
+		}
 	}
 	if ( ctx->argstr != NULL ) {
 		DisposePtr( ctx->argstr );

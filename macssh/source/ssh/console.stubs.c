@@ -36,8 +36,8 @@
 
 extern void syslog( int priority, const char *format, ...);
 
-static void accept_call();
-static void check_listener();
+static void accept_call(lshcontext *context);
+static void check_listener(lshcontext *context);
 
 
 /*
@@ -191,13 +191,8 @@ void clrscr()
  * accept_call
  */
 
-static void accept_call()
+static void accept_call(lshcontext *context)
 {
-	lshcontext			*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-
-	if ( !context ) {
-		return;
-	}
 	if ( context->_listener != -1 && context->_socket == -1 ) {
 		struct sockaddr peer;
 		socklen_t addr_len = sizeof(peer);
@@ -230,13 +225,8 @@ static void accept_call()
  * check_listener
  */
 
-static void check_listener()
+static void check_listener(lshcontext *context)
 {
-	lshcontext		*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-
-	if ( !context ) {
-		return;
-	}
 	if ( context->_listener != -1 && context->_socket == -1 ) {
 		struct fd_set rfds;
 		struct timeval timeout;
@@ -246,7 +236,7 @@ static void check_listener()
 		timeout.tv_usec = 0;
 		if ( select( 32, &rfds, NULL, NULL, &timeout ) ) {
 			if ( FD_ISSET( context->_listener, &rfds ) ) {
-				accept_call();
+				accept_call(context);
 			}
 		}
 	}
@@ -292,43 +282,43 @@ static long read_local_socket(lshcontext *context, char *buffer, long n)
 /*
  * InstallTTY
  */
-int InstallTTY(int fd, int flags)
+int InstallTTY(int id, void *ctx)
 {
-#pragma unused (fd)
+#pragma unused (id)
 	return 0;
 }
 
 /*
  * RemoveTTY
  */
-void RemoveTTY(int fd, int flags)
+void RemoveTTY(int id, void *ctx)
 {
-#pragma unused (fd)
+#pragma unused (id)
 }
 
 /*
  * WriteCharsToTTY
  */
-int WriteCharsToTTY(int fd, int flags, char *buffer, int n)
+int WriteCharsToTTY(int id, void *ctx, char *buffer, int n)
 {
 	long			written = 0;
-	lshcontext		*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+	lshcontext		*context = ctx;
 	char			*buf = buffer;
 	char			c;
 
-	if ( !context ) {
-		return 0;
-	}
-
-	if ( fd == 2 ) {
+	if ( id == 2 ) {
 		// log stderr to console
 		putlln( buffer, n );
 		return n;							
 	}
 
+	if ( !context ) {
+		return 0;
+	}
+
 	if ( context->_listener != -1 ) {
 		/* write data to local socket */
-		check_listener();
+		check_listener(context);
 		if ( context->_socket != -1 ) {
 			while ( n > 0 && context->_socket != -1 ) {
 				long len = n;
@@ -411,10 +401,10 @@ int WriteCharsToTTY(int fd, int flags, char *buffer, int n)
 /*
  * ReadCharsFromTTY
  */
-int ReadCharsFromTTY(int fd, int flags, char *buffer, int n)
+int ReadCharsFromTTY(int id, void *ctx, char *buffer, int n)
 {
 	long			len = 0;
-	lshcontext		*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+	lshcontext		*context = ctx;
 
 	if ( !context ) {
 		return 0;
@@ -440,7 +430,7 @@ int ReadCharsFromTTY(int fd, int flags, char *buffer, int n)
 			ssh2_sched();
 			if ( context->_listener != -1 ) {
 				/* read data from local socket */
-				check_listener();
+				check_listener(context);
 				if ( context->_socket != -1 ) {
 					len = read_local_socket(context, buffer, n);
 					if ( context->_socket == -1 && len == 0 ) {
@@ -463,9 +453,9 @@ int ReadCharsFromTTY(int fd, int flags, char *buffer, int n)
 /*
  * AvailableFromTTY
  */
-int AvailableFromTTY(int id, int flags)
+int AvailableFromTTY(int id, void *ctx)
 {
-	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+	lshcontext		*context = ctx;
 
 	if ( !context ) {
 		return 0;
@@ -486,7 +476,7 @@ int AvailableFromTTY(int id, int flags)
 		if ( select( 32, &rfds, NULL, &efds, &timeout ) ) {
 			if ( context->_socket == -1 ) {
 				if ( FD_ISSET( context->_listener, &rfds ) ) {
-					accept_call();
+					accept_call(context);
 				}
 			} else {
 				if ( FD_ISSET( context->_socket, &efds ) ) {

@@ -29,7 +29,6 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-/*#include <errno.h>*/
 
 
 class GUSITTYDevice : public GUSIDevice {
@@ -78,10 +77,10 @@ public:
  bool select(bool * canRead, bool * canWrite, bool *);
 
 protected:
-	GUSITTYSocket(int id, int flags);
+	GUSITTYSocket(int id, void *context);
 
   int mId;
-  int mFlags;
+  void *mContext;
 
  friend class GUSITTYDevice;
 };
@@ -150,7 +149,7 @@ GUSISocket * GUSITTYDevice::open(GUSIFileToken &file, int flags)
 	} else /*if (file.StrFragEqual(path+7, "err"))*/ {
 		id = 2;
 	}
-	if ( !(sock = new GUSITTYSocket(id, flags) )) {
+	if ( !(sock = new GUSITTYSocket(id, pthread_getspecific(ssh2threadkey)) )) {
 		GUSISetPosixError(ENOMEM);
 	}
 	return sock;
@@ -161,9 +160,9 @@ GUSISocket * GUSITTYDevice::open(GUSIFileToken &file, int flags)
 /*
  * GUSITTYSocket::GUSITTYSocket
  */
-GUSITTYSocket::GUSITTYSocket(int id, int flags) : mId(id), mFlags(flags)
+GUSITTYSocket::GUSITTYSocket(int id, void *context) : mId(id), mContext(context)
 {
-	InstallTTY(id, flags);
+	InstallTTY(id, context);
 }
 
 
@@ -172,7 +171,7 @@ GUSITTYSocket::GUSITTYSocket(int id, int flags) : mId(id), mFlags(flags)
  */
 GUSITTYSocket::~GUSITTYSocket()
 {
-	RemoveTTY(mId, mFlags);
+	RemoveTTY(mId, mContext);
 }
 
 /*
@@ -183,7 +182,7 @@ ssize_t GUSITTYSocket::read(const GUSIScatterer & buffer)
 	/* FIXME: flush pending output */
 	/*FlushTTY(mId);*/
 	return buffer.SetLength(
-		ReadCharsFromTTY(mId, mFlags, (char *) buffer.Buffer(), (int)buffer.Length()));
+		ReadCharsFromTTY(mId, mContext, (char *) buffer.Buffer(), (int)buffer.Length()));
 }
 
 /*
@@ -191,7 +190,7 @@ ssize_t GUSITTYSocket::read(const GUSIScatterer & buffer)
  */
 ssize_t GUSITTYSocket::write(const GUSIGatherer & buffer)
 {
-	return WriteCharsToTTY(mId, mFlags, (char *) buffer.Buffer(), (int)buffer.Length());
+	return WriteCharsToTTY(mId, mContext, (char *) buffer.Buffer(), (int)buffer.Length());
 }
 
 /*
@@ -233,7 +232,7 @@ bool GUSITTYSocket::select(bool * canRead, bool * canWrite, bool *)
 {
 	bool cond = false;
 	if (canRead)
-		if (*canRead = AvailableFromTTY(mId, mFlags))
+		if (*canRead = AvailableFromTTY(mId, mContext))
 			cond = true;
 	if (canWrite)
 		cond = *canWrite = true;

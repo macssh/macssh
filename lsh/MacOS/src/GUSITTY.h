@@ -1,15 +1,19 @@
 #ifndef _GUSITTY_
 #define _GUSITTY_
 
+#include <pthread.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern int InstallTTY(int id, int flags);
-extern void RemoveTTY(int id, int flags);
-extern int ReadCharsFromTTY(int id, int flags, char * buffer, int length);
-extern int WriteCharsToTTY(int id, int flags, char * buffer, int length);
-extern int AvailableFromTTY(int id, int flags);
+extern pthread_key_t ssh2threadkey;
+
+extern int InstallTTY(int id, void *context);
+extern void RemoveTTY(int id, void *context);
+extern int ReadCharsFromTTY(int id, void *context, char * buffer, int length);
+extern int WriteCharsToTTY(int id, void *context, char * buffer, int length);
+extern int AvailableFromTTY(int id, void *context);
 
 #ifdef __cplusplus
 }
