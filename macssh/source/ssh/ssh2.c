@@ -1466,7 +1466,8 @@ static int build_cmdline(WindRec*w, char *argstr)
 		strcat(argstr, tempstr);
 	} else if ( w->ssh2method == 3 ) {
 		/* cvs pseudo 'port forwarding', listen to local socket */
-		/* strcat(argstr, " --no-pty"); */
+		if (!strstr("--no-pty", w->sshdata.command))
+			strcat(argstr, " --no-pty");
 		context = w->sshdata.context;
 		context->_convertLFs = 1;
 		if ( context->_listener == -1 ) {
