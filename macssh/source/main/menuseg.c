@@ -750,7 +750,7 @@ short ReallyClose( short scrn)
 	short		item;
 	Str255		scratchPstring;
 	
-	SetCursor(theCursors[normcurs]);
+	setLastCursor(theCursors[normcurs]);
 
 	GetWTitle(screens[scrn].wind, scratchPstring);
 	ParamText(scratchPstring, NULL, NULL, NULL);
@@ -1010,7 +1010,7 @@ void displayStatus(short n)
 	short			item;
 	Str255			scratchPstring,anotherString;
 	
-	SetCursor(theCursors[normcurs]);
+	setLastCursor(theCursors[normcurs]);
 	
 	switch(screens[n].active) {
 		case CNXN_ISCORPSE:
@@ -1048,127 +1048,42 @@ void displayStatus(short n)
  */
 void changeport(short oldprt, short newprt)
 {
-
-	//sprintf(tempspot,"oldscrn: %d, newscrn: %d",oldprt,newprt); putln(tempspot);
-	
 	if (screens[oldprt].active == CNXN_ACTIVE) 
 		CheckItem(myMenus[Conn], oldprt + FIRST_CNXN_ITEM, FALSE);		/* Adjust Conn menu */
 	CheckItem(myMenus[Conn], newprt + FIRST_CNXN_ITEM, TRUE);
-
 	CheckItem(myMenus[Emul], EMbs,FALSE);						/* Adjust BS */
 	CheckItem(myMenus[Emul], EMdel,FALSE);
 	CheckItem(myMenus[Emul], EMbs+screens[newprt].bsdel,TRUE);	/* and DEL */
-
+	CheckItem(myMenus[Emul], EMcapture, VSiscapturing(screens[newprt].vs));
+	CheckItem(myMenus[Emul], EMqprint, screens[newprt].qprint);
+	CheckItem(myMenus[Emul], EMff, screens[newprt].ignoreff);
+	CheckItem(myMenus[Emul], EMsuspend, screens[newprt].enabled);
+	CheckItem(myMenus[Emul], EMecho, screens[newprt].echo);
+	CheckItem(myMenus[Emul], EMwrap, screens[newprt].wrap);
+	CheckItem(myMenus[Emul], EMcrmap, screens[newprt].crmap);
+	CheckItem(myMenus[Emul], EMansi, screens[newprt].ANSIgraphics);
+	CheckItem(myMenus[Emul], EMxterm, screens[newprt].Xterm);
+	CheckItem(myMenus[Emul], EMeightbit, screens[newprt].eightbit);
+	CheckItem(myMenus[Emul], EMmapkeypad, screens[newprt].keypadmap);
+	CheckItem(myMenus[Emul], EMarrowmap, screens[newprt].arrowmap);
+	CheckItem(myMenus[Emul], EMpgupdwn, screens[newprt].pgupdwn);
+	CheckItem(myMenus[Emul], EMscroll, screens[newprt].ESscroll);
 	if (screens[newprt].tektype < 0) {	// TEK is inhibited
-		DisableItem(myMenus[Emul],EMclear);
-		DisableItem(myMenus[Emul],EMpage);
-		}
-	else {
-		EnableItem(myMenus[Emul],EMclear);
-		EnableItem(myMenus[Emul],EMpage);
+		DisableItem(myMenus[Emul], EMclear);
+		DisableItem(myMenus[Emul], EMpage);
+	} else {
+		EnableItem(myMenus[Emul], EMclear);
+		EnableItem(myMenus[Emul], EMpage);
+		CheckItem(myMenus[Emul], EMclear, screens[newprt].tekclear);
+	}
+	CheckItem(myMenus[Emul], EMmapd, screens[newprt].remapCtrlD);
+	CheckItem(myMenus[Emul], EMbold, screens[newprt].allowBold);
+	CheckItem(myMenus[Emul], EMboldcolor, screens[newprt].colorBold);
+	CheckItem(myMenus[Emul], EMinverse, screens[newprt].inversebold);
+	CheckItem(myMenus[Emul], EMbeep, screens[newprt].ignoreBeeps);
+	CheckItem(myMenus[Emul], EMrealblink, screens[newprt].realBlink);
 	
-		if (screens[newprt].tekclear)				/* BYU 2.4.8 */
-			CheckItem(myMenus[Emul],EMclear,TRUE);	/* BYU 2.4.8 */
-		else 										/* BYU 2.4.8 */
-			CheckItem(myMenus[Emul],EMclear,FALSE);	/* BYU 2.4.8 */
-		}
-		
-	if (screens[newprt].ESscroll)
-		CheckItem(myMenus[Emul],EMscroll,TRUE);
-	else 
-		CheckItem(myMenus[Emul],EMscroll,FALSE);
-
-	if (screens[newprt].echo) 					/* LOCAL ECHO */
-		CheckItem(myMenus[Emul],EMecho,TRUE);
-	else 										/* REMOTE ECHO */
-		CheckItem(myMenus[Emul],EMecho,FALSE);
-		
-	if (screens[newprt].enabled)
-		CheckItem(myMenus[Emul],EMsuspend,FALSE);
-	else
-		CheckItem(myMenus[Emul],EMsuspend,TRUE);
-		
-	if (screens[newprt].wrap) 					/* wrap on */
-		CheckItem(myMenus[Emul],EMwrap,TRUE);
-	else 										/* wrap off */
-		CheckItem(myMenus[Emul],EMwrap,FALSE);
-
-	if (screens[newprt].crmap)
-		CheckItem(myMenus[Emul],EMcrmap,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMcrmap,FALSE);
-
-	if (screens[newprt].ANSIgraphics)
-		CheckItem(myMenus[Emul],EMansi,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMansi,FALSE);
-
-	if (screens[newprt].Xterm)
-		CheckItem(myMenus[Emul],EMxterm,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMxterm,FALSE);
-
-	if (screens[newprt].remapCtrlD)
-		CheckItem(myMenus[Emul],EMmapd,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMmapd,FALSE);
-
-	if (screens[newprt].allowBold)
-		CheckItem(myMenus[Emul],EMbold,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMbold,FALSE);
-
-	if (screens[newprt].colorBold)
-		CheckItem(myMenus[Emul],EMboldcolor,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMboldcolor,FALSE);
-
-	if (screens[newprt].ignoreBeeps)
-		CheckItem(myMenus[Emul],EMbeep,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMbeep,FALSE);
-
-	if (screens[newprt].inversebold)
-		CheckItem(myMenus[Emul],EMinverse,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMinverse,FALSE);
-
-	if (screens[newprt].qprint)
-		CheckItem(myMenus[Emul],EMqprint,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMqprint,FALSE);
-
-	if (screens[newprt].ignoreff)
-		CheckItem(myMenus[Emul],EMff,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMff,FALSE);
-
-	if (screens[newprt].eightbit)
-		CheckItem(myMenus[Emul],EMeightbit,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMeightbit,FALSE);
-
-	if (screens[newprt].keypadmap)
-		CheckItem(myMenus[Emul],EMmapkeypad,TRUE);
-	else
-		CheckItem(myMenus[Emul],EMmapkeypad,FALSE);
-
-	if (VSiscapturing(screens[newprt].vs))				/* BYU 2.4.18 */
-		CheckItem(myMenus[Emul], EMcapture,TRUE);		/* BYU 2.4.18 */
-	else												/* BYU 2.4.18 */
-		CheckItem(myMenus[Emul], EMcapture,FALSE);		/* BYU 2.4.18 */
-
-	if (screens[newprt].arrowmap)						/* JMB */
-		CheckItem(myMenus[Emul],EMarrowmap, TRUE);		/* JMB */
-	else												/* JMB */
-		CheckItem(myMenus[Emul],EMarrowmap, FALSE);		/* JMB */
-		
-	if (screens[newprt].pgupdwn)						/* JMB */
-		CheckItem(myMenus[Emul],EMpgupdwn, TRUE);		/* JMB */
-	else												/* JMB */
-		CheckItem(myMenus[Emul],EMpgupdwn, FALSE);		/* JMB */
-	
-	scrn=newprt;
+	scrn = newprt;
 
 	CheckFonts();
 
@@ -1439,6 +1354,20 @@ void HandleMenuCommand( long mResult, short modifiers)
 	case NtermMenu:
 		switch(theItem) {
 
+		case EMbs:								/* Backspace for backspace  */
+			if (TelInfo->numwindows<1) break;
+			CheckItem(myMenus[Emul], EMbs+screens[scrn].bsdel,FALSE);
+			screens[scrn].bsdel=0;
+			CheckItem(myMenus[Emul], EMbs+screens[scrn].bsdel,TRUE);
+			break;
+		
+		case EMdel:								/* Delete for backspace */
+			if (TelInfo->numwindows<1) break;
+			CheckItem(myMenus[Emul], EMbs+screens[scrn].bsdel,FALSE);
+			screens[scrn].bsdel=1;
+			CheckItem(myMenus[Emul], EMbs+screens[scrn].bsdel,TRUE);
+			break;
+
 		case EMscreensize:
 			if (TelInfo->numwindows<1) break;					/* NCSA: SB */
 			SetScreenDimensions((short)scrn, modifiers);		/* NCSA: SB */
@@ -1460,202 +1389,115 @@ void HandleMenuCommand( long mResult, short modifiers)
 			}
 			return;
 
+		case EMcapture:											/* BYU 2.4.18 - Capture session to file */
+			if (VSiscapturing(screens[scrn].vs)) {				/* BYU 2.4.18 */
+				CloseCaptureFile(screens[scrn].vs);				/* BYU 2.4.18 */
+			} else {											/* BYU 2.4.18 */
+				if(VSopencapture(scrn, screens[scrn].vs))		/* BYU 2.4.18 */
+					CheckItem(myMenus[Emul], theItem,TRUE);	/* BYU 2.4.18 */
+			}													/* BYU 2.4.18 */
+			break;												/* BYU 2.4.18 */
+
+		case EMqprint:
+			screens[scrn].qprint = !screens[scrn].qprint;
+			CheckItem(myMenus[Emul], theItem, screens[scrn].qprint);
+			VSsetprintmode(screens[scrn].vs, screens[scrn].qprint);
+			break;
+
+		case EMff:
+			screens[scrn].ignoreff = !screens[scrn].ignoreff;
+			CheckItem(myMenus[Emul], theItem, screens[scrn].ignoreff);
+			break;
+
 		case EMsuspend:
 			if (TelInfo->numwindows < 1) break;
 			screens[scrn].enabled = !screens[scrn].enabled;
-			if (screens[scrn].enabled)
-				CheckItem( myMenus[Emul], EMsuspend, FALSE);
-			else
-				CheckItem( myMenus[Emul], EMsuspend, TRUE);
+			CheckItem( myMenus[Emul], theItem, !screens[scrn].enabled);
 			break;
 
 		case EMclrlines: // clear saved lines
 			if (TelInfo->numwindows < 1) break;
 			VSrealloc(screens[scrn].vs);
-			break;
-
-		case EMbs:								/* Backspace for backspace  */
-			if (TelInfo->numwindows<1) break;
-			CheckItem(myMenus[Emul], EMbs+screens[scrn].bsdel,FALSE);
-			screens[scrn].bsdel=0;
-			CheckItem(myMenus[Emul], EMbs+screens[scrn].bsdel,TRUE);
-			break;
-		
-		case EMdel:								/* Delete for backspace */
-			if (TelInfo->numwindows<1) break;
-			CheckItem(myMenus[Emul], EMbs+screens[scrn].bsdel,FALSE);
-			screens[scrn].bsdel=1;
-			CheckItem(myMenus[Emul], EMbs+screens[scrn].bsdel,TRUE);
+			/* FIXME: need to update scroll bars */
 			break;
 
 		case EMecho:								/* Toggle Local Echo (if poss.) */
 			if (TelInfo->numwindows < 1) break;
-			if (screens[scrn].echo && (screens[scrn].kblen>0)) {
+			if ( screens[scrn].echo && screens[scrn].kblen > 0 ) {
 				netwrite( screens[scrn].port, screens[scrn].kbbuf,
 							screens[scrn].kblen);	/* if not empty send buffer */
-				screens[scrn].kblen=0;
-				}
+				screens[scrn].kblen = 0;
+			}
 			screens[scrn].echo= !screens[scrn].echo;	/* toggle */
 			if (screens[scrn].echo) {					/* LOCAL ECHO */
 				if (!(modifiers & optionKey) && (screens[scrn].protocol == 0))
 					send_dont(screens[scrn].port,1);
-				CheckItem(myMenus[Emul],EMecho,TRUE);
-				}
-			else {										/* REMOTE ECHO */
+			} else {										/* REMOTE ECHO */
 				if (!(modifiers & optionKey) && (screens[scrn].protocol == 0))
 					send_do(screens[scrn].port,1);
-				CheckItem(myMenus[Emul],EMecho,FALSE);
-				}
+			}
+			CheckItem(myMenus[Emul], theItem, screens[scrn].echo);
 			break;
 			
 		case EMwrap:								/* wrap mode */
 			if (TelInfo->numwindows < 1) break;
 			if (!screens[scrn].wrap) {				/* is off, turn on */
 				screens[scrn].wrap = 1;
-				CheckItem( myMenus[Emul],EMwrap, TRUE);
 				VSwrite(screens[scrn].vs, "\033[?7h",5);	/* kick emulator */
-				}
-			else {
+			} else {
 				screens[scrn].wrap = 0;
-				CheckItem( myMenus[Emul],EMwrap, FALSE);
 				VSwrite(screens[scrn].vs, "\033[?7l",5);
-				}
+			}
+			CheckItem( myMenus[Emul], theItem, screens[scrn].wrap);
 			break;
 		
-		case EMarrowmap:										/* JMB */
-			if (TelInfo->numwindows < 1) break;					/* JMB */
-			screens[scrn].arrowmap = !screens[scrn].arrowmap;	/* JMB */
-			if (screens[scrn].arrowmap)							/* JMB */
-				CheckItem( myMenus[Emul], EMarrowmap, TRUE);	/* JMB */
-			else												/* JMB */
-				CheckItem( myMenus[Emul], EMarrowmap, FALSE);	/* JMB */
-			break;												/* JMB */
-
 		case EMcrmap:
 			if (TelInfo->numwindows < 1) break;
 			screens[scrn].crmap = !screens[scrn].crmap;
-			if (screens[scrn].crmap)
-				CheckItem( myMenus[Emul], EMcrmap, TRUE);
-			else
-				CheckItem( myMenus[Emul], EMcrmap, FALSE);
+			CheckItem( myMenus[Emul], theItem, screens[scrn].crmap);
 			break;
 
 		case EMansi:
 			if (TelInfo->numwindows < 1) break;
 			screens[scrn].ANSIgraphics = !screens[scrn].ANSIgraphics;
-			if (screens[scrn].ANSIgraphics)
-				CheckItem( myMenus[Emul], EMansi, TRUE);
-			else
-				CheckItem( myMenus[Emul], EMansi, FALSE);
+			CheckItem( myMenus[Emul], theItem, screens[scrn].ANSIgraphics);
 			break;
 
 		case EMxterm:
 			if (TelInfo->numwindows < 1) break;
 			screens[scrn].Xterm = !screens[scrn].Xterm;
-			if (screens[scrn].Xterm)
-				CheckItem( myMenus[Emul], EMxterm, TRUE);
-			else
-				CheckItem( myMenus[Emul], EMxterm, FALSE);
-			break;
-
-		case EMmapd:
-			if (TelInfo->numwindows < 1) break;
-			screens[scrn].remapCtrlD = !screens[scrn].remapCtrlD;
-			if (screens[scrn].remapCtrlD)
-				CheckItem( myMenus[Emul], EMmapd, TRUE);
-			else
-				CheckItem( myMenus[Emul], EMmapd, FALSE);
-			break;
-
-		case EMbold:
-			if (TelInfo->numwindows < 1) break;
-			screens[scrn].allowBold = !screens[scrn].allowBold;
-			if (screens[scrn].allowBold)
-				CheckItem( myMenus[Emul], EMbold, TRUE);
-			else
-				CheckItem( myMenus[Emul], EMbold, FALSE);
-			RSchangebold(screens[scrn].vs, screens[scrn].allowBold, screens[scrn].colorBold, screens[scrn].inversebold);
-			break;
-
-		case EMboldcolor:
-			if (TelInfo->numwindows < 1) break;
-			screens[scrn].colorBold = !screens[scrn].colorBold;
-			if (screens[scrn].colorBold)
-				CheckItem( myMenus[Emul], EMboldcolor, TRUE);
-			else
-				CheckItem( myMenus[Emul], EMboldcolor, FALSE);
-			RSchangebold(screens[scrn].vs, screens[scrn].allowBold, screens[scrn].colorBold, screens[scrn].inversebold);
-			break;
-
-		case EMinverse:
-			if (TelInfo->numwindows < 1) break;
-			screens[scrn].inversebold = !screens[scrn].inversebold;
-			if (screens[scrn].inversebold)
-				CheckItem( myMenus[Emul], EMinverse, TRUE);
-			else
-				CheckItem( myMenus[Emul], EMinverse, FALSE);
-			RSchangebold(screens[scrn].vs, screens[scrn].allowBold, screens[scrn].colorBold, screens[scrn].inversebold);
-			break;
-
-		case EMbeep:
-			if (TelInfo->numwindows < 1) break;
-			screens[scrn].ignoreBeeps = !screens[scrn].ignoreBeeps;
-			if (screens[scrn].ignoreBeeps)
-				CheckItem( myMenus[Emul], EMbeep, TRUE);
-			else
-				CheckItem( myMenus[Emul], EMbeep, FALSE);
-			VSbeepcontrol(screens[scrn].vs, screens[scrn].ignoreBeeps);
+			CheckItem( myMenus[Emul], theItem, screens[scrn].Xterm);
 			break;
 
 		case EMeightbit:
 			if (TelInfo->numwindows < 1) break;
 			screens[scrn].eightbit = !screens[scrn].eightbit;
-			if (screens[scrn].eightbit)
-				CheckItem( myMenus[Emul], EMeightbit, TRUE);
-			else
-				CheckItem( myMenus[Emul], EMeightbit, FALSE);
+			CheckItem( myMenus[Emul], theItem, screens[scrn].eightbit);
 			break;
 
 		case EMmapkeypad:
 			if (TelInfo->numwindows < 1) break;
 			screens[scrn].keypadmap = !screens[scrn].keypadmap;
-			if (screens[scrn].keypadmap)
-				CheckItem( myMenus[Emul], EMmapkeypad, TRUE);
-			else
-				CheckItem( myMenus[Emul], EMmapkeypad, FALSE);
+			CheckItem( myMenus[Emul], theItem, screens[scrn].keypadmap);
+			break;
+
+		case EMarrowmap:
+			if (TelInfo->numwindows < 1) break;
+			screens[scrn].arrowmap = !screens[scrn].arrowmap;
+			CheckItem( myMenus[Emul], theItem, screens[scrn].arrowmap);
 			break;
 
 		case EMpgupdwn:
-			if (TelInfo->numwindows < 1) break;					/* JMB */
-			screens[scrn].pgupdwn = !screens[scrn].pgupdwn;		/* JMB */
-			if (screens[scrn].pgupdwn)							/* JMB */
-				CheckItem( myMenus[Emul], EMpgupdwn, TRUE);		/* JMB */
-			else												/* JMB */
-				CheckItem( myMenus[Emul], EMpgupdwn, FALSE);	/* JMB */
-			break;												/* JMB */
+			if (TelInfo->numwindows < 1) break;
+			screens[scrn].pgupdwn = !screens[scrn].pgupdwn;
+			CheckItem( myMenus[Emul], theItem, screens[scrn].pgupdwn);
+			break;
 			
 		case EMscroll:										/* Scrollback on CLS */
 			if (TelInfo->numwindows<1) break;
 			screens[scrn].ESscroll = !screens[scrn].ESscroll;
 			VSscrolcontrol( screens[scrn].vs, -1, screens[scrn].ESscroll);
-			if (screens[scrn].ESscroll)
-				CheckItem(myMenus[Emul],EMscroll, TRUE);
-			else
-				CheckItem(myMenus[Emul],EMscroll, FALSE);
-			break;
-			
-		case EMpage:									/* TEK page command */
-			if (TelInfo->numwindows<1) break;
-			parse( &screens[scrn],  (unsigned char *) "\033\014",2);	/* BYU LSC */
-			break;
-
-		case EMclear:								/* BYU 2.4.8 - Clear on TEK page */
-			if (TelInfo->numwindows<1) break;
-			screens[scrn].tekclear = !screens[scrn].tekclear;
-			if (screens[scrn].tekclear)
-				CheckItem(myMenus[Emul],EMclear, TRUE);
-			else
-				CheckItem(myMenus[Emul],EMclear, FALSE);
+			CheckItem(myMenus[Emul], theItem, screens[scrn].ESscroll);
 			break;
 
 		case EMreset:									/* Reset Screen */
@@ -1669,29 +1511,63 @@ void HandleMenuCommand( long mResult, short modifiers)
 			else
 				CheckItem( myMenus[Emul],EMwrap, FALSE);
 			break;
+
 		case EMjump:									/* Jump Scroll */
 			if (TelInfo->numwindows<1) break;
 			FlushNetwork(scrn);							/* Flush it */
 			break;
 			
-		case EMqprint:
-			screens[scrn].qprint = !screens[scrn].qprint;
-			CheckItem(myMenus[Emul], EMqprint, screens[scrn].qprint);
-			VSsetprintmode(screens[scrn].vs, screens[scrn].qprint);
+		case EMpage:									/* TEK page command */
+			if (TelInfo->numwindows<1) break;
+			parse( &screens[scrn],  (unsigned char *) "\033\014",2);	/* BYU LSC */
 			break;
-		case EMff:
-			screens[scrn].ignoreff = !screens[scrn].ignoreff;
-			CheckItem(myMenus[Emul], EMff, screens[scrn].ignoreff);
-			break;
-		case EMcapture:											/* BYU 2.4.18 - Capture session to file */
-			if (VSiscapturing(screens[scrn].vs)) {				/* BYU 2.4.18 */
-				CloseCaptureFile(screens[scrn].vs);				/* BYU 2.4.18 */
-			} else {											/* BYU 2.4.18 */
-				if(VSopencapture(scrn, screens[scrn].vs))		/* BYU 2.4.18 */
-					CheckItem(myMenus[Emul], EMcapture,TRUE);	/* BYU 2.4.18 */
-			}													/* BYU 2.4.18 */
 
-			break;												/* BYU 2.4.18 */
+		case EMclear:								/* BYU 2.4.8 - Clear on TEK page */
+			if (TelInfo->numwindows<1) break;
+			screens[scrn].tekclear = !screens[scrn].tekclear;
+			CheckItem(myMenus[Emul], theItem, screens[scrn].tekclear);
+			break;
+
+		case EMmapd:
+			if (TelInfo->numwindows < 1) break;
+			screens[scrn].remapCtrlD = !screens[scrn].remapCtrlD;
+			CheckItem( myMenus[Emul], theItem, screens[scrn].remapCtrlD);
+			break;
+
+		case EMbold:
+			if (TelInfo->numwindows < 1) break;
+			screens[scrn].allowBold = !screens[scrn].allowBold;
+			CheckItem( myMenus[Emul], theItem, screens[scrn].allowBold);
+			RSchangebold(screens[scrn].vs, screens[scrn].allowBold, screens[scrn].colorBold, screens[scrn].inversebold);
+			break;
+
+		case EMboldcolor:
+			if (TelInfo->numwindows < 1) break;
+			screens[scrn].colorBold = !screens[scrn].colorBold;
+			CheckItem( myMenus[Emul], theItem, screens[scrn].colorBold);
+			RSchangebold(screens[scrn].vs, screens[scrn].allowBold, screens[scrn].colorBold, screens[scrn].inversebold);
+			break;
+
+		case EMinverse:
+			if (TelInfo->numwindows < 1) break;
+			screens[scrn].inversebold = !screens[scrn].inversebold;
+			CheckItem( myMenus[Emul], theItem, screens[scrn].inversebold);
+			RSchangebold(screens[scrn].vs, screens[scrn].allowBold, screens[scrn].colorBold, screens[scrn].inversebold);
+			break;
+
+		case EMbeep:
+			if (TelInfo->numwindows < 1) break;
+			screens[scrn].ignoreBeeps = !screens[scrn].ignoreBeeps;
+			CheckItem( myMenus[Emul], theItem, screens[scrn].ignoreBeeps);
+			VSbeepcontrol(screens[scrn].vs, screens[scrn].ignoreBeeps);
+			break;
+
+		case EMrealblink:
+			if (TelInfo->numwindows < 1) break;
+			screens[scrn].realBlink = !screens[scrn].realBlink;
+			CheckItem( myMenus[Emul], theItem, screens[scrn].realBlink);
+			VSenableblink(screens[scrn].vs, screens[scrn].realBlink);
+			break;
 
 		default:
 			break;
@@ -2197,7 +2073,7 @@ void SetScreenDimensions(short scrn, short modifiers)
 	SetUpMovableModalMenus();
 	dtemp=GetNewMyDialog( SizeDLOG, NULL, kInFront, (void *)ThirdCenterDialog); 
 	
-	SetCursor(theCursors[normcurs]);
+	setLastCursor(theCursors[normcurs]);
 
 	notgood = 1;
 	lines = VSgetlines(screens[scrn].vs);

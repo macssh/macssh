@@ -100,6 +100,7 @@
 #define EMboldcolor 36		// RAB BetterTelnet 1.0fc6: allow color for boldfacing
 #define EMinverse	37		// RAB BetterTelnet 1.0fc9: use inverse for bold
 #define EMbeep		38		// RAB BetterTelnet 1.0fc8: ignore beeps
+#define EMrealblink	39		// use real blinking
 
 /* ----------------- The Network Menu ---------------------- */
 /* #define NEcommand	19	Emulation Menu: Command Keys */
