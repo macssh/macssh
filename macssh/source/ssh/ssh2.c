@@ -1457,6 +1457,7 @@ static int build_cmdline(WindRec*w, char *argstr)
 	}
 	if ( w->ssh2method == 1 || w->ssh2method == 2 ) {
 		/* strcat(argstr, " -N"); */
+		/* strcat(argstr, " --no-pty"); */
 		if ( w->ssh2guests ) {
 			strcat(argstr, " -g");
 		}
@@ -1465,7 +1466,9 @@ static int build_cmdline(WindRec*w, char *argstr)
 		strcat(argstr, tempstr);
 	} else if ( w->ssh2method == 3 ) {
 		/* cvs pseudo 'port forwarding', listen to local socket */
+		/* strcat(argstr, " --no-pty"); */
 		context = w->sshdata.context;
+		context->_convertLFs = 1;
 		if ( context->_listener == -1 ) {
 			context->_listener = cvs_listen( w->localport );
 			if ( context->_listener == -1 ) {
@@ -1566,6 +1569,8 @@ void *ssh2_thread(WindRec*w)
 				werror("warning: failed to install ssh2_sighandler for SIGINT\n");
 			}
 
+
+
 		 	set_error_syslog(applname);
 			result = appl_main(argc, argv);
 
@@ -1585,7 +1590,7 @@ void *ssh2_thread(WindRec*w)
 			/* window's ptr might have changed... better reload it */
 			w = ssh2_window();
 
-		} while ( result == 0 && w && w->ssh2method == 3 );
+		} while ( result == 0 && w && (w->ssh2method == 3 || w->autoreconnect != 0) );
 
 	}
 
