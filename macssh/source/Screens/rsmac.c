@@ -367,7 +367,6 @@ void RSsetattr(short a)
 	
 } /* RSsetattr */
 
-
 void RSTextFont(short myfnum, short myfsiz, short myface) 				/* BYU */
 {										/* BYU */
 short tempFontID;						// RAB BetterTelnet 1.0fc4
@@ -537,9 +536,6 @@ void RSdraw
 	if (x <= 0)			/* BYU 2.4.12 - Without this, 1 pixel column of reverse */
 	  rect.left = -3;	/* BYU 2.4.12 - video text does not clear at left margin */
  
-	if (rect.bottom == RScurrent->rheight)
-		rect.bottom += 1; //CCP take care of updating problems while scrolling
-
 /* NONO */
 	oldClip = NewRgn();
 	if (oldClip) {
@@ -547,14 +543,17 @@ void RSdraw
  		ClipRect(&rect);
  	}
 /* NONO */
-
+/*
+	if (rect.bottom == RScurrent->rheight)
+		rect.bottom += 1; //CCP take care of updating problems while scrolling
+*/
 	EraseRect(&rect);
 
 	if (x <= 0)			/* BYU 2.4.12 - Okay, just putting it back the way it was */
 	  rect.left = 0;	/* BYU 2.4.12 */
 
 	MoveTo(x * RScurrent->fwidth, ys + RScurrent->fascent);
-	
+
 	DrawText(ptr, 0, len);
 
 	if (RScurrent->selected)
@@ -652,6 +651,9 @@ void RSdelchars
 			HUnlock((Handle) RSuRgn);
 		  } /* if */
 	  } /* if */
+/* NONO */
+    RSsetattr(VSIw->attrib); /* restore mode for text drawing */
+/* NONO */
   } /* RSdelchars */
 
 void RSdellines
@@ -757,6 +759,9 @@ void RSerase
 	if (RScurrent->selected)
 	  /* highlight any part of the selection within the cleared area */
 		RSinvText(w, *(Point *) &RScurrent->anchor, *(Point *) &RScurrent->last, &rect);
+/* NONO */
+    RSsetattr(VSIw->attrib); /* restore mode for text drawing */
+/* NONO */
   } /* RSerase */
 
 void RSinslines
@@ -798,6 +803,9 @@ void RSinslines
 	SetRect(&rect, 0, t * RScurrent->fheight - 1,
 		RScurrent->width, (t + n) * RScurrent->fheight + 1);
     ValidRect(&rect);
+/* NONO */
+    RSsetattr(VSIw->attrib); /* restore mode for text drawing */
+/* NONO */
   } /* RSinslines */
 
 void RSinscols
