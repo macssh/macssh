@@ -15,6 +15,9 @@
 #include "tekrgmac.proto.h"
 #include "rsinterf.proto.h"
 #include "event.proto.h"
+#include "netevent.proto.h"
+
+extern void ssh2_sched();
 
 extern MenuHandle myMenus[];
 
@@ -29,8 +32,13 @@ pascal void movableModalDialog(ModalFilterUPP filter, short *theItem)
 	SetPort(thisDialog);
 	
 	for(;;) {
-		WaitNextEvent(everyEvent, &theEvent, 20, 0L);
-		if( (*theItem = preFilterEvent(thisDialog, &theEvent)) != 0)
+		WaitNextEvent(everyEvent, &theEvent, gApplicationPrefs->TimeSlice, 0L);
+
+		DoNetEvents();
+		ssh2_sched();
+		SetPort(thisDialog);
+
+		if ((*theItem = preFilterEvent(thisDialog, &theEvent)) != 0)
 			break;
 		
 		if (filter != nil) {
