@@ -10,8 +10,8 @@
 
 #define VMajor			2
 #define VMinor			(1 * 16) + 0
-#define VStage			beta
-#define VRelease		9
-#define VShortString	"2.1b9"
+#define VStage			final
+#define VRelease		1
+#define VShortString	"2.1fc1"
 
 #define	CopyrightString	"©2000-2001 J.-P. Stierlin"
