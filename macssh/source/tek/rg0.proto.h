@@ -1,0 +1,12 @@
+void	TEKNULLunload(void);
+short	RG0newwin(void);
+char *RG0devname(void);
+void	RG0oneshort(short x);
+void	RG0void(void);
+short	RG0returnshort(short x);
+short	RG0pencolor(short w, short color);
+short	RG0point(short w, short x, short y);
+short	RG0drawline(short w, short a, short b, short c, short d);
+void	RG0dataline(short w, short data, short count);
+void	RG0charmode(short w, short rotation, short size);
+void	RG0info(short w, short a, short b, short c, short d, short v);

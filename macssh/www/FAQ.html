@@ -1,0 +1,100 @@
+<html>
+
+	<head>
+		<meta http-equiv="content-type" content="text/html;charset=ISO-8859-1">
+		<title>MacSSH FAQ</title>
+		<meta name="keywords" content="ssh, ssh2, secsh, secure shell, telnet, mac, macintosh, macos">
+	</head>
+
+	<body bgcolor="#ffffff">
+		<p><b>How do I configure SSH2 in MacSSH ?</b></p>
+		<p>I did not write (yet?) any manual for this software, but here's some help (you can also find some more help from The Ohio State University server, at this location: <a href="http://www.math.ohio-state.edu/support/ssh/mac/macssh/">Using MacSSH</a>)</p>
+		<p>- key pair:<br>
+			<br>To create your key pair, go to the Favorites settings (Menu &quot;Favorites&quot;, option &quot;Edit Favorites&#133;&quot;), click on &quot;Change&quot;, and in the SSH2 tab, click &quot;Initialize SSH&quot;. This is to be done only once for all SSH2 connections, and creates a couple of files named &quot;identity&quot; and &quot;identity.pub&quot; in MacSSH Prefs folder in MacOS Preferences folder.<br>
+			identity is your private key file. don't give it to anyone.<br>identity.pub is the corresponding public key, which you give to SSH2 admins whose servers require a public key to accept connections.<br>
+			If you intend to connect to OpenSSH/SSH2 servers using public key userauth, you will have to convert your public key to OpenSSH/SSH2 format by clicking on &quot;Export public key&#133;&quot; and send the resulting file to the admin.<br>
+		</p>
+		<p>
+			- Client configuration:<br>
+			<br>In the Favorites settings, tab SSH2, select the Encryption, Authentication and Compression methods to use, and, for a first connection to a host, leave the &quot;Never trust unknown host key&quot; unchecked. this will let MacSSH accept new keys from the SSH2 host you connect to. In the Favorites settings, tab Security, Select the Protocol ssh2 (Secure Shell), and enter your login (mandatory). You can leave the password blank if you don't want to save it in MacSSH preferences, it will be asked later. You should now be able to connect to the host.<br>
+		</p>
+		<p>- TCP Port Forwarding:<br>
+			<br>Duplicate the Favorite you want to connect to for port forwarding (or create a new favorite from scratch configured for SSH2), and in the SSH2 tab, select either Local or Remote TCP Port forwarding as Method. Enter the Local Port number, the Remote Host Name and the Remote Port Number, where Local Port number is the port number you want to use on your Mac as listener, and (Remote Host Name, Remote Port Number), the target service you want to use. Connect this session. You should then be able to use your favorite app connected on 127.0.0.1:localport, tunnelled via MacSSH to the SSH2 server, itself connected (unencrypted, this time) to remotehost:remoteport. Note that 'remote host' is generally the same host as the SSH2 server you're connected to, or close to it. If you want to know more about this feature, I highly recommend lsh documentation from the current lsh archive /doc/lsh.html file.<br>
+			<br>
+			More info on port forwarding with some screenshots is available at the University of Pennsylvania server at this location: <a href="http://www.sas.upenn.edu/biology/computing/instructions/security/portforwarding/">Port Forwarding on the Macintosh</a><br>
+		</p>
+		<p>
+			- Troubleshooting:<br>
+			<br> If you have problems to connect to a host, you can activate the verbose/debug/trace modes from the SSH2 tab, leave the terminal window opened, by checking the &quot;Windows don't go away&quot; box in the Preferences dialog, and type Cmd-' (single quote) to open the console window. The connection traces will be displayed in this window.<br>
+		</p>
+		<p> </p>
+		<p><b>How do I setup CVS in MacSSH ?</b></p>
+		<p>Let's say you need to access the project CVSPROJECT, on the sourceforge cvs server, as user CVSUSER, with password CVSPASS:<br>
+			<br>
+			1) MacSSH settings:<br>
+			<br>
+			Create a favorite configured with SSH2 for the CVS server you want to connect to:<br>
+			<br>
+			-Tab General:<br>&nbsp;&nbsp;&nbsp;&nbsp;host: cvs.CVSPROJECT.sourceforge.net<br>&nbsp;&nbsp;&nbsp;&nbsp;port: 22 (SSH default)<br>
+			-Tab Security:<br>&nbsp;&nbsp;&nbsp;&nbsp;protocol: ssh2 (secure shell)<br>&nbsp;&nbsp;&nbsp;&nbsp;username: CVSUSER<br>&nbsp;&nbsp;&nbsp;&nbsp;password: CVSPASS<br>&nbsp;&nbsp;&nbsp;&nbsp;command: -N -E&quot;cvs -d /cvsroot/CVSPROJECT server&quot;<br>
+			-Tab SSH2:<br>&nbsp;&nbsp;&nbsp;&nbsp;method: CVS port forwarding<br>&nbsp;&nbsp;&nbsp;&nbsp;local port: 514 (CVS)<br>
+			<br>
+			2) MacCVS settings:<br>
+			<br>CVSROOT: CVSUSER@127.0.0.1:/cvsroot/CVSPROJECT<br>
+			authentication: Rsh (&quot;.rhosts&quot; file)<br>
+			<br>
+			3) Connect MacSSH to the server, then use MacCVS as usually.<br>
+		</p>
+		<p></p>
+		<p><b>The connection fails with message &quot;do_zlib: inflate() failed: unknown compression method&quot;</b></p>
+		<p>Select either &quot;zlib&quot; or &quot;none&quot; for the compression method in the SSH2 tab, but not &quot;all in order&quot;.</p>
+		<p></p>
+		<p><b>The connection dies without any error message</b></p>
+		<p>Try forcing the authentication to either &quot;SHA1&quot; or &quot;MD5&quot;.</p>
+		<p></p>
+		<p><b>When I open a second forwarded session on the same local port, MacSSH displays &quot;lsh: Invalid argument, (errno = 22)&quot;</b></p>
+		<p>Once a local port is forwarded, it is no longer available for any other listener on the local host.<br>But you can still open as many connections as you want from this port.</p>
+		<p></p>
+		<p><b>It is sloooow, can't you do anything to make it faster ?</b></p>
+		<p>In the main preferences dialog, set the TimeSlice to 0.<br>
+			'debug' and 'trace' logging can also slow a lot the connection, so use these options only when experiencing troubles.</p>
+		<p></p>
+		<p><b>I've changed the Terminal colors to white on black, but the bold text is still displayed in black.</b></p>
+		<p>In the main preferences dialog, click on 'ANSI Colors' and select a color other than black.</p>
+		<p></p>
+		<p><b>Is there an easier way to resize the window than going through the resize dialog ?</b></p>
+		<p>Hold down the option (alt) key while clicking on the resize box.</p>
+		<p></p>
+		<p><b>How can I use different key-pairs for different hosts ?</b></p>
+		<p>You'll need to rename your keys, for instance identityX and identityX.pub, and add the option:<br>
+			-i identityX<br>
+			in the 'Command' field of the security tab.</p>
+		<p></p>
+		<p><b>I need to forward many different ports from the same SSH2 server. Is there an easier way than using many favorites ?</b></p>
+		<p>You can add several '-Llocalport:remotehost:remoteport' in the 'Command' field of the security tab <br>
+		</p>
+		<p></p>
+		<p><b>How do I forward X11 sessions with MacSSH ?</b></p>
+		<p>You can't.<br>
+			X11 is not yet supported by lsh. but it's in the todo list...<br>
+		</p>
+		<p></p>
+		<p><b>Will you add SSH1 support ?</b></p>
+		<p>I'm afraid no. I used lsh because I found it the easiest to port, but it is based on the new SSH2 standard only.<br>
+			I could not find any sources for SSH1 already ported to the MacOS. NiftyTelnet is not OpenSource, and<br>
+			the SSH1 version of BetterTelnet is not available as source-code.<br>
+			Anyway, there is already a free and excellent SSH1 client for MacOS, <a href="http://www.lysator.liu.se/~jonasw/freeware/">NiftyTelnet</a>, written by By <a href="mailto:jonasw@lysator.liu.se">Jonas Walld&eacute;n</a>.</p>
+		<p></p>
+		<p><b>Will you add SFTP support ?</b></p>
+		<p>well, I would love to, especially since I already wrote quite some file-transfer apps for the Mac. The user interface doesn't really frightens me, but...<br>
+			there's no sftp client yet in lsh.<br>
+			If you want to contribute, you're welcome !</p>
+		<p></p>
+		<p><b>Where can I get the sources of MacSSH ?</b></p>
+		<p>you can download the full sources archive (about 6 MBytes) at www.lysator.liu.se either using <a href="http://www.lysator.liu.se/~nisse/archive/MacSecSH-2.1a7.src.sit">http</a> or using <a href="ftp://ftp.lysator.liu.se/pub/security/lsh/MacSecSH-2.1a7.src.sit">ftp</a> </p>
+		<p>note that you'll need Metrowerks CodeWarrior Pro 6 to compile all the projects.</p>
+		<p></p>
+		<p><a href="index.html">back</a></p>
+	</body>
+
+</html>

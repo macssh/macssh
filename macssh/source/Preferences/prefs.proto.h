@@ -1,0 +1,15 @@
+OSErr OpenPreferencesFile(void);
+OSErr NewPreferences(void);
+OSErr LoadPreferences(void);
+OSErr SaveFTPPreferences(void);
+OSErr SaveAppPreferences(void);
+TerminalPrefs	**GetDefaultTerminal(void);
+SessionPrefs	**GetDefaultSession(void);
+void	GetHostNameFromSession(StringPtr string);
+Boolean			ProcessHostnameString(StringPtr, short*, short*);
+void CheckPrefsVersion(void);
+void PREFSUnload(void);
+void CheckPrefsHandleSize(Handle, long);
+Handle Get1NamedSizedResource(ResType, Str255, long);
+void RemoveTaggedResource(Handle, ResType, Str255);
+void SetTaggedSesResInfo(Handle, short, Str255, Str255);

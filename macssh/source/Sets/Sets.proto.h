@@ -1,0 +1,12 @@
+void	SETSunload(void);
+void readconfig(FSSpec theSet);
+void SaveSet(short, short);
+void LoadSet(void);
+char Myfgetc(short myfile);
+void CStringToFile(short myfile, unsigned char *mystring);
+short ncstrcmp(char *sa, char *sb);
+Boolean affirmative( char *s);
+Boolean Sissep( char c);
+short confile( char *s);
+short contoken( char c);
+void SaveSetFromSession(SessionPrefs*, TerminalPrefs*, short, short);

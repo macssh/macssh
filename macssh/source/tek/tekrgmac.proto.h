@@ -1,0 +1,37 @@
+
+/* tekrgmac.c */
+char *RGMdevname(void);
+short RGMnewwin(void);
+void RGMinit(void);
+short RGMgin(short w);
+short RGMpencolor(short w, short color);
+short RGMclrscr(short w);
+short RGMclose(short w);
+short RGMpoint(short w, short x, short y);
+short RGMdrawline(short w, short x0, short y0, short x1, short y1);
+void RGMinfo(short w, short v, short a, short b, short c, short d);
+void RGMpagedone(short w);
+void RGMdataline(short w, short data, short count);
+void RGMcharmode(short w, short rotation, short size);
+void RGMgmode(void);
+void RGMtmode(void);
+void RGMshowcur(void);
+void RGMlockcur(void);
+void RGMhidecur(void);
+void RGMbell(short w);
+void RGMuncover(short w);
+short RGMoutfunc(short (*f )());
+short RGsetwind(short dnum);
+short RGfindbyVG(short vg);
+short RGattach(short vg, short virt, char *name, short TEKtype);
+short RGdetach(short vg);
+short RGfindbywind(GrafPtr wind);
+short RGupdate(GrafPtr wind);
+short RGsupdate(short i);
+short RGgetVG(GrafPtr wind);
+short RGgetdnum(GrafPtr wind);
+short RGgetVS(short dnum);
+short inSplash(Point *p1, Point *p2);
+void VidSync(void);
+void RGmousedown(GrafPtr wind, Point *wherein);
+void RGMgrowme(short myRGMnum, GrafPtr window, long *where, short modifiers);

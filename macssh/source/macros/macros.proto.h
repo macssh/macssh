@@ -1,0 +1,28 @@
+/* macros.c */
+void	MACROSunload(void);
+void	initmacros(void);
+void disposemacros(NewMacroInfo *);
+void	CheckGlobalMacros(void);
+void	setmacro(NewMacroInfo *, short n, char *s);
+//void oldsetmacro(short n, char *s);
+short	sendmacro(struct WindRec *tw, short n);
+short	getmacro(NewMacroInfo *, short n, char *dest, short room);
+short	getmacrointohandle(NewMacroInfo *, short, Handle *);
+//short	oldgetmacro(short, char *, short, short);
+void	Macros(void);
+void 	saveMacros(NewMacroInfo *, FSSpec *theFile);
+//void 	oldsaveMacros(FSSpec *theFile);
+void	SaveGlobalMacros(NewMacroInfo *);
+void	loadMacros(NewMacroInfo *, FSSpec *theFile);
+void parseMacroFile(NewMacroInfo *, short fileRef);
+void parseNewMacros(NewMacroInfo *, short);
+void ParseMacrosFromHandle(NewMacroInfo *, Handle);
+void parseNewMacros2(NewMacroInfo *, Handle);
+void CloseMacros(NewMacroInfo *, DialogPtr);
+void CancelMacros(NewMacroInfo *, DialogPtr);
+void MacroDialog(NewMacroInfo *, DialogPtr, EventRecord *, short);
+void parseNewMacros(NewMacroInfo *, short);
+void fixMacros(NewMacroInfo *);
+void setupNewMacros(NewMacroInfo *);
+void GetDefaultMacros(void);
+short ModalMacros(NewMacroInfo *);

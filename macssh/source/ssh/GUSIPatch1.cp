@@ -1,0 +1,456 @@
+/*
+ * GUSIPatches.cp
+ * (c) 2000 Jean-Pierre Stierlin.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+#include "wind.h"
+
+#include "dialog_resrcdefs.h"
+#include "event.proto.h"
+#include "memory.proto.h"
+#include "netevent.proto.h"
+#include "network.proto.h"
+
+#include <GUSIInternal.h>
+#include <GUSIBasics.h>
+#include <GUSIContext.h>
+#include <GUSIConfig.h>
+#include <GUSIDiag.h>
+#include <GUSISocket.h>
+#include <GUSIPThread.h>
+#include <GUSIFactory.h>
+#include <GUSIDevice.h>
+#include <GUSIDescriptor.h>
+#include <GUSINetDB.h>
+#include <GUSISIOUX.h>
+
+#include <console.h>
+#include <sched.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
+#include <LowMem.h>
+
+/*#include "ssh2.h"*/ /* lsh source code doesn't like cplusplus... */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void ssh2_init();
+void ssh2_sched();
+
+char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *parID);
+
+int open(const char * path, int mode, ...);
+int dup(int s);
+int dup2(int s, int s1);
+int socket(int domain, int type, int protocol);
+int accept(int s, struct sockaddr *addr, socklen_t *addrlen);
+int close(int s);
+
+Boolean can_read();
+void ssh2_doevent(long sleepTime);
+void add_one_file(struct lshcontext *context, int fd);
+void remove_one_file(struct lshcontext *context, int fd);
+
+#ifdef __cplusplus
+}
+#endif
+
+extern pthread_key_t ssh2threadkey;
+
+/*
+ * ssh2_init
+ */
+
+void ssh2_init()
+{
+	static Boolean		sGUSISetup = false;
+
+	if ( !sGUSISetup ) {
+		GUSIContext::Setup(true);
+		GUSISetupConsole();
+		sGUSISetup = true;
+	}
+
+}
+
+/*
+ * sched_yield cannot be called without checking
+ * for GUSIContext::Current which can be called
+ * only from C++, hence ssh2_sched...
+ */
+
+void ssh2_sched()
+{
+	if (GUSIContext::Current() != NULL) {
+		sched_yield();
+	}
+}
+
+/*
+ * getprefsd return the full path of prefs directory
+ */
+
+char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *dirID)
+{
+	GUSIFileSpec	prefs(kPreferencesFolderType, kOnSystemDisk);
+	char * 			res;
+	char * 			out = buf;
+	const GUSICatInfo *info;
+
+	if (prefs.Error())
+		return GUSISetMacError(prefs.Error()), static_cast<char *>(nil);
+
+	prefs.SetName(name);
+	
+	/* resolve path name in case it's an alias */
+	prefs.Resolve( true );
+
+	res = prefs.FullPath();
+
+	if (size < strlen(res)+1)
+		return GUSISetPosixError(size > 0 ? ERANGE : EINVAL), 
+			static_cast<char *>(nil);
+	if (!out && !(out = (char *) malloc(size)))
+		return GUSISetPosixError(ENOMEM), static_cast<char *>(nil);
+
+	strcpy(out, res);
+
+	if ( (access( out, R_OK ) == 0 || mkdir( out ) == 0) && (info = prefs.CatInfo()) != nil ) {
+		*vRefNum = info->DirInfo().ioVRefNum;
+		*dirID = info->DirInfo().ioDrDirID;
+	} else {
+
+
+
+		if (!buf)
+			free(out);
+		return static_cast<char *>(nil);
+	}
+	return out;
+}
+
+/*
+ * default GUSIHandleNextEvent is GUSI's main event loop
+ * we use Telnet's own.
+ */
+
+void GUSIHandleNextEvent(long sleepTime)
+{
+	ssh2_doevent( sleepTime );
+}
+
+
+/*
+ * default GUSISIOUXSocket::select checks for keyDown or
+ * autoKey events from MacOS's EventQueue.
+ * we use an internal buffer.
+ */
+
+class GUSISIOUXSocket : public GUSISocket {
+public:
+	~GUSISIOUXSocket();
+	
+	ssize_t	read(const GUSIScatterer & buffer);
+	ssize_t write(const GUSIGatherer & buffer);
+	virtual int	ioctl(unsigned int request, va_list arg);
+	virtual int	fstat(struct stat * buf);
+	virtual int	isatty();
+	bool select(bool * canRead, bool * canWrite, bool *);
+
+	static GUSISIOUXSocket *	Instance();
+private:
+	static GUSISIOUXSocket *	sInstance;
+	
+	GUSISIOUXSocket();
+};
+
+bool GUSISIOUXSocket::select(bool * canRead, bool * canWrite, bool *)
+{
+	bool cond = false;
+
+	if (canRead) {
+		if (*canRead = can_read())
+			cond = true;
+	}
+	if (canWrite)
+		cond = *canWrite = true;
+	return cond;
+}
+
+/* we don't use SIOUX event handler */
+GUSISIOUXSocket::GUSISIOUXSocket() 
+{
+	InstallConsole(0);
+}
+
+
+/*
+ * default GUSIProcess::Yield has 20 ticks to remain in same state
+ * we use 0.
+ */
+
+/* GUSI 2.1.3
+void GUSIProcess::Yield(GUSIYieldMode wait)
+{
+	if (wait == kGUSIBlock) {
+		fWillSleep = true;
+		if (fReadyThreads > 1 || fDontSleep)
+			wait = kGUSIYield;
+	}
+	if (wait == kGUSIYield && LMGetTicks() - fResumeTicks < 0) {
+		GUSI_SMESSAGE("Skip WNE\n");
+		return;
+	}
+	if (fClosing)
+		fClosing->CheckClose();
+	if (gGUSISpinHook) {
+		gGUSISpinHook(wait == kGUSIBlock);
+	} else {
+		GUSI_SMESSAGE("Suspend\n");
+		GUSIHandleNextEvent(wait == kGUSIBlock ? 600 : 0);
+		GUSI_SMESSAGE("Resume\n");
+	} 
+		
+	fWillSleep 		= false;
+	fDontSleep 		= false;
+	fResumeTicks 	= LMGetTicks();
+}
+*/
+
+/* GUSI 2.1.5 */
+void GUSIProcess::Yield(GUSIYieldMode wait)
+{
+	if (wait == kGUSIBlock) {
+		fWillSleep = true;
+		if (fReadyThreads > 1 || fDontSleep) {
+			GUSI_SMESSAGE("Don't Sleep\n");
+			wait = kGUSIYield;
+		}
+	}
+	if (fExistingThreads < 2) // Single threaded process skips sleep only once
+		fDontSleep = false;
+	if (wait == kGUSIYield && LMGetTicks() - fResumeTicks < 1) {
+		fWillSleep 		= false;
+		return;
+	}
+	if (gGUSISpinHook) {
+		gGUSISpinHook(wait == kGUSIBlock);
+	} else {
+		GUSI_SMESSAGE("Suspend\n");
+		GUSIHandleNextEvent(wait == kGUSIBlock ? 60 : 0);
+		GUSI_SMESSAGE("Resume\n");
+	} 
+	if (fExistingThreads < 2) 		// Single threaded process skips sleep only once
+		fDontSleep = false;
+	fWillSleep 		= false;
+	fResumeTicks 	= LMGetTicks();
+	if (fClosing)
+		fClosing->CheckClose();
+}
+
+
+/*
+ * default GUSIContext::Yield has 12 ticks to remain in the same state
+ * we use 0.
+ */
+
+
+bool GUSIContext::Yield(GUSIYieldMode wait)
+{
+	if (wait == kGUSIYield && LMGetTicks() - sCurrentContext->fEntryTicks < 0)
+		return false;	
+
+	bool			mainThread	= sCurrentContext->fThreadID == kApplicationThreadID;
+	bool 			block		= wait == kGUSIBlock && !mainThread;
+	GUSIProcess	*	process 	= GUSIProcess::Instance();
+	bool 			interrupt 	= false;
+	
+	do {
+		if (mainThread)
+			process->Yield(wait);
+				
+		if (interrupt = Raise())
+			goto done;
+				
+		if (sHasThreading) {
+			if (block)
+				SetThreadState(kCurrentThreadID, kStoppedThreadState, kNoThreadID);
+			else
+				YieldToAnyThread();
+		}
+	} while (wait == kGUSIBlock && !sCurrentContext->fWakeup);
+done:
+	sCurrentContext->fWakeup = false;
+	
+	return interrupt;
+}
+
+
+
+/*
+ * we need to track open()/dup()/close()/socket() calls to close files/sockets
+ * upon abort/exit
+ */
+
+/*
+ * open.
+ */
+
+int	open(const char * path, int mode, ...)
+{
+	GUSIErrorSaver			saveError;
+	GUSIDeviceRegistry *	factory	= GUSIDeviceRegistry::Instance();
+	GUSIDescriptorTable *	table	= GUSIDescriptorTable::Instance();
+	GUSISocket * 			sock;
+	int						fd;
+	
+	if (sock = factory->open(path, mode)) {
+		if ((fd = table->InstallSocket(sock)) > -1) {
+			lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+			if ( context ) {
+				add_one_file(context, fd);
+			}
+			return fd;
+		}
+		sock->close();
+	}
+	if (!errno)
+		return GUSISetPosixError(ENOMEM);
+	else
+		return -1;
+}
+
+/*
+ * dup.
+ */
+
+int dup(int s)
+{
+	GUSIDescriptorTable		*table	= GUSIDescriptorTable::Instance();
+	GUSISocket				*sock	= GUSIDescriptorTable::LookupSocket(s);
+	int						fd;
+	lshcontext				*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+
+	if (!sock)
+		return -1;
+
+	fd = table->InstallSocket(sock);
+	if ( context ) {
+		add_one_file(context, fd);
+	}
+	return fd;
+}
+
+/*
+ * dup2.
+ */
+
+int dup2(int s, int s1)
+{
+	GUSIDescriptorTable		*table	= GUSIDescriptorTable::Instance();
+	GUSISocket				*sock	= GUSIDescriptorTable::LookupSocket(s);
+	int						fd;
+	lshcontext				*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+
+	if (!sock)
+		return -1;
+
+	table->RemoveSocket(s1);
+	fd = table->InstallSocket(sock, s1);
+	if ( context && s1 != fd ) {
+		remove_one_file(context, s1);
+		add_one_file(context, fd);
+	}
+	return fd;
+}
+
+/*
+ * socket.
+ */
+
+int socket(int domain, int type, int protocol)
+{
+	GUSIErrorSaver			saveError;
+	GUSISocketFactory *		factory	= GUSISocketDomainRegistry::Instance();
+	GUSIDescriptorTable *	table	= GUSIDescriptorTable::Instance();
+	GUSISocket * 			sock;
+	int						fd;
+	
+	if (sock = factory->socket(domain, type, protocol)) {
+		if ((fd = table->InstallSocket(sock)) > -1) {
+			lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+			if ( context ) {
+				add_one_file(context, fd);
+			}
+			return fd;
+		}
+		sock->close();
+	}
+	if (!errno)
+		return GUSISetPosixError(ENOMEM);
+	else
+		return -1;
+}
+
+/*
+ * accept.
+ */
+
+int accept(int s, struct sockaddr *addr, socklen_t *addrlen)
+{
+	GUSIDescriptorTable		*table = GUSIDescriptorTable::Instance();
+	GUSISocket				*sock= GUSIDescriptorTable::LookupSocket(s);
+	lshcontext				*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+
+	if (!sock)
+		return -1;
+
+	if (sock = sock->accept(addr, addrlen)) {
+		if ((s = table->InstallSocket(sock)) != -1) {
+			if ( context ) {
+				add_one_file(context, s);
+			}
+			return s;
+		} else {
+			sock->close();
+		}
+	}
+	return -1;
+}
+
+/*
+ * close.
+ */
+
+int close(int s)
+{
+	if ( s > STDERR_FILENO ) {
+		GUSIDescriptorTable *	table	= GUSIDescriptorTable::Instance();
+		lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+		if ( context ) {
+			remove_one_file(context, s);
+		}
+		return table->RemoveSocket(s);
+	} else {
+		/* we don't close stdin/stdout/stderr */
+		return 0;
+	}
+}
