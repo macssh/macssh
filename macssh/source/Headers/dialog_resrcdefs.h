@@ -158,21 +158,18 @@
 #define FTPtextcreatorbutton	15	/* FTP TEXT file creator selection button */
 
 #define TermDLOG	7003			/* The Terminal Config Dialog	---------------- */
-#define TermANSI				24	/* ANSI escape sequences checkbox */
+#define TermANSIEsc				24	/* ANSI escape sequences checkbox */
 #define TermXterm				25	/* Xterm escape sequences checkbox */
 #define Termvtwrap				26	/* Use vtwrap mode checkbox*/
-#define TermMetaIsCmdCntrol		35	/* Use control-cmd as meta */
-#define TermMetaIsOption		36	// use option as meta
-#define TermMetaIsOff			37	// no meta
-#define Termarrow				28	/* Use emacs arrow keys checkbox */
-#define TermMAT					29	/* Map pgup, etc. checkbox */
-#define Termeightbit			30	/* Eight bit connection */
-#define Termclearsave			31	/* Clear screen saves lines */
-#define TermRemapKeypad			32
-#define TermVT100				33	/* VT-100 emulation radio button */
-#define TermVT220				34	/* VT-220 emulation radio button */
-#define TermANSIE				51	/* ANSI emulation radio button */
-
+#define TermMetaIsCmdCntrol		33	/* Use control-cmd as meta */
+#define TermMetaIsOption		34	// use option as meta
+#define TermMetaIsOff			35	// no meta
+#define Termarrow				27	/* Use emacs arrow keys checkbox */
+#define TermMAT					28	/* Map pgup, etc. checkbox */
+#define Termeightbit			29	/* Eight bit connection */
+#define Termclearsave			30	/* Clear screen saves lines */
+#define TermRemapKeypad			31
+#define TermType				32	/* Terminal type popup */
 #define TermName				18	/* Terminal configuration name TE */
 #define TermWidth				14	/* Terminal width TE */
 #define TermHeight				16	/* Terminal height TE */
