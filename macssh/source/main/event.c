@@ -496,7 +496,8 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 emacsHack:
 				trbuf[0] = ESC;
 				trbuf[1] = ascii;
-				if ( (tw->clientflags & PASTE_IN_PROGRESS) && tw->pastemethod ) {
+				if ( (tw->clientflags & PASTE_IN_PROGRESS)
+				  && (tw->pastemethod || tw->outlen > 32767) ) {
 					// queue this
 					kbwrite( tw, trbuf, 2);
 				}
@@ -597,7 +598,8 @@ emacsHack:
 */
 		if ( !tw->keypadmap || code == 0x4c || code > 0x51 || code < 0x43 ) {
 			// dont remap operators
-			if ( (tw->clientflags & PASTE_IN_PROGRESS) && tw->pastemethod ) {
+			if ( (tw->clientflags & PASTE_IN_PROGRESS)
+			  && (tw->pastemethod || tw->outlen > 32767) ) {
 				// queue this
 				trbuf[0] = 0;
 				trbuf[1] = kpxlate[shifted][code - KPlowest];
@@ -684,7 +686,8 @@ emacsHack:
 //	VSprintf("trout: ");
 //	VSdump(pbuf, trlen);
 
-	if ( (tw->clientflags & PASTE_IN_PROGRESS) && tw->pastemethod ) {
+	if ( (tw->clientflags & PASTE_IN_PROGRESS)
+	  && (tw->pastemethod || tw->outlen > 32767) ) {
 		// queue this
 		kbwrite( tw, pbuf, trlen);
 		return;
