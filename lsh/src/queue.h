@@ -122,7 +122,8 @@ struct object_list *queue_to_list_and_kill(struct object_queue *q);
 	  (n##_next = n##_this->np_links[LSH_QUEUE_NEXT]));	\
 	n##_this = n##_next)
 
-/* NOTE: You should probably use break or perhaps continue after removing the current node. */
+/* NOTE: You should probably use break or perhaps continue after
+ * removing the current node. */
 /* FIXME: This name is rather ugly. */
 
 #define FOR_OBJECT_QUEUE_REMOVE(q, n) \

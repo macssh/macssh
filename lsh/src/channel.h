@@ -76,9 +76,17 @@ struct channel_request_info
 #define CHANNEL_SENT_EOF 4
 #define CHANNEL_RECEIVED_EOF 8
 
-/* Means that we should send close when we have both sent and received EOF. */
+/* Normally, this flag is set, and we initiate channel close as soon
+ * as we have both sent and received SSH_MSG_CHANNEL_EOF. Clearing
+ * this flag keeps the channel open. */
+
 #define CHANNEL_CLOSE_AT_EOF 0x10
   
+/* This flags means that we don't expect any more data from the other
+ * end, and that we don't want to wait for an SSH_MSG_CHANNEL_EOF
+ * before closing the channel. */
+
+#define CHANNEL_NO_WAIT_FOR_EOF 0x20
 
 /* GABA:
    (class

@@ -50,7 +50,7 @@ init_dh_instance(struct dh_method *m,
   self->hash = MAKE_HASH(m->H);
   self->exchange_hash = NULL;
 
-  debug("init_dh_instance()\n"
+  debug("init_dh_instance\n"
 	" V_C: %pS\n", c->versions[CONNECTION_CLIENT]);
   debug(" V_S: %pS\n", c->versions[CONNECTION_SERVER]);
   debug(" I_C: %xS\n", c->literal_kexinits[CONNECTION_CLIENT]);

@@ -104,8 +104,8 @@ format_userauth_success(void)
  * completely: if a request can't be replied to immediately, put the
  * entire connection on hold until the reply is ready.
  *
- * This code now uses serialization, using connection_lock() and
- * connection_unlock(). However, the implementation of serialization
+ * This code now uses serialization, using connection_lock and
+ * connection_unlock. However, the implementation of serialization
  * is rather stupid. And will crash if a userauth method returns to
  * the main loop while the connection is still locked. */
 
@@ -145,7 +145,7 @@ do_userauth_continuation(struct command_continuation *s,
 
   /* NOTE: It would be better to use a callout, so that we return back
    * to the backend loop before starting to process new packets. It's
-   * not obvious that calling connection_handle_pending() here is
+   * not obvious that calling connection_handle_pending here is
    * safe.
    *
    * connection_handle_pending(self->connection);
@@ -284,7 +284,7 @@ do_exc_userauth_handler(struct exception_handler *s,
 						    "Access denied"));
 	  }
 
-	/* FIXME: Possibly call connection_handle_pending(). */
+	/* FIXME: Possibly call connection_handle_pending. */
 	break;
       }
     case EXC_USERAUTH_SPECIAL:
@@ -298,7 +298,7 @@ do_exc_userauth_handler(struct exception_handler *s,
 	 * So we have to dup it, to make the gc happy. */
 	C_WRITE(self->connection, lsh_string_dup(e->reply));
 
-	/* FIXME: Possibly call connection_handle_pending(). */	
+	/* FIXME: Possibly call connection_handle_pending. */	
 	break;
       }
     }

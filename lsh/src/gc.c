@@ -161,7 +161,7 @@ void gc_register(struct lsh_object *o)
 /* NOTE: If the object is close to the start of the object list, it is
  * deallocated and forgotten immedietely. If the object is not found,
  * we don't search the entire list, but instead defer deallocation to
- * gc_sweep(). */
+ * gc_sweep. */
 void gc_kill(struct lsh_object *o)
 {
   sanity_check_object_list();
@@ -197,7 +197,7 @@ void gc_kill(struct lsh_object *o)
   else
     {
 #if 0
-      debug("gc_kill:   Deferring deallocation to gc_sweep()\n");
+      debug("gc_kill:   Deferring deallocation to gc_sweep\n");
 #endif
     }
   

@@ -32,7 +32,7 @@
 
 #include <assert.h>
 
-/* Needed only to get the error code from failed calls to io_connect() */
+/* Needed only to get the error code from failed calls to io_connect */
 #include <errno.h>
 
 /* For STDIN_FILENO */
@@ -161,9 +161,9 @@ do_listen(struct io_backend *backend,
 	  struct address_info *a,
 	  int lookup,
 	  struct resource_list *resources,
-	  /* Continuation if listen() succeeds. */
+	  /* Continuation if listen succeeds. */
 	  struct command_continuation *listen_c,
-	  /* Continuation if accept() succeeds. */
+	  /* Continuation if accept succeeds. */
 	  struct command_continuation *accept_c,
 	  struct exception_handler *e)
 {
@@ -319,7 +319,7 @@ do_connect(struct io_backend *backend,
     }
 
   /* If the name is canonicalized in any way, we should pass the
-   * canonical name to make_connect_continuation() .*/
+   * canonical name to make_connect_continuation .*/
   fd = io_connect(backend, addr, addr_length, 
 		  make_connect_continuation(a, c), e);
   lsh_space_free(addr);

@@ -741,7 +741,7 @@ do_parse_base64(struct read_handler **s,
   /* FIXME: Decoding one character at a time seems a little
    * inefficient. But it's the simplest way to ensure that we don't go
    * on after errors. To do something better, we would let
-   * make_parse_transport() and similar functions install a proper
+   * make_parse_transport and similar functions install a proper
    * exception handler. */
 
   if (!available)

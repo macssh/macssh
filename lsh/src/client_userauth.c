@@ -153,7 +153,7 @@ make_client_userauth_state(struct client_userauth *userauth,
 {
   NEW(client_userauth_state, self);
 
-  trace("client_userauth.c: make_client_userauth_state()\n");
+  trace("client_userauth.c: make_client_userauth_state\n");
   self->connection = connection;
   self->userauth = userauth;
   self->failure = NULL;
@@ -534,7 +534,7 @@ send_password(struct client_password_state *state)
       /* Password empty? */
       if (!passwd->length)
 	{
-	  /* NOTE: At least on some systems, the getpass() function
+	  /* NOTE: At least on some systems, the getpass function
 	   * sets the tty to raw mode, disabling ^C, ^D and the like.
 	   *
 	   * To be a little friendlier, we stop asking if the users
@@ -553,7 +553,7 @@ send_password(struct client_password_state *state)
     {
       /* If the user aborts the password dialogue (by pressing ^D at
        * the terminal, or by closing a password popup window,
-       * whatever), read_password() should return NULL, and we should
+       * whatever), read_password should return NULL, and we should
        * skip to the next authentication method. */
       static const struct exception no_passwd =
 	STATIC_EXCEPTION(EXC_USERAUTH, "No password supplied.");

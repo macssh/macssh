@@ -71,7 +71,7 @@ do_handle_dh_reply(struct packet_handler *c,
   struct verifier *v;
   int res;
   
-  trace("handle_dh_reply()\n");
+  trace("handle_dh_reply\n");
 
   server_key = dh_process_server_msg(&closure->dh, &signature, packet);
   lsh_string_free(packet);

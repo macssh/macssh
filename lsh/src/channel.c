@@ -914,8 +914,8 @@ DEFINE_PACKET_HANDLER(static, channel_request_handler,
 	}
       else
 	{
-	  werror("SSH_MSG_CHANNEL_REQUEST on nonexistant channel %i\n",
-		 channel_number);
+	  werror("SSH_MSG_CHANNEL_REQUEST on nonexistant channel %i: %xS\n",
+		 channel_number, packet);
 	}
     }
   else
@@ -1462,16 +1462,19 @@ DEFINE_PACKET_HANDLER(static, channel_close_handler,
 	    {
 	      channel->flags |= CHANNEL_RECEIVED_CLOSE;
 	  
-	      if (! (channel->flags & (CHANNEL_RECEIVED_EOF | CHANNEL_SENT_EOF
+	      if (! (channel->flags & (CHANNEL_RECEIVED_EOF | CHANNEL_NO_WAIT_FOR_EOF
 				       | CHANNEL_SENT_CLOSE)))
 		{
 		  werror("Unexpected channel CLOSE.\n");
 		}
 
+#if 0
+	      /* FIXME: Which eof-handlers rely on being called in
+	       * this case? */
 	      if (! (channel->flags & (CHANNEL_RECEIVED_EOF))
 		  && channel->eof)
 		CHANNEL_EOF(channel);
-
+#endif
 	      if (channel->flags & CHANNEL_SENT_CLOSE)
 		{
 		  static const struct exception finish_exception
@@ -1689,7 +1692,7 @@ void init_connection_service(struct ssh_connection *connection)
 {
   struct channel_table *table = make_channel_table();
   
-  debug("channel.c: do_connection_service()\n");
+  debug("channel.c: do_connection_service\n");
   
   connection->table = table;
 
@@ -1784,7 +1787,7 @@ channel_eof(struct ssh_channel *channel)
       A_WRITE(channel->write, format_channel_eof(channel) );
 
       if ( (channel->flags & CHANNEL_CLOSE_AT_EOF)
-	   && (channel->flags & CHANNEL_RECEIVED_EOF))
+	   && (channel->flags & (CHANNEL_RECEIVED_EOF | CHANNEL_NO_WAIT_FOR_EOF)) )
 	{
 	  /* Initiate close */
 	  channel_close(channel);
@@ -1799,7 +1802,7 @@ init_channel(struct ssh_channel *channel)
   channel->write = NULL;
   channel->super.report = adjust_rec_window;
   
-  channel->flags = 0;
+  channel->flags = CHANNEL_CLOSE_AT_EOF;
   channel->sources = 0;
   
   channel->request_types = NULL;
@@ -1853,7 +1856,7 @@ channel_transmit_extended(struct ssh_channel *channel,
 
 /* NOTE: Flow control when sending data on a channel works as follows:
  * When the i/o backend wants to read from one of the channel's
- * sources, it first calls do_read_data_query() (in read_data.c),
+ * sources, it first calls do_read_data_query (in read_data.c),
  * which looks at the current value of send_window_size to determine
  * how much data can be sent right now. The backend reads at most that
  * amount of data, and then calls do_channel_write or
@@ -1862,7 +1865,11 @@ channel_transmit_extended(struct ssh_channel *channel,
  *
  * It is crucial that no other i/o is done between the call to
  * do_read_data_query and do_channel_write, otherwise we would have a
- * race condition. */
+ * race condition.
+ *
+ * At EOF, decrementing the sources count is not done here; it's done
+ * by the appropriate i/o close callback. These objects does checks if
+ * sources == 1, to determine if any eof message should be sent. */
 
 /* GABA:
    (class
@@ -1976,15 +1983,11 @@ make_channel_read_stderr(struct ssh_channel *channel)
        (channel object ssh_channel))) */
 
 
-/* FIXME: Do we really need this? The EOF cases in do_channel_write
- * and do_channel_write_extended should take care of sending
- * SSH_MSG_CHANNEL_EOF when appropriate (and they could also decrement
- * the sources counter, even if they don't do that now).
- *
- * Then the ordinary close logic could take care of sending
- * SSH_MSG_CHANNEL_CLOSE: We send SSH_MSG_CHANNEL_CLOSE when we have
- * both sent and received SSH_MSG_CHANNEL_EOF, and the
- * CHANNEL_CLOSE_AT_EOF flag is set. */
+/* NOTE: This callback is almost redundant. The EOF cases in
+ * do_channel_write and do_channel_write_extended should take care of
+ * sending SSH_MSG_CHANNEL_EOF when appropriate. But we still need
+ * this callback, in order to reliably decrement the sources count in
+ * all cases, including i/o errors. */
 
 /* Close callback for files we are reading from. */
 
@@ -2072,7 +2075,7 @@ make_channel_io_exception_handler(struct ssh_channel *channel,
   return &self->super;
 }
 
-/* Used by do_gateway_channel_open() */
+/* Used by do_gateway_channel_open */
 struct lsh_string *
 format_channel_open_s(struct lsh_string *type,
 		      UINT32 local_channel_number,

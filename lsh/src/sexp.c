@@ -963,8 +963,8 @@ sexp_eq(struct sexp *e, UINT32 length, const UINT8 *name)
   return c && lsh_string_eq_l(c, length, name);
 }
 
-/* NOTE: sexp_atom_eq() compares an sexp to a given atom, while
- *       sexp_atoms_eq() compares two atomic sexps.
+/* FIXME: sexp_atom_eq compares an sexp to a given atom, while
+ *        sexp_atoms_eq compares two atomic sexps.
  *
  * This naming seems a little confusing. */
 int

@@ -112,7 +112,7 @@ gateway_init_io(struct gateway_channel *channel)
 /* NOTE: We don't initialize the rec_window_size and rec_max_packet fields here.
  *
  * The origin's rec_window_size and rec_max_packet are filled in
- * later, by do_gateway_channel_open_continuation(). The target's
+ * later, by do_gateway_channel_open_continuation. The target's
  * rec_window_size, on the other hand, must be filled in manually. */
 
 struct gateway_channel *
@@ -123,6 +123,10 @@ make_gateway_channel(struct alist *request_types)
   
   self->super.request_types = request_types;
   
+  /* Never initiate close; let each end point decide when it is time
+   * to send SSH_MSG_CHANNEL_CLOSE. */
+  self->super.flags &= ~CHANNEL_CLOSE_AT_EOF;
+
   return self;
 }
 

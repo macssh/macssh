@@ -43,7 +43,7 @@ do_proxy_open_direct_tcpip(struct channel_open *s UNUSED,
   struct lsh_string *host = NULL, *orig_host = NULL;
   UINT32 port, orig_port;
 
-  debug("server.c: do_proxy_open_direct_tcpip()\n");
+  debug("server.c: do_proxy_open_direct_tcpip\n");
 
   if ((host = parse_string_copy(args)) &&
       parse_uint32(args, &port) &&
@@ -99,7 +99,7 @@ do_proxy_open_forwarded_tcpip(struct channel_open *s UNUSED,
   struct lsh_string *host = NULL, *orig_host = NULL;
   UINT32 port, orig_port;
 
-  debug("server.c: do_proxy_open_forwarded_tcpip()\n");
+  debug("server.c: do_proxy_open_forwarded_tcpip\n");
 
   if ((host = parse_string_copy(args)) &&
       parse_uint32(args, &port) &&

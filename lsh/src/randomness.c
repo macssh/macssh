@@ -272,7 +272,7 @@ do_arcfour_random(struct randomness *r, UINT32 length, UINT8 *dst)
       verbose("do_arcfour_random: Pouring staging area into pool.\n");
       
       /* Get some data out of the pool, in order to keep any entropy
-       * their. */
+       * there. */
       arcfour_stream(&self->pool, self->staging_area->hash_size, buf);
 
       HASH_UPDATE(self->staging_area, self->staging_area->hash_size, buf);

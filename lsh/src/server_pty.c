@@ -271,9 +271,9 @@ close_master:
     }
   return 0;
 #elif HAVE_OPENPTY
-  /* FIXME: openpty() may not work properly, when called with the
+  /* FIXME: openpty may not work properly, when called with the
    * wrong uid. */
-#error The openpty() scheme is not currently supported.
+#error The openpty scheme is not currently supported.
   return (openpty(&pty->master, &pty->slave, NULL, NULL, NULL) == 0)
     && pty_check_permissions(ptsname..., user);
 
@@ -291,7 +291,7 @@ tty_setctty(struct pty_info *pty)
   debug("tty_setctty\n");
   if (setsid() < 0)
     {
-      werror("tty_setctty: setsid() failed, already process group leader?\n"
+      werror("tty_setctty: setsid failed, already process group leader?\n"
 	     "   (errno = %i): %z\n", errno, STRERROR(errno));
       return 0;
     }
@@ -320,7 +320,7 @@ tty_setctty(struct pty_info *pty)
   }
 #elif PTY_BSD_SCHEME
   {
-    /* Is this really needed? setsid() should unregister the
+    /* Is this really needed? setsid should unregister the
      * controlling tty */
 #if 0
     int oldtty;

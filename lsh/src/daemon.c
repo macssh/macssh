@@ -132,7 +132,7 @@ int daemon_pidfile(const char *name)
 	
 	if (length < 0)
 	  {
-	    werror("Pid file '%z' already exists, but read() failed (errno = %i): %z\n",
+	    werror("Pid file '%z' already exists, but read failed (errno = %i): %z\n",
 		   name, errno, STRERROR(errno));
 	    return 0;
 	  }
@@ -329,7 +329,7 @@ int daemon_init(void)
       */
 
       if (setsid() < 0)
-	fatal("daemon_init: setsid() failed.\n");
+	fatal("daemon_init: setsid failed.\n");
 
       /* This should not be needed. All potential tty:s should be
        * opened with O_NOCTTY. FIXME: What if a user links, say,

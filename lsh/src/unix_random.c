@@ -126,7 +126,7 @@ make_unix_random_callback(struct unix_random *ctx)
 #define UNIX_RANDOM_POLL_SIZE 20
 
 /* This structure ought to fit in a pipe buffer (so that we can
- * waitpid() the process before reading its stdout). */
+ * waitpid the process before reading its stdout). */
 
 struct unix_random_poll_result
 {
@@ -487,7 +487,7 @@ background_poll(struct hash_instance *hash)
       debug("unix_random.c: calling poll, nfds = %i\n", nfds);
       if (poll(fds, nfds, -1) < 0)
 	{
-	  werror("unix_random.c: background_poll poll() failed (errno = %i): %z\n",
+	  werror("unix_random.c: background_poll poll failed (errno = %i): %z\n",
 		 errno, STRERROR(errno));
 	  return count;
 	}
@@ -526,7 +526,7 @@ background_poll(struct hash_instance *hash)
 		{
 		  if (errno != EINTR)
 		    {
-		      werror("unix_random.c: background_poll read() failed (errno = %i): %z\n",
+		      werror("unix_random.c: background_poll read failed (errno = %i): %z\n",
 			     errno, STRERROR(errno));
 		      return count;
 		    }
@@ -562,7 +562,7 @@ background_poll(struct hash_instance *hash)
 		
 		  if (waitpid(state[j].pid, &status, 0) < 0)
 		    {
-		      werror("unix_random.c: background_poll waitpid() failed (errno = %i): %z\n",
+		      werror("unix_random.c: background_poll waitpid failed (errno = %i): %z\n",
 			     errno, STRERROR(errno));
 		      return count;
 		    }
@@ -793,7 +793,7 @@ do_unix_random_fast(struct random_poll *s, struct hash_instance *hash)
   {
     struct rusage rusage;
     if (getrusage(RUSAGE_SELF, &rusage) < 0)
-      fatal("do_unix_random_fast: getrusage() failed: (errno = %i) %z\n",
+      fatal("do_unix_random_fast: getrusage failed: (errno = %i) %z\n",
 	    errno, STRERROR(errno));
     
     HASH_OBJECT(hash, rusage);
@@ -813,7 +813,7 @@ do_unix_random_fast(struct random_poll *s, struct hash_instance *hash)
 
   {
     /* Fallback that is useful if nothing else works. Count the number
-     * of slow polls between time() ticks, and count one bit of
+     * of slow polls between time ticks, and count one bit of
      * entropy if we have more than 2 calls or more than two seconds
      * between calls. */
     

@@ -204,7 +204,7 @@ do_kill_process(struct resource *r)
 
       if (kill(self->pid, self->signal) < 0)
 	{
-	  werror("do_kill_process: kill() failed (errno = %i): %z\n",
+	  werror("do_kill_process: kill failed (errno = %i): %z\n",
 		 errno, STRERROR(errno));
 	}
     }
@@ -313,7 +313,7 @@ kerberos_check_pw(struct unix_user *user, struct lsh_string *pw,
   switch (child)
     {
     case -1:
-      werror("kerberos_check_pw: fork() failed: %z\n", STRERROR(errno));
+      werror("kerberos_check_pw: fork failed: %z\n", STRERROR(errno));
       return 0;
 
     case 0:
@@ -412,7 +412,7 @@ do_verify_password(struct lsh_user *s,
   {
     char *salt = user->passwd->data;
 
-    /* NOTE: crypt() uses the *ugly* convention of returning pointers
+    /* NOTE: crypt uses the *ugly* convention of returning pointers
      * to static buffers. */
 
     if (strcmp(crypt(password->data, salt), user->passwd->data))
@@ -606,7 +606,7 @@ do_read_file(struct lsh_user *u,
 	
 	if ( (me != user->super.uid) && (setuid(user->super.uid) < 0) )
 	  {
-	    werror("unix_user.c: do_read_file(): setuid failed (errno = %i): %z\n",
+	    werror("unix_user.c: do_read_file: setuid failed (errno = %i): %z\n",
 		   errno, STRERROR(errno));
 	    _exit(EXIT_FAILURE);
 	  }
@@ -619,7 +619,7 @@ do_read_file(struct lsh_user *u,
 
 	if (fstat(fd, &sbuf) < 0)
 	  {
-	    werror("unix_user.c: do_read_file(): fstat failed (errno = %i): %z\n",
+	    werror("unix_user.c: do_read_file: fstat failed (errno = %i): %z\n",
 		   errno, STRERROR(errno));
 	    _exit(EXIT_FAILURE);
 	  }
@@ -628,7 +628,7 @@ do_read_file(struct lsh_user *u,
 
 	if (x)
 	  {
-	    werror("unix_user.c: do_read_file(): %z\n", x->msg);
+	    werror("unix_user.c: do_read_file: %z\n", x->msg);
 	    _exit(EXIT_FAILURE);
 	  }
 
@@ -720,7 +720,7 @@ do_fork_process(struct lsh_user *u,
   switch(child)
     {
     case -1: 
-      werror("fork() failed: %z\n", STRERROR(errno));
+      werror("fork failed: %z\n", STRERROR(errno));
       return 0;
 
     case 0: /* Child */

@@ -67,7 +67,7 @@ do_handle_dh_init(struct packet_handler *c,
   CAST(dh_server, closure, c);
   int res;
   
-  trace("handle_dh_init()\n");
+  trace("handle_dh_init\n");
 
   res = dh_process_client_msg(&closure->dh, packet);
   lsh_string_free(packet);

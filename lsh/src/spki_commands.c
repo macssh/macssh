@@ -357,7 +357,7 @@ make_spki_read_acls(struct alist *algorithms)
 {
   CAST_SUBTYPE(command, res, spki_read_acl(algorithms));
 
-  trace("make_spki_read_acl()\n");
+  trace("make_spki_read_acl\n");
   return res;
 }
 

@@ -368,4 +368,57 @@ lsh_make_pipe(int *fds);
 int
 lsh_copy_file(int src, int dst);
 
+/* Socket workaround */
+#ifndef SHUTDOWN_WORKS_WITH_UNIX_SOCKETS
+
+/* There's an how++ missing in the af_unix shutdown implementation of
+ * some linux versions. Try an ugly workaround. */
+#ifdef linux
+
+/* From src/linux/include/net/sock.h */
+#define RCV_SHUTDOWN	1
+#define SEND_SHUTDOWN	2
+
+#define SHUT_RD_UNIX RCV_SHUTDOWN
+#define SHUT_WR_UNIX SEND_SHUTDOWN
+#define SHUT_RD_WR_UNIX (RCV_SHUTDOWN | SEND_SHUTDOWN)
+
+#else /* !linux */
+
+/* Don't know how to work around the broken shutdown. So disable it
+ * completely. */
+
+#define SHUTDOWN_UNIX(fd, how) 0
+
+#endif /* !linux */
+#endif /* !SHUTDOWN_WORKS_WITH_UNIX_SOCKETS */
+
+#ifndef SHUTDOWN_UNIX
+#define SHUTDOWN_UNIX(fd, how) (shutdown((fd), (how)))
+#endif
+
+#ifndef SHUT_RD
+#define SHUT_RD 0
+#endif
+
+#ifndef SHUT_WR
+#define SHUT_WR 1
+#endif
+
+#ifndef SHUT_RD_WR
+#define SHUT_RD_WR 2
+#endif
+
+#ifndef SHUT_RD_UNIX
+#define SHUT_RD_UNIX SHUT_RD
+#endif
+
+#ifndef SHUT_WR_UNIX
+#define SHUT_WR_UNIX SHUT_WR
+#endif
+
+#ifndef SHUT_RD_WR_UNIX
+#define SHUT_RD_WR_UNIX SHUT_RD_WR
+#endif
+
 #endif /* LSH_IO_H_INCLUDED */

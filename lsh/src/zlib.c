@@ -219,7 +219,7 @@ do_zlib(struct compress_instance *c,
 	case Z_OK:
 	  break;
 	default:
-	  werror("do_zlib: %z() failed: %z\n",
+	  werror("do_zlib: %z failed: %z\n",
 		 ZLIB_TYPE(&self->z)->operation,
 		 self->z.msg ? self->z.msg : "No error(?)");
 	  if (free)

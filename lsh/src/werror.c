@@ -31,7 +31,10 @@
 #include "werror.h"
 
 #include "charset.h"
-#include "format.h"  /* For format_size_in_decimal() */
+
+/* For format_size_in_decimal */
+#include "format.h"
+
 #include "gc.h"
 #include "io.h"
 #include "parse.h"

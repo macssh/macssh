@@ -60,7 +60,7 @@ static const struct signal_assoc translate[] =
 #ifdef SIGABRT
   { 6, SIGABRT },
 #endif
-  /* IOT is the mnemonic for the PDP-11 instruction used by the abort() function */
+  /* IOT is the mnemonic for the PDP-11 instruction used by the abort function */
 #ifdef SIGIOT
   { 6, SIGIOT },
 #endif

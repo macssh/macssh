@@ -52,7 +52,7 @@ do_channel_open_command(struct command *s,
   if (index < 0)
     {
       /* We have run out of channel numbers. */
-      werror("do_channel_open_command: alloc_channel() failed\n");
+      werror("do_channel_open_command: alloc_channel failed\n");
       EXCEPTION_RAISE(e,
 		      make_channel_open_exception(
 			SSH_OPEN_RESOURCE_SHORTAGE,

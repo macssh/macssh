@@ -57,7 +57,7 @@ do_proxy_open_session(struct channel_open *s,
 {
   CAST(proxy_open_session, closure, s);
 
-  debug("server.c: do_proxy_open_session()\n");
+  debug("server.c: do_proxy_open_session\n");
 
   if (parse_eod(args))
     {

@@ -190,7 +190,7 @@ bignum_format_u_length(const mpz_t n)
     case 1:
       return (mpz_sizeinbase(n, 2) + 7) / 8;
     default:
-      fatal("Internal error: Negative number to bignum_format_u_length()\n");
+      fatal("Internal error: Negative number to bignum_format_u_length\n");
     }
 }
 
@@ -215,7 +215,7 @@ bignum_format_u(const mpz_t n, UINT8 *data)
 	return length;
       }
     default:
-      fatal("Internal error: Negative number to bignum_format_u()\n");
+      fatal("Internal error: Negative number to bignum_format_u\n");
     }
 }
 

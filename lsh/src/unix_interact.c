@@ -168,7 +168,7 @@ unix_read_password(struct interact *s UNUSED,
 		   UINT32 max_length UNUSED,
 		   struct lsh_string *prompt, int free)
 {
-  /* NOTE: Ignores max_length; instead getpass()'s limit applies. */
+  /* NOTE: Ignores max_length; instead getpass's limit applies. */
 
   char *password;
   

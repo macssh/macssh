@@ -40,7 +40,7 @@
 
 #include "gateway_commands.c.x"
 
-/* A simplified version of do_pad() in pad.c. This one uses
+/* A simplified version of do_pad in pad.c. This one uses
  * a fixed block size and pads with zeros. */
 
 /* FIXME: It seems very unnecessary to pad at all; we could just use
@@ -112,7 +112,7 @@ gateway_make_connection(struct listen_value *lv,
 			  NULL, /* established_continuation */
 			  make_exc_finish_read_handler(lv->fd, e, HANDLER_CONTEXT));
 
-  /* Instead of calling connection_init_io(). */
+  /* Instead of calling connection_init_io. */
   connection->raw =
     &io_read_write(lv->fd,
 		   make_buffered_read(

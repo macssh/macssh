@@ -76,7 +76,7 @@ static struct catch_report_collect catch_channel_open
 
 #define TCPIP_WINDOW_SIZE 10000
 
-/* NOTE: make_tcpip_channel() adds the fd to the channel's resource list. */
+/* NOTE: make_tcpip_channel adds the fd to the channel's resource list. */
 static void
 do_tcpip_connect_io(struct command *ignored UNUSED,
 		    struct lsh_object *x,
@@ -150,10 +150,10 @@ new_tcpip_channel(struct channel_open_command *c,
   struct ssh_channel *channel;
 
   /* NOTE: All accepted fd:s must end up in this function, so it
-   * should be ok to delay the REMEMBER() call until here. It is done
-   * by make_tcpip_channel(). */
+   * should be ok to delay the REMEMBER call until here. It is done
+   * by make_tcpip_channel. */
 
-  debug("tcpforward_commands.c: new_tcpip_channel()\n");
+  debug("tcpforward_commands.c: new_tcpip_channel\n");
 
   channel = make_tcpip_channel(self->peer->fd, TCPIP_WINDOW_SIZE);
   channel->write = connection->write;
@@ -174,7 +174,7 @@ make_open_tcpip_command(int type, UINT32 initial_window,
 {
   NEW(open_tcpip_command, self);
 
-  debug("tcpforward_commands.c: make_open_tcpip_command()\n");
+  debug("tcpforward_commands.c: make_open_tcpip_command\n");
 
   self->super.super.call = do_channel_open_command;
   self->super.new_channel = new_tcpip_channel;
@@ -249,7 +249,7 @@ do_remote_port_install_continuation(struct command_continuation *s,
 
   assert(connection);
 
-  debug("tcpforward_commands.c: do_remote_port_install_continuation(), success.\n");
+  debug("tcpforward_commands.c: do_remote_port_install_continuation, success.\n");
   self->port->callback = self->callback;
 
   COMMAND_RETURN(self->super.up, x);
@@ -262,7 +262,7 @@ make_remote_port_install_continuation(struct remote_port *port,
 {
   NEW(remote_port_install_continuation, self);
 
-  debug("tcpforward_commands.c: make_remote_port_install_continuation()\n");
+  debug("tcpforward_commands.c: make_remote_port_install_continuation\n");
 
   self->super.super.c = do_remote_port_install_continuation;
   self->super.up = c;
@@ -302,7 +302,7 @@ do_format_request_tcpip_forward(struct global_request_command *s,
   struct remote_port *port;
   int want_reply;
 
-  debug("tcpforward_commands.c: do_format_request_tcpip_forward()\n");
+  debug("tcpforward_commands.c: do_format_request_tcpip_forward\n");
 
   if (CONTINUATION_USED_P(*c))
     {
@@ -331,7 +331,7 @@ make_request_tcpip_forward_command(struct command *callback,
 {
   NEW(request_tcpip_forward_command, self);
 
-  debug("tcpforward_commands.c: make_request_tcpip_forward_command()\n");
+  debug("tcpforward_commands.c: make_request_tcpip_forward_command\n");
   
   self->super.super.call = do_channel_global_command;
   self->super.format_request = do_format_request_tcpip_forward;
@@ -394,7 +394,7 @@ make_forward_local_port(struct io_backend *backend,
   CAST_SUBTYPE(command, res,
 	       forward_local_port(backend, local, target));
 
-  trace("tcpforward_commands.c: forward_local_port()\n");
+  trace("tcpforward_commands.c: forward_local_port\n");
 
   return res;
 }
@@ -426,7 +426,7 @@ make_forward_remote_port(struct io_backend *backend,
   CAST_SUBTYPE(command, res,
 	       forward_remote_port(make_connect_port(backend, target), remote));
 
-  debug("tcpforward_commands.c: forward_remote_port()\n");
+  debug("tcpforward_commands.c: forward_remote_port\n");
   
   return res;
 }
@@ -441,7 +441,7 @@ do_make_direct_tcpip_handler(struct command *s UNUSED,
 {
   CAST_SUBTYPE(command, callback,  x);
 
-  trace("tcpforward_commands.c: do_make_open_tcp_handler()\n");
+  trace("tcpforward_commands.c: do_make_open_tcp_handler\n");
   
   COMMAND_RETURN(c,
 		 &make_channel_open_direct_tcpip(callback)->super);
@@ -459,7 +459,7 @@ do_make_tcpip_forward_handler(struct command *s UNUSED,
 {
   CAST_SUBTYPE(command, callback,  x);
 
-  debug("tcpforward_commands.c: do_make_tcpip_forward_handler()\n");
+  debug("tcpforward_commands.c: do_make_tcpip_forward_handler\n");
   
   COMMAND_RETURN(c,
 		 &make_tcpip_forward_request(callback)->super);
@@ -504,7 +504,7 @@ make_direct_tcpip_hook(struct io_backend *backend)
   CAST_SUBTYPE(command, res,
 	       direct_tcpip_hook(make_connect_connection(backend)));
 
-  debug("tcpforward_commands.c: make_direct_tcpip_hook()\n");
+  debug("tcpforward_commands.c: make_direct_tcpip_hook\n");
 
   return res;
 }
@@ -549,7 +549,7 @@ make_tcpip_forward_hook(struct io_backend *backend)
 {
   CAST_SUBTYPE(command, res, tcpip_forward_hook(backend));
 
-  debug("tcpforward_commands.c: tcpip_forward_hook()\n");
+  debug("tcpforward_commands.c: tcpip_forward_hook\n");
   
   return res;
 }

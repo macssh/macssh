@@ -192,11 +192,14 @@ do_exit_status(struct channel_request *c,
       ALIST_SET(channel->request_types, ATOM_EXIT_STATUS, NULL);
       ALIST_SET(channel->request_types, ATOM_EXIT_SIGNAL, NULL);
 
+#if 0
       /* Send EOF, if we haven't done that already. */
       /* FIXME: Make this behaviour configurable, there may be some
        * child process alive that we could talk to. */
 
       channel_eof(channel);
+#endif
+      
       COMMAND_RETURN(s, NULL);
     }
   else
@@ -246,11 +249,13 @@ do_exit_signal(struct channel_request *c,
       ALIST_SET(channel->request_types, ATOM_EXIT_STATUS, NULL);
       ALIST_SET(channel->request_types, ATOM_EXIT_SIGNAL, NULL);
 
+#if 0
       /* Send EOF, if we haven't done that already. */
       /* FIXME: Make this behaviour configurable, there may be some
        * child process alive that we could talk to. */
 
       channel_eof(channel);
+#endif
       COMMAND_RETURN(s, NULL);
     }
   else
@@ -424,8 +429,11 @@ init_client_options(struct client_options *self,
 
   self->stdin_fork = 0;
   self->stdout_fork = 0;
+#ifndef MACOS
+  self->stderr_fork = 1;
+#else
   self->stderr_fork = 0;
-
+#endif
   self->used_stdin = 0;
   self->used_pty = 0;
 
@@ -501,10 +509,13 @@ client_options[] =
   { "no-stderr", OPT_STDERR | ARG_NOT, NULL, 0, "Redirect stderr to /dev/null", 0}, 
 #if !MACOS
   { "cvs-workaround", OPT_FORK_STDIO, "i?o?e?", OPTION_ARG_OPTIONAL,
-    "fork extra processes to read one or more of the stdio file "
-    "descriptors, to avoid setting them in non-blocking mode.", 0 },
+    "Avoid setting one or more of the stdio file descriptors into "
+    "non-blocking mode. If no argument is provided, the workaround is "
+    "applied to all three file descriptors. By default, the workaround "
+    "is applied to stderr only.", 0 },
+  { "no-cvs-workaround", OPT_FORK_STDIO | ARG_NOT, NULL, 0,
+    "Disable the cvs workaround.", 0 },
 #endif
-  
 #if WITH_PTY_SUPPORT
   { "pty", 't', NULL, 0, "Request a remote pty (default).", 0 },
   { "no-pty", 't' | ARG_NOT, NULL, 0, "Don't request a remote pty.", 0 },
@@ -566,7 +577,7 @@ client_shell_session(struct client_options *options)
 	  get_pty = make_pty_request(options->tty);
 	  if (!get_pty)
 	    {
-	      werror("lsh: Can't use tty (probably getattr or atexit() failed.\n");
+	      werror("lsh: Can't use tty (probably getattr or atexit failed).\n");
 	    }
 	}
       else
@@ -1037,11 +1048,21 @@ client_argp_parser(int key, char *arg, struct argp_state *state)
 
 #if !defined(MACOS)
     case OPT_FORK_STDIO:
-      if (!arg)
+      if (options->not)
+	{
+	  options->not = 0;
+	case OPT_FORK_STDIO | ARG_NOT:
+	  options->stdin_fork = options->stdout_fork = options->stderr_fork = 0;
+	  break;
+	}
+      else if (!arg)
 	options->stdin_fork = options->stdout_fork = options->stderr_fork = 1;
       else
 	{
 	  int i;
+
+	  options->stdin_fork = options->stdout_fork = options->stderr_fork = 0;
+
 	  for (i = 0; arg[i]; i++)
 	    switch(arg[i])
 	      {

@@ -140,7 +140,7 @@ do_reaper_callback(struct lsh_callback *s)
       else switch(errno)
 	{
 	case EINTR:
-	  werror("reaper.c: waitpid() returned EINTR.\n");
+	  werror("reaper.c: waitpid returned EINTR.\n");
 	  break;
 	case ECHILD:
 	  /* No more child processes */

@@ -467,7 +467,7 @@ do_proxy_destination(struct command *s,
       else
 	{
 	  struct exception *ex = 
-	    make_io_exception(EXC_IO, client_addr->fd, errno, "getsockname() failed");
+	    make_io_exception(EXC_IO, client_addr->fd, errno, "getsockname failed");
 
 	  EXCEPTION_RAISE(e, ex);
 	}

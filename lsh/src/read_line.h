@@ -35,10 +35,6 @@
 /* This limit follows the ssh specification */
 #define MAX_LINE 255
 
-/* FIXME: The handler should be able to return an error code. So
- * we should use a pointer argument instead of the return value to
- * install a new read handler. */
-
 /* May store a new handler into *h. */
 /* GABA:
    (class
