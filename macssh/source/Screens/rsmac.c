@@ -62,8 +62,8 @@
  *		RShide(w)					- Hide RS (w)
  *		RSshow(w)					- Show RS (w)
  *		RScprompt(w, FilterProc)	- Prompt for colors...FilterProc is for Modal Dialog
- *		RSsetcolor(w,n,r,g,b)		- Set one of the 4 colors of RS (w) to R,G,B
- *		RSgetcolor(w,n,r,g,b)		- Get one of the 4 colors of RS (w) into R,G,B
+ *		RSsetcolors(w,n,r,g,b)		- Set one of the 4 colors of RS (w) to R,G,B
+ *		RSgetcolors(w,n,r,g,b)		- Get one of the 4 colors of RS (w) into R,G,B
  *		RSmouseintext(w,myPoint)	- Returns true if Mouse is in text part of current RS window
  *		RSskip(w,on)				- Activate/deactivate drawing in an RS
  *		
@@ -271,36 +271,67 @@ void RScurson
   /* displays the text cursor for the specified window, at the
 	specified position. Assumes it isn't currently being shown. */
   {
-	if (RSlocal[w].skip || RSlocal[w].cursorstate)		/* BYU 2.4.11 */
+	if ( RSlocal[w].skip || RSlocal[w].cursorstate )
 		return;
+
     RSsetwind(w);
 
-    RScurrent->cursor.left = x * RScurrent->fwidth;			/* BYU 2.4.11 */
-    RScurrent->cursor.top  = y * RScurrent->fheight;		/* BYU 2.4.11 */
+    RScurrent->cursor.left = x * RScurrent->fwidth;
+    RScurrent->cursor.top  = y * RScurrent->fheight;
 
-	switch (gApplicationPrefs->CursorType) {											/* BYU 2.4.11 */
-		case UNDERSCORECURSOR:										/* BYU 2.4.11 */
-    		RScurrent->cursor.top  += RScurrent->fheight;			/* BYU 2.4.11 */
-    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;	/* BYU 2.4.11 */
-    		RScurrent->cursor.bottom = RScurrent->cursor.top + 1;	/* BYU 2.4.11 */
+	switch (RScurrent->cursType) {
+		case UNDERSCORECURSOR:
+    		RScurrent->cursor.top   += RScurrent->fheight;
+    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;
+    		RScurrent->cursor.bottom = RScurrent->cursor.top + 1;
 			break;
-		case VERTICALCURSOR:										/* BYU 2.4.11 */
-    		RScurrent->cursor.left += 2;							/* BYU 2.4.11 */
-    		RScurrent->cursor.right  = RScurrent->cursor.left + 1;	/* BYU 2.4.11 */
-    		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;	/* BYU 2.4.11 */
+		case VERTICALCURSOR:
+    		RScurrent->cursor.left  += 2;
+    		RScurrent->cursor.right  = RScurrent->cursor.left + 1;
+    		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;
 			break;
-		case BLOCKCURSOR:											/* BYU 2.4.11 */
-		default:													/* BYU 2.4.11 */
-    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;	/* BYU 2.4.11 */
-    		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;	/* BYU 2.4.11 */
+		case NOCURSOR:
+    		RScurrent->cursor.right  = RScurrent->cursor.left;
+    		RScurrent->cursor.bottom = RScurrent->cursor.top;
+			break;
+		case LOWER_THIRDCURSOR:
+    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;
+    		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;
+    		RScurrent->cursor.top   += 2 * RScurrent->fheight / 3;
+			break;
+		case LOWER_HALFCURSOR:
+    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;
+    		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;
+    		RScurrent->cursor.top   += RScurrent->fheight / 2;
+			break;
+		case TWO_THIRDSCURSOR:
+    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;
+    		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;
+    		RScurrent->cursor.top   += RScurrent->fheight / 3;
+			break;
+		case BLOCKCURSOR:
+		default:
+    		RScurrent->cursor.right  = RScurrent->cursor.left + RScurrent->fwidth;
+    		RScurrent->cursor.bottom = RScurrent->cursor.top + RScurrent->fheight;
 			break;
     }
-
-	if (!gApplicationPrefs->BlinkCursor) {									/* BYU 2.4.11 */
-    	RScurrent->cursorstate = 1;						/* BYU 2.4.11 */
-    	InvertRect(&RScurrent->cursor);					/* BYU 2.4.11 */
-	}													/* BYU 2.4.11 */
-  } /* RScurson */
+	if ( VSIcursorvisible() ) {
+		if ( !gApplicationPrefs->BlinkCursor ) {
+	    	RScurrent->cursorstate = 1;
+	    	InvertRect(&RScurrent->cursor);
+		} else {
+			if ( RScurrent->cursorstate ) {
+				// refresh right now
+				RScurrent->cursorstate = 1;
+		    	InvertRect(&RScurrent->cursor);
+		    	TelInfo->blinktime = LMGetTicks();
+		    } else {
+				// refresh as soon as possible
+		    	TelInfo->blinktime = LMGetTicks() - CURS_BLINK_PERIOD;
+		    }
+		}
+	}
+} /* RScurson */
 
 
 void RSsetattr(VSAttrib a)
@@ -329,74 +360,73 @@ void RSsetattr(VSAttrib a)
 			face += condense;
 		}
 	}
+
+	if ( VSisitalic(a) ) {
+		face += italic;
+	}
+
     TextFace(face);
 
 	if (VSisansifg(a)) {
-		fg = 4 + ((a>>8)&0x7);
-		if (RScurrent->colorBold && VSisbold(a))
+		fg = 4 + ((a >>  8) & 0x7);
+		if ( VSisansifg2(a) || (VSisbold(a) && RScurrent->colorBold) )
 			fg += 8;
-    } else if (RScurrent->colorBold && VSisbold(a)
-    	   && gApplicationPrefs->defaultBoldColor != -1) {
+    } else if (VSisbold(a) && RScurrent->colorBold && gApplicationPrefs->defaultBoldColor != -1) {
 		fg = gApplicationPrefs->defaultBoldColor + 4;
 	} else
 		fg = 0;
 
-	if (VSisansibg(a))
-		bg = 4 + ((a>>12)&0x7);
-	else
+	if (VSisansibg(a)) {
+		bg = 4 + ((a >> 12) & 0x7);
+		if ( VSisansibg2(a) ) {
+			bg += 8;
+		}
+	} else
 		bg = 1;
   
   	// set up text modes 
 
-	if (TelInfo->haveColorQuickDraw)
-	{
+	if (TelInfo->haveColorQuickDraw) {
 		if (VSisrev(a) || (VSisbold(a) && RScurrent->bfstyle))
 			TextMode(notSrcCopy);
 		else
 			TextMode(srcCopy);
-	}
-	else
-	{
-		if (VSisrev(a) || (VSisbold(a) && RScurrent->bfstyle))
-		{
+	} else {
+		if (VSisrev(a) || (VSisbold(a) && RScurrent->bfstyle)) {
         	BackPat(PATTERN(qd.black));	/* Reverses current attributes regard */
         	PenPat(PATTERN(qd.white));	/* less of the color, etc.... */
-        }
-		else
-		{
+        } else {
         	BackPat(PATTERN(qd.white));	/* Reverses current attributes regard */
         	PenPat(PATTERN(qd.black));	/* less of the color, etc.... */
         } 
 	}
-	
-	//set up colors
-	if (TelInfo->haveColorQuickDraw) 
-	{
-		if ((VSisblnk(a) || VSisfastblnk(a)) && (!gBlink || !VSIgetblinkflag()))
-		{
-			PmForeColor(2);				//use colors for blink
+
+	// set up colors
+	if (TelInfo->haveColorQuickDraw) {
+		if (VSisblnk(a) && (!VSIgetblinkflag() || gBlink)) {
+			// use colors for blink
+			PmForeColor(2);
 			PmBackColor(3);
-		}
-		else
-		{
+		} else {
 			PmForeColor(fg);
 			PmBackColor(bg);
 		}
-	}
-	else 
-	{
-		if (VSisblnk(a) || VSisfastblnk(a))
-		{
-			ForeColor(RScolors[7]);	//use colors for blink
-			BackColor(RScolors[0]);	
+		if ( VSisfaint(a) ) {
+			RGBColor color;
+			GetForeColor(&color);
+			HiliteColor(&color);
+			RGBForeColor(&color);
 		}
-		else
-		{
+	} else {
+		if (VSisblnk(a) && (!VSIgetblinkflag() || gBlink)) {
+			// use colors for blink
+			ForeColor(RScolors[7]);
+			BackColor(RScolors[0]);	
+		} else {
 			ForeColor(RScolors[0]);
 			BackColor(RScolors[7]);
 		}
 	}
-	
 } /* RSTextFont */
 
 void RSTextFont(short myfnum, short myfsiz, short myface) 				/* BYU */
@@ -447,11 +477,16 @@ void RSinvText
 	Point lb, ub;
 
 	RSsetwind(w);
+
   /* normalize coordinates with respect to visible area of virtual screen */
 	curr.v -= RScurrent->topline;
 	curr.h -= RScurrent->leftmarg;
 	last.v -= RScurrent->topline;
 	last.h -= RScurrent->leftmarg;
+
+  /* normalize colors */
+	RSsetattr(0);
+	//VSIGetLineStart( w, RScurrent->anchor.v)[RScurrent->anchor.h]
 
 	if (curr.v == last.v)
 	  {
@@ -529,7 +564,11 @@ void RSinvText
 
 		  } /* if */
 	  } /* if */
+
+	RSsetattr(VSIw->attrib);
+
   } /* RSinvText */
+
 
 /*
  * RSdraw
@@ -606,8 +645,7 @@ void RSdraw
 */
 
 	if (RScurrent->selected) {
-		RSinvText(w, *(Point *) &RScurrent->anchor,
-			*(Point *) &RScurrent->last, &rect);
+		RSinvText(w, RScurrent->anchor, RScurrent->last, &rect);
 	}
 	ValidRect(&rect);
 
@@ -646,6 +684,24 @@ static void ScrollRectInRgn( WindowPtr window, Rect *inRect, short dh, short dv)
 }
 
 
+/*
+ * RSdefaultattr()
+ */
+
+void RSdefaultattr(short w)
+{
+	short screenIndex;
+
+	if ( screens[findbyVS(w)].vtemulation < 2 )
+	    RSsetattr(0);
+	else
+	    RSsetattr(VSIw->attrib);
+}
+
+/*
+ * RSdelcols()
+ */
+
 void RSdelcols
   (
 	short w,
@@ -669,16 +725,20 @@ void RSdelcols
 		RScurrent->height
 	  );
 
-	ScrollRectInRgn(RScurrent->window, &rect, -n * RScurrent->fwidth, 0);
+	ScrollRectInRgn(RScurrent->window, &rect, - (n * RScurrent->fwidth), 0);
 
-	if (RScurrent->selected) {
+	if ( RScurrent->selected ) {
 		/* bounds of newly-revealed area */
 		rect.left = RScurrent->width - (n * RScurrent->fwidth);
 		/* highlight any newly-revealed part of the current selection */
-		RSinvText(w, *(Point *) &RScurrent->anchor,
-			*(Point *) &RScurrent->last, &rect);
+		RSinvText(w, RScurrent->anchor, RScurrent->last, &rect);
     }
-  } /* RSdelcols */
+} /* RSdelcols */
+
+
+/*
+ * RSdelchars()
+ */
 
 void RSdelchars
   (
@@ -696,7 +756,9 @@ void RSdelchars
 	if (RSlocal[w].skip)
 		return;
     RSsetwind(w);
-    RSsetattr(0); /* avoid funny pen modes */
+//    RSsetattr(0); /* avoid funny pen modes */
+	RSdefaultattr(w);
+
     MYSETRECT /* bounds of area from starting column to end of line */
 	  (
 		rect,
@@ -710,16 +772,29 @@ void RSdelchars
 		EraseRect(&rect);
 	} else {
 		/* scroll remainder of line to the left */
-		ScrollRectInRgn(RScurrent->window, &rect, - n * RScurrent->fwidth, 0);
-
-		if (RScurrent->selected)
-		  {
-		  /* highlight any part of selection which lies in newly-blanked area */
+		ScrollRectInRgn(RScurrent->window, &rect, - (n * RScurrent->fwidth), 0);
+		if ( RScurrent->selected ) {
 			HLock((Handle) RSuRgn);
-			RSinvText(w, *(Point *) &RScurrent->anchor, *(Point *) &RScurrent->last, &((*RSuRgn)->rgnBBox));
+			RSinvText(w, RScurrent->anchor, RScurrent->last, &((*RSuRgn)->rgnBBox));
 			HUnlock((Handle) RSuRgn);
-		  } /* if */
-	  } /* if */
+			if ( RScurrent->anchor.v <= y && y <= RScurrent->last.v ) {
+				if ( x <= RScurrent->anchor.h ) {
+					// deselect left part
+			    	rect.left = (RScurrent->anchor.h + 1 - n) * RScurrent->fwidth;
+			    	rect.right = (RScurrent->anchor.h + 1) * RScurrent->fwidth;
+					DoHiliteMode();
+					InvertRect(&rect);
+				}
+				if ( x <= RScurrent->last.h ) {
+					// select right part
+			    	rect.left = (RScurrent->last.h + 1 - n) * RScurrent->fwidth;
+			    	rect.right = (RScurrent->last.h + 1) * RScurrent->fwidth;
+					DoHiliteMode();
+					InvertRect(&rect);
+				}
+			}
+		}
+	}
     RSsetattr(VSIw->attrib); /* restore mode for text drawing */
 } /* RSdelchars */
 
@@ -747,7 +822,8 @@ void RSdellines
 
     RSsetwind(w);
 	RSsetConst(w);
-    RSsetattr(0); /* avoid funny pen modes */
+//    RSsetattr(0); /* avoid funny pen modes */
+	RSdefaultattr(w);
 
 	if (scrolled)
 	  {
@@ -793,7 +869,9 @@ void RSerase
 	if (RSlocal[w].skip)
 		return;
     RSsetwind(w);
-    RSsetattr(0); /* avoid funny pen modes */
+
+//    RSsetattr(0); /* avoid funny pen modes */
+	RSdefaultattr(w);
 
     MYSETRECT
 	  (
@@ -813,7 +891,7 @@ void RSerase
     EraseRect(&rect);
 	if (RScurrent->selected)
 	  /* highlight any part of the selection within the cleared area */
-		RSinvText(w, *(Point *) &RScurrent->anchor, *(Point *) &RScurrent->last, &rect);
+		RSinvText(w, RScurrent->anchor, RScurrent->last, &rect);
 
     RSsetattr(VSIw->attrib); /* restore mode for text drawing */
 
@@ -836,7 +914,8 @@ void RSinslines
 		return;
     RSsetwind(w);
 	RSsetConst(w);
-    RSsetattr(0); /* avoid funny pen modes */
+//    RSsetattr(0); /* avoid funny pen modes */
+	RSdefaultattr(w);
 
 	if (RScurrent->selected && (scrolled < 0))
 	  {
@@ -887,7 +966,7 @@ void RSinscols
 	if (RScurrent->selected) {
 		/* highlight any part of the selection in the newly-blanked area */
 	    rect.right = (n + 1) * RScurrent->fwidth - 1;
-		RSinvText(w, *(Point *) &RScurrent->anchor, *(Point *) &RScurrent->last, &rect);
+		RSinvText(w, RScurrent->anchor, RScurrent->last, &rect);
     }
   } /* RSinscols */
 
@@ -952,8 +1031,7 @@ void RSinsstring
 */
 	if (RScurrent->selected)
 		/* highlight any part of selection covering the newly-inserted text */
-		RSinvText(w, *(Point *) &RScurrent->anchor,
-			*(Point *) &RScurrent->last, &rect);
+		RSinvText(w, RScurrent->anchor, RScurrent->last, &rect);
 
 	ValidRect(&rect);
 } /* RSinsstring */

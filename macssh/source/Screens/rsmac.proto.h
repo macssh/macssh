@@ -13,6 +13,7 @@ void RSsetattr(VSAttrib a);
 void DoHiliteMode(void);
 void RSinvText(short w, Point curr, Point last, RectPtr constrain);
 void RSdraw(short w, short x, short y, VSAttrib a, short len, char *ptr);
+void RSdefaultattr(short w);
 void RSdelcols(short w, short n);
 void RSdelchars(short w, short x, short y, short n);
 void RSdellines(short w, short t, short b, short n, short scrolled);
