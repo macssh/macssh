@@ -424,11 +424,7 @@ int ReadCharsFromTTY(int id, void *ctx, char *buffer, int n)
 
 	if ( context->_gConsoleInBufMax ) {
 		while (!len && n > 0) {
-			if (context->_gConsoleInEOF) {
-				buffer[0] = EOF;
-				return 0;
-			}
-			if (context->_gConsoleInBufLen && context->_socket == -1 ) {
+			if ( context->_gConsoleInBufLen && context->_socket == -1 ) {
 				len = context->_gConsoleInBufLen;
 				if ( len > n ) {
 					len = n;
@@ -438,6 +434,9 @@ int ReadCharsFromTTY(int id, void *ctx, char *buffer, int n)
 				if ( context->_gConsoleInBufLen ) {
 					BlockMoveData( context->_gConsoleInBuf + len, context->_gConsoleInBuf, context->_gConsoleInBufLen );
 				}
+			} else if (context->_gConsoleInEOF) {
+				buffer[0] = EOF;
+				return 0;
 			}
 			ssh2_sched();
 			if ( context->_listener != -1 ) {
