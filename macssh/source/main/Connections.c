@@ -766,6 +766,7 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	theScreen->allowBold = TermPtr->allowBold;
 	theScreen->colorBold = TermPtr->colorBold;
 	theScreen->realbold = TermPtr->realbold;
+	theScreen->keepselection = SessPtr->keepselection;
 	theScreen->inversebold = TermPtr->boldFontStyle;
 	theScreen->ignoreBeeps = SessPtr->ignoreBeeps;
 	theScreen->otpauto = SessPtr->otpauto;
@@ -888,6 +889,8 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 		flags |= RSWvt7bit;
 	if (TermPtr->hideScrollBars)
 		flags |= RSWHideScroll;
+	if (SessPtr->keepselection)
+		flags |= RSWKeepSelection;
 
 	theScreen->vs = RSnewwindow(&((**Params).WindowLocation), TermPtr->numbkscroll, TermPtr->vtwidth,
 									TermPtr->vtheight, (**Params).WindowName, fontnumber,
