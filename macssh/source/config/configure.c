@@ -2580,9 +2580,10 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 		for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++)
 			if (GetCntlVal(dptr, ANSIBlackRadio + scratchshort))
 				*defaultBoldColor = scratchshort;
+
 	for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++) 
 		SetEntryColor(TelInfo->AnsiColors, scratchshort, &(BoxColorData[scratchshort]));
-	
+
 	DisposeDialog(dptr);
 }
 

@@ -88,9 +88,8 @@ struct RSdata {
 		boldislarger;// to use real bold
 	Boolean
 		skip;		/* TRUE if we are skipping the output */
-	WCTabHandle
-		wctb;		
-
+	Boolean
+		active;
 	};
 
 typedef struct RSdata RSdata;
