@@ -121,7 +121,7 @@ void initftplog( void)
 	
 	GetIndString(tempString,MISC_STRINGS,FTP_LOG_STRING);
 
-	flags = RSWwrapon | RSWgoaway | RSWignoreBeeps | RSWsavelines;
+	flags = RSWwrapon | RSWgoaway | RSWignoreBeeps | RSWoldscrollback;
 	if (gFTPServerPrefs->ShowFTPlog)
 		flags |= RSWshowit;
 
@@ -294,7 +294,7 @@ void initmac( void)
 	qd.randSeed = usec.lo;
 
 	TelInfo = (TelInfoRec *)myNewPtr(sizeof(TelInfoRec));
-	//tempspot = (char *)myNewPtr(256);
+
 	tempHandle = myNewHandle(sizeof(ApplicationPrefs));
 	HLockHi(tempHandle);
 	gApplicationPrefs = (ApplicationPrefs *) *tempHandle;
@@ -317,6 +317,18 @@ void initmac( void)
 	err = Gestalt(gestaltAppleEventsAttr, &gestaltvalue);		// See if AppleEvents are available
 	gAEavail = (!err && ((gestaltvalue >> gestaltAppleEventsPresent) & 0x0001));
 	
+
+	TelInfo->screenRect = qd.screenBits.bounds;			/* well, they have to be set */
+												/* somewhere, where else ? */
+	TelInfo->greyRegion = GetGrayRgn();
+	SetRect(&TelInfo->dragRect, 4, 24, TelInfo->screenRect.right-4,
+						TelInfo->screenRect.bottom-4);
+}
+
+void InitAEHandlers(void)
+{
+	OSErr		err;
+
 	if (gAEavail) {
 		if ((err = AEInstallEventHandler(kCoreEventClass,kAEOpenApplication,
 											MyHandleOAppUPP,0,FALSE)) != noErr)
@@ -348,12 +360,6 @@ void initmac( void)
 		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'!sus',MyHandleUnSuspendUPP,0,FALSE)) != noErr)
 			FatalAlert(AE_PROBLEM_ERR, 0, 0);
 		}
-
-	TelInfo->screenRect = qd.screenBits.bounds;			/* well, they have to be set */
-												/* somewhere, where else ? */
-	TelInfo->greyRegion = GetGrayRgn();
-	SetRect(&TelInfo->dragRect, 4, 24, TelInfo->screenRect.right-4,
-						TelInfo->screenRect.bottom-4);
 }
 
 void DoTheGlobalInits(void)
@@ -407,12 +413,11 @@ void DoTheGlobalInits(void)
 	TelInfo->SysFolder.name[0]=0;
 
 /* NONO */
-	ssh2_init();
-
 	GetIndString((unsigned char *)folderString,MISC_STRINGS,PREFS_FOLDER_NAME);
 	junk = folderString[0];
 	BlockMoveData(folderString + 1, folderString, junk);
 	folderString[junk] = 0;
+	// WARNING: this initializes GUSI which in turn calls our event handler...
 	buf = getprefsd(folderString, (char *)tempString, sizeof(tempString), &TelInfo->PrefFolder.vRefNum, &TelInfo->PrefFolder.parID);
 	if ( !buf ) {
 		FindFolder( kOnSystemDisk, kPreferencesFolderType, kCreateFolder,
@@ -425,20 +430,23 @@ void DoTheGlobalInits(void)
 	FindFolder( kOnSystemDisk, kTemporaryFolderType, kCreateFolder, &TempItemsVRefNum, &TempItemsDirID);
 }
 
-void init (void)
+void init(void)
 {
 	DialogPtr 	dtemp;		/* Used for dialog display */
-	Size 	junk;
-	long	junk2;
-	FlushEvents(everyEvent,0);
+	Size 		junk;
+	long		junk2;
+
+	FlushEvents(everyEvent, 0);
 
 /* NONO */	
 	/*initMemoryBuffer(5*1024,30*1024);*/ //this gives use a grow zone for emergency situations
-	initMemoryBuffer(5*1024,128*1024); //this gives use a grow zone for emergency situations
+	initMemoryBuffer(5*1024, 128*1024); //this gives use a grow zone for emergency situations
 /* NONO */
 
 	initmac();				/* initialize Macintosh stuff */
 	
+	InitAEHandlers();
+
 	DoTheGlobalInits();
 
 	OpenPreferencesFile();
@@ -528,5 +536,8 @@ void init (void)
     }
 	loadWDEF(); //this just loads the WDEF code in so that it doesnt fragment the heap later
 	loadErrors(); //ditto for the error code
+
+	ssh2_init();
+
 	gInitialized = true;
 }
