@@ -592,7 +592,11 @@ fatal(const char *format, ...)
   va_end(args);
   werror_flush();
 
+#if WITH_GCOV
+  exit(255);
+#else
   abort();
+#endif
 }
 
 static unsigned

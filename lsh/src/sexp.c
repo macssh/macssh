@@ -205,13 +205,50 @@ sexp_display(const struct sexp *e)
   return self->display;
 }
 
+/* The nil expression. */
+
+static struct sexp *
+do_nil_get(struct sexp_iterator *c UNUSED)
+{
+  return NULL;
+}
+
+static struct sexp *
+do_nil_assoc(struct sexp_iterator *s UNUSED, UINT32 length UNUSED,
+	     const UINT8 *name UNUSED, struct sexp_iterator **i UNUSED)
+{
+  return NULL;
+}
+
+static unsigned
+do_nil_left(struct sexp_iterator *c UNUSED)
+{
+  return 0;
+}
+
+static void
+do_nil_next(struct sexp_iterator *c UNUSED)
+{}
+
+static struct sexp_iterator *
+make_iter_nil(struct sexp *e UNUSED)
+{
+  static struct sexp_iterator nil_iterator =
+    { STATIC_HEADER, do_nil_get, do_nil_assoc, do_nil_left, do_nil_next };
+  return &nil_iterator;
+}
+
 static struct lsh_string *
-do_format_sexp_nil(struct sexp *ignored UNUSED, int style UNUSED,
+do_format_nil(struct sexp *ignored UNUSED, int style UNUSED,
 		   unsigned indent UNUSED)
 {
   return ssh_format("()");
 }
 
+struct sexp sexp_nil =
+{ STATIC_HEADER, make_iter_nil, do_format_nil };
+
+#define SEXP_NIL (&sexp_nil)
 
 /* For assoc */
 struct sexp_iterator *
@@ -253,187 +290,11 @@ sexp_check_type(struct sexp *e, int type, struct sexp_iterator **res)
   return 0;
 }
 
-/* Forward declaration */
-static struct sexp_iterator *
-make_iter_cons(struct sexp *s);
-
-struct sexp_cons sexp_nil =
-{ { STATIC_HEADER, make_iter_cons, do_format_sexp_nil },
-  &sexp_nil.super, &sexp_nil };
-
-#define SEXP_NIL (&sexp_nil.super)
-
-/* GABA:
-   (class
-     (name sexp_iter_cons)
-     (super sexp_iterator)
-     (vars
-       (p object sexp_cons)))
-*/
-
-static struct sexp *
-do_cons_get(struct sexp_iterator *c)
-{
-  CAST(sexp_iter_cons, i, c);
-  return (i->p == &sexp_nil) ? NULL : i->p->car;
-}
-
-static void
-do_cons_set(struct sexp_iterator *c, struct sexp *e)
-{
-  CAST(sexp_iter_cons, i, c);
-  assert (i->p != &sexp_nil);
-
-  i->p->car = e;
-}
-
-static struct sexp *
-do_cons_assoc(struct sexp_iterator *s, UINT32 length,
-	      const UINT8 *name, struct sexp_iterator **i)
-{
-  CAST(sexp_iter_cons, self, s);
-  struct sexp_cons *p;
-
-  for (p = self->p; p != &sexp_nil; p = p->cdr)
-    {
-      struct sexp_iterator *inner = sexp_check_type_l(p->car, length, name);
-      if (inner)
-	{
-	  if (i)
-	    *i = inner;
-
-	  return p->car;
-	}
-    }
-  return NULL;
-}
-
-static unsigned
-do_cons_left(struct sexp_iterator *i)
-{
-  CAST(sexp_iter_cons, self, i);
-  struct sexp_cons *p;
-  unsigned k;
-
-  for (p = self->p, k = 0; p != &sexp_nil; p = p->cdr, k++)
-    ;
-
-  return k;
-}
-
-static void
-do_cons_next(struct sexp_iterator *c)
-{
-  CAST(sexp_iter_cons, i, c);
-  i->p = i->p->cdr;
-}
-
-static struct sexp_iterator *
-make_iter_cons(struct sexp *s)
-{
-  CAST(sexp_cons, c, s);
-  NEW(sexp_iter_cons, iter);
-
-  iter->super.get = do_cons_get;
-  iter->super.set = do_cons_set;
-  iter->super.assoc = do_cons_assoc;
-  iter->super.left = do_cons_left;
-  iter->super.next = do_cons_next;
-  iter->p = c;
-  
-  return &iter->super;
-}
-
 static int
 is_short(struct lsh_string *s)
 {
   return ( (s->length < 15)
 	   && !memchr(s->data, '\n', s->length) );
-}
-
-static struct lsh_string *
-do_format_sexp_tail(struct sexp_cons *c,
-		    int style, unsigned indent)
-{
-  if (c == &sexp_nil)
-    return ssh_format(")");
-
-  switch(style)
-    {
-    case SEXP_TRANSPORT:
-      fatal("Internal error!\n");
-    case SEXP_ADVANCED:
-    case SEXP_INTERNATIONAL:
-      {
-	struct lsh_string *head = sexp_format(c->car, style, indent);
-	struct lsh_string *tail = do_format_sexp_tail(c->cdr, style, indent);
-
-	/* NOTE: Allows arbitrarily many small items on a single line */
-	if (is_short(head))
-	  return ssh_format(" %ls%ls", head, tail);
-
-	else
-	  {
-	    UINT8 *pad;
-	    struct lsh_string *res = ssh_format(" %ls%lr%ls", head,
-						indent+1, &pad, tail);
-	    *pad++ = '\n';
-	    memset(pad, ' ', indent);
-	    return res;
-	  }
-      }      
-    case SEXP_CANONICAL:
-      return ssh_format("%ls%ls",
-			sexp_format(c->car, style, indent),
-			do_format_sexp_tail(c->cdr, style, indent));
-    default:
-      fatal("do_format_sexp_tail: Unknown output style.\n");
-    }
-}
-
-static struct lsh_string *
-do_format_sexp_cons(struct sexp *s,
-		    int style, unsigned indent)
-{
-  CAST(sexp_cons, self, s);
-
-  switch(style)
-    {
-    case SEXP_TRANSPORT:
-      fatal("Internal error!\n");
-    case SEXP_ADVANCED:
-    case SEXP_INTERNATIONAL:
-      {
-	struct lsh_string *head = sexp_format(self->car, style, indent + 1);
-
-	if (is_short(head))
-	  return ssh_format("(%lfS%lfS",
-			    head, do_format_sexp_tail(self->cdr, style,
-						      indent + 2 + head->length));
-	else
-	  return ssh_format("(%lfS\n", do_format_sexp_tail(self->cdr, style,
-							   indent + 1));
-      }
-
-    case SEXP_CANONICAL:
-      return ssh_format("(%ls", do_format_sexp_tail(self, style, indent));
-    default:
-      fatal("do_format_sexp_tail: Unknown output style.\n");
-    }
-}
-
-struct sexp *
-sexp_c(struct sexp *car, struct sexp_cons *cdr)
-{
-  NEW(sexp_cons, c);
-
-  c->super.format = do_format_sexp_cons;
-  c->super.iter = make_iter_cons;
-  
-  c->car = car;
-  c->cdr = cdr;
-
-  return &c->super;
 }
 
 /* GABA:
@@ -465,15 +326,6 @@ do_vector_get(struct sexp_iterator *c)
       return res;
     }
   return NULL;
-}
-
-static void
-do_vector_set(struct sexp_iterator *c, struct sexp *e)
-{
-  CAST(sexp_iter_vector, i, c);
-  assert(i->i < LIST_LENGTH(i->l));
-
-  LIST(i->l)[i->i] = &e->super;
 }
 
 static struct sexp *
@@ -521,7 +373,6 @@ make_iter_vector(struct sexp *s)
   NEW(sexp_iter_vector, iter);
 
   iter->super.get = do_vector_get;
-  iter->super.set = do_vector_set;
   iter->super.assoc = do_vector_assoc;
   iter->super.left = do_vector_left;
   iter->super.next = do_vector_next;
@@ -732,6 +583,7 @@ sexp_un(const mpz_t n)
   return sexp_s(NULL, s);
 }
 
+#if 0
 struct sexp *
 sexp_sn(const mpz_t n)
 {
@@ -745,9 +597,11 @@ sexp_sn(const mpz_t n)
   
   return sexp_s(NULL, s);
 }
+#endif
 
 /* Small unsigned int -> sexp */
-struct sexp *sexp_uint32(UINT32 n)
+struct sexp *
+sexp_uint32(UINT32 n)
 {
   /* FIXME: Eliminate redundant leading zeroes. */
   struct lsh_string *digits = lsh_string_alloc(4);

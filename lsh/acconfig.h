@@ -112,5 +112,8 @@
 /* Define to enable authentication agent forwarding */
 #undef WITH_AGENT_FORWARD
 
+/* Used by lsh_proxy.c */
 #undef WITH_ALF
 
+/* Use gcov */
+#undef WITH_GCOV

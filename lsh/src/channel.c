@@ -65,22 +65,6 @@ make_channel_open_exception(UINT32 error_code, const char *msg)
   return &self->super;
 }
 
-/* GABA:
-   (class
-     (name connection_service)
-     (super command)
-     (vars
-       ; Supported global requests 
-       (global_requests object alist)
-
-       (channel_types object alist) ))
-
-       ; Initialize connection (for instance, request channels to be 
-       ; opened or services to be forwarded).
-
-       ; (start object connection_startup)))
-*/
-
 
 struct lsh_string *
 format_global_failure(void)

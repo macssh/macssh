@@ -111,6 +111,9 @@ struct lsh_string
 /* connection.h */
 struct ssh_connection;
 
+/* interact.h */
+struct interact;
+
 /* io.h */
 struct address_info;
 struct io_backend;

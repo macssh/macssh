@@ -75,10 +75,6 @@ void exception_raise(struct exception_handler *e,
 
 /* Exception types. */
 
-/* Used in places where no real exception is defined yet.
- * Never handled. */
-#define EXC_DUMMY 0
-
 /* FIXME: This is an inappropriate name, as this exception type is
  * used for all events that should result in a disconnect message. */
 
@@ -160,7 +156,6 @@ void exception_raise(struct exception_handler *e,
 
 extern struct exception_handler default_exception_handler;
 extern struct exception_handler ignore_exception_handler;
-extern struct exception dummy_exception;
 
 /* GABA:
    (class

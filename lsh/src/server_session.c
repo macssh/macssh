@@ -225,7 +225,7 @@ format_exit_signal(struct ssh_channel *channel,
   return format_channel_request(ATOM_EXIT_SIGNAL,
 				channel,
 				0,
-				"%i%c%fS%z",
+				"%a%c%fS%z",
 				signal_local_to_network(signal),
 				core,
 				msg, "");

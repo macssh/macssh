@@ -494,21 +494,25 @@ DEFINE_COMMAND_SIMPLE(proxy_destination, a)
    (expr
      (name lsh_proxy_listen)
      (params
-       (listen object command)
+       (backend object io_backend)
        (services object command)
        (handshake_server object command)
        (handshake_client object command))
      (expr 
        (lambda (options)
+         ; accept a connection
+	 (listen_callback
+	   (lambda (client_addr)
+	     ; address of accepted connection
          (services 
-	   (let 
-	     ; accept a connection
-             ((client_addr (listen(options2local options)))) 
 	     ; chain two connections
 	     (chain_connections 
 	       (handshake_server options)   ; callback to perform server side handshake
 	       (handshake_client options)   ; callback to perform client side handshake
-	       client_addr))))))	    ; address of accepted connection
+		 client_addr)))
+	   backend 
+	   (options2local options)))) )
+
 	     
 */
 
@@ -779,7 +783,7 @@ int main(int argc, char **argv)
       
     {
       struct lsh_object *o = lsh_proxy_listen
-	(make_simple_listen(backend, NULL),
+	(backend,
 	 make_proxy_offer_service
 	 (make_alist(1, 
 		     ATOM_SSH_USERAUTH, 

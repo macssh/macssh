@@ -225,3 +225,11 @@ void gc_maybe(struct lsh_object *root, int busy)
       gc(root);
     }
 }
+
+#if DEBUG_ALLOC
+/* Deallocate all objects. */
+void gc_final(void)
+{
+  gc_sweep();
+}
+#endif /* DEBUG_ALLOC */

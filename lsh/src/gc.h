@@ -34,4 +34,10 @@ void gc_kill(struct lsh_object *o);
 void gc(struct lsh_object *root);
 void gc_maybe(struct lsh_object *root, int busy);
 
+#if DEBUG_ALLOC
+void gc_final(void);
+#else
+#define gc_final()
+#endif
+
 #endif /* LSH_GC_H_INCLUDED */

@@ -46,9 +46,6 @@ do_default_handler(struct exception_handler *ignored UNUSED,
 struct exception_handler default_exception_handler =
 STATIC_EXCEPTION_HANDLER(do_default_handler, NULL);
 
-struct exception dummy_exception =
-STATIC_EXCEPTION(EXC_DUMMY, "dummy");
-
 static void
 do_ignore_exception_handler(struct exception_handler *self UNUSED,
 			    const struct exception *e UNUSED)

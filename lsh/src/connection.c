@@ -222,7 +222,7 @@ do_exc_connection_handler(struct exception_handler *s,
        * the peer sends us more data.
        *
        * So any code that raises EXC_PAUSE_START_CONNECTION should
-       * also call connection_handle_pending() at a safe place. We
+       * also call connection_handle_pending at a safe place. We
        * can't call it here, as we may be in the middle of the
        * handling of a packet. Installing a callout would be best. */
       

@@ -396,7 +396,7 @@ do_handshake(struct command *s,
 }
 
 static struct lsh_object *
-collect_handshake_3(struct collect_info_3 *info,
+collect_handshake_3(struct collect_info_3 *info UNUSED,
 		    struct lsh_object *h,
 		    struct lsh_object *i,
 		    struct lsh_object *extra)
@@ -405,8 +405,9 @@ collect_handshake_3(struct collect_info_3 *info,
   CAST_SUBTYPE(make_kexinit, init, i);
   NEW(handshake_command_2, self);
 
+#if 0
   assert(!info->next);
-  
+#endif
   self->super.call = do_handshake;
   self->info = hinfo;
   self->init = init;

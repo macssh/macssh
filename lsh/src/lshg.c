@@ -24,7 +24,7 @@
  */
 
 #include "charset.h"
-#include "client.c"
+#include "client.h"
 #include "connection.h"
 #include "debug.h"
 #include "format.h"
@@ -278,6 +278,8 @@ main(int argc, char **argv)
   }
 
   io_run(backend);
+  
+  gc_final();
   
   return exit_code;
 }

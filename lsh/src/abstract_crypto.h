@@ -218,6 +218,7 @@ hash_string(struct hash_algorithm *a,
 	    struct lsh_string *in,
 	    int free);
 
+/* Used only by the testsuite */
 struct lsh_string *
 mac_string(struct mac_algorithm *a,
 	   struct lsh_string *key,

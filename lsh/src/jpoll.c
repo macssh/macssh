@@ -1,6 +1,6 @@
 /* jpoll.c
  *
- * This code emulates a minimal poll() function, and can be used as a drop-in
+ * This code emulates a minimal poll function, and can be used as a drop-in
  * replacement for the SVID3 implementation.  Note that at this time it only
  * emulates the POLLIN and POLLOUT events.
  *

@@ -1334,11 +1334,14 @@ static	void HandleDoubleClick(short w, short modifiers)
 		}																		
 																				
 	if (leftLoc.h != rightLoc.h) {		/* we selected something */
+#if 0
 		RSlocal[w].anchor = leftLoc;	/* new left bound */
 		RSlocal[w].last = rightLoc;		/* and a matching new right bound */
 		RSlocal[w].selected = 1;		/* give me credit for the selection I just made */
 		RSinvText(w, RSlocal[w].anchor,		/* time to show it off */
 			RSlocal[w].last, &noConst);
+#endif
+		HiliteThis(w, leftLoc, rightLoc);
 
 		if (modifiers & cmdKey)		// Possible URL selection
 			HandleURL(w);

@@ -84,6 +84,9 @@ make_client_session_channel(struct lsh_fd *in,
 struct command *
 make_exec_request(struct lsh_string *command);
 
+struct command *
+make_pty_request(struct interact *tty);
+
 /* GABA:
    (class
      (name client_options)
@@ -132,11 +135,6 @@ make_exec_request(struct lsh_string *command);
 void
 init_client_options(struct client_options *options,
 		    struct io_backend *backend,
-		    struct exception_handler *handler,
-		    int *exit_code);
-
-struct client_options *
-make_client_options(struct io_backend *backend,
 		    struct exception_handler *handler,
 		    int *exit_code);
 

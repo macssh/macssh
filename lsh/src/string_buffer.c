@@ -163,13 +163,6 @@ struct lsh_string *string_buffer_final_write(struct string_buffer *buffer,
 }
 #endif
 
-#if 0
-UINT32 string_buffer_length(struct string_buffer *buffer)
-{
-  return buffer->total + length;
-}
-#endif
-
 struct lsh_string *string_buffer_final(struct string_buffer *buffer,
 				       UINT32 left_over)
 {

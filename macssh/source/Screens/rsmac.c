@@ -727,8 +727,7 @@ void RSdellines
 		if (RScurrent->selected && scrolled < 0)
 		  {
 		  /* unhighlight and cancel current selection */
-			RSinvText(w, *(Point *) &RScurrent->anchor, *(Point *) &RScurrent->last, &noConst);
-			RScurrent->selected = 0;
+	  		UnHiliteSelection(w);
 		  }
 		else
 		  {
@@ -814,9 +813,7 @@ void RSinslines
 	if (RScurrent->selected && (scrolled < 0))
 	  {
 	  /* unhighlight and cancel selection */
-		RSinvText(w, *(Point *) &RScurrent->anchor,
-			*(Point *) &RScurrent->last, &noConst);
-		RScurrent->selected = 0;
+	  	UnHiliteSelection(w);
 	  } /* if */
 
     MYSETRECT

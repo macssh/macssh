@@ -92,14 +92,6 @@ void do_channel_request_command(struct command *s,
 #define FORMAT_GLOBAL_REQUEST(r, conn, c) \
 ((r)->format_request((r), (conn), (c)))
 
-/* For simple channel-related commands */
-/* ;; GABA:
-   (class
-     (name channel_command)
-     (super command)
-     (vars
-       (channel object ssh_channel)))
-*/
 
 void do_channel_global_command(struct command *s,
 			       struct lsh_object *x,

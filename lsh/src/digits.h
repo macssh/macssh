@@ -64,7 +64,9 @@ decode_base64(UINT32 length, const UINT8 *in);
 struct lsh_string *
 simple_decode_hex(const unsigned char *in);
 
+#if 0
 struct lsh_string *
 simple_decode_base64(const unsigned char *in);
+#endif
 
 #endif /* LSH_DIGITS_H_INCLUDED */

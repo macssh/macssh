@@ -173,9 +173,6 @@ do_##NAME(struct packet_handler *s UNUSED,		\
        (kexinits array (object kexinit) 2)
        (literal_kexinits array (string) 2)
 
-       ; Negotiated algorithms
-       ; (newkeys object newkeys_info)
-  
        ; Table of all known message types 
        (dispatch array (object packet_handler) "0x100");
        
@@ -195,13 +192,6 @@ make_ssh_connection(UINT32 flags,
 		    const char *id_comment,
 		    struct command_continuation *c,
 		    struct exception_handler *e);
-
-#if 0
-struct exception_handler *
-make_exc_protocol_handler(struct ssh_connection *connection,
-			  struct exception_handler *parent,
-			  const char *context);
-#endif
 
 void connection_init_io(struct ssh_connection *connection,
 			struct abstract_write *raw,

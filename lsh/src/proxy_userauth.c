@@ -30,6 +30,8 @@
 #include "lsh.h"
 #include "werror.h"
 
+#include <assert.h>
+
 #define GABA_DEFINE
 #include "proxy_userauth.h.x"
 #undef GABA_DEFINE
@@ -232,8 +234,12 @@ do_handle_userauth(struct packet_handler *c,
 	  connection->chain->dispatch[SSH_MSG_USERAUTH_FAILURE] = 
 	    make_forward_failure(closure->e);
 	  
+#if 0
 	  connection->chain->dispatch[SSH_MSG_USERAUTH_SUCCESS] =
 	    make_forward_success(user, make_delay_continuation(service, closure->c));
+#endif
+	  connection->chain->dispatch[SSH_MSG_USERAUTH_SUCCESS] =
+	    make_forward_success(user, closure->c);
 
 	  PROXY_AUTH(auth, connection, user, requested_service, &buffer);
 	}
@@ -284,16 +290,19 @@ do_proxy_userauth_continuation(struct command_continuation *c,
 			       struct lsh_object *x)
 {
   CAST(proxy_userauth_continuation, self, c);
-  CAST(delayed_apply, action, x);
+  CAST(proxy_user, user, x);
   int i;
 
+  assert(user);
+  /* self->connection->user = user; */
+  
   connection_unlock(self->connection);
 
   /* Ignore any further userauth messages. */
   for (i = SSH_FIRST_USERAUTH_GENERIC; i < SSH_FIRST_CONNECTION_GENERIC; i++) 
     self->connection->dispatch[i] = &connection_ignore_handler;
   
-  FORCE_APPLY(action, self->super.up, self->super.e);
+  COMMAND_RETURN(self->super.up, self->connection);
 
   /* FIXME: Possibly call connection_handle_pending. */
 }
@@ -327,10 +336,8 @@ do_userauth_proxy(struct command *s,
   connection->dispatch[SSH_MSG_USERAUTH_REQUEST] =
     make_proxy_userauth_handler(self->methods,
 				self->services, 
-				make_once_continuation
-				(NULL, 
 				 make_proxy_userauth_continuation
-				 (connection, c, e)),
+				(connection, c, e),
 				make_exc_userauth_handler(connection, 
 							  self->advertised_methods,
 							  AUTH_ATTEMPTS, e,

@@ -1262,12 +1262,6 @@ static int build_cmdline(WindRec*w, char *argstr)
 		strncat(argstr, (char *)w->sshdata.login + 1, w->sshdata.login[0]);	/* 256 */
 	}
 
-	/* add 'command' field */
-	if ( w->sshdata.command[0] ) {
-		strcat(argstr, " ");
-		strncat(argstr, (char *)w->sshdata.command + 1, w->sshdata.command[0]);	/* 256 */
-	}
-
 	strcat(argstr, " --capture-to \"");
 	strcat(argstr, getenv("HOME"));	/* 256 */
 	strcat(argstr, "known_hosts\"");
@@ -1332,17 +1326,16 @@ static int build_cmdline(WindRec*w, char *argstr)
 		}
 	}
 
-/* back to the original behaviour, for cluster problems */
-	/* I had troubles giving the URL to GUSI after a few connections
-	   with different hosts (?). but not when using the IP address directly
-	   since BetterTelnet uses MacTCP's DNS to solve the URL and provides
-	   the IP directly, let's use it. */
+	/* add 'command' field AFTER stdio redirection */
+	if ( w->sshdata.command[0] ) {
+		strcat(argstr, " ");
+		strncat(argstr, (char *)w->sshdata.command + 1, w->sshdata.command[0]);	/* 256 */
+	}
+
+	/* and finally the host */
 	strcat(argstr, " ");
 	strncat(argstr, (char *)w->sshdata.host + 1, w->sshdata.host[0]);
-/*
-	addr.s_addr = (in_addr_t)w->sshdata.ip;
-	strcat(argstr, inet_ntoa(addr));
-*/
+
 	return 0;
 }
 

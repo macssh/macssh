@@ -131,9 +131,3 @@ decode_base64(UINT32 length, const UINT8 *in)
   out->length = j;
   return out;
 }
-      
-struct lsh_string *
-simple_decode_base64(const unsigned char *in)
-{
-  return decode_base64(strlen(in), in);
-}

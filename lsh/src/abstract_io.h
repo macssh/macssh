@@ -51,8 +51,6 @@
 */
 
 
-/* May store a new handler into *h. */
-
 /* GABA:
    (class
      (name read_handler)
@@ -70,6 +68,7 @@
 		"struct exception_handler *e")))
 */
 
+/* May store a new handler into *h. */
 #define READ_HANDLER(h, l, d) ((h)->handler(&(h), (l), (d)))
 
 #endif /*LSH_ABSTRACT_IO_H_INCLUDED */

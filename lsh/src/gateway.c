@@ -27,8 +27,6 @@
 #include "format.h"
 #include "io.h"
 
-#include "gateway.c.x"
-
 /* A gateway is a mechanism to delegate some channels to a separate
  * process. The main lsh process opens a unix domain socket, and other
  * processes can connect and read and write cleartext ssh packets.
@@ -95,7 +93,7 @@ make_gateway_address(char *local_user, char *remote_user,
 
 /* Keeps track of one connection to the gateway. */
 
-/* GABA:
+/* ;;GABA:
    (class
      (name gateway)
      (vars

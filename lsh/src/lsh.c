@@ -30,7 +30,6 @@
 #include "charset.h"
 #include "client.h"
 #include "client_keyexchange.h"
-#include "client_pty.h"
 #include "client_userauth.h"
 #include "compress.h"
 #include "connection_commands.h"
@@ -955,7 +954,6 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
 #endif
 
-
 	if (!client_parse_forward_arg(arg, &listen_port, &target))
 	  argp_error(state, "Invalid forward specification '%s'.", arg);
 
@@ -1044,7 +1042,6 @@ do_lsh_default_handler(struct exception_handler *s,
       {
       case EXC_RESOLVE:
       case EXC_USERAUTH:
-      case EXC_SERVICE:
       case EXC_SEXP_SYNTAX:
       case EXC_SPKI_TYPE:
       case EXC_GLOBAL_REQUEST:
@@ -1154,6 +1151,8 @@ int main(int argc, char **argv)
   
   /* FIXME: Perhaps we have to reset the stdio file descriptors to
    * blocking mode? */
+  
+  gc_final();
   
   return lsh_exit_code;
 }

@@ -21,7 +21,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "client_pty.h"
+#include "client.h"
 
 #include "channel_commands.h"
 #include "format.h"

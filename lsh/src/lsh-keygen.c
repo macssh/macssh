@@ -26,10 +26,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "blocking_write.h"
 #include "crypto.h"
 #include "dsa.h"
 #include "format.h"
+#include "io.h"
 #include "publickey_crypto.h"
 #include "randomness.h"
 #include "rsa.h"
@@ -129,7 +129,7 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 	    argp_error(state, "RSA keys should be at least 512 bits.");
 	  break;
 	default:
-	  abort();
+	  fatal("Internal error!\n");
 	}
       break;
 	  
@@ -206,7 +206,8 @@ int main(int argc, char **argv)
   struct sexp *key;
   struct randomness_with_poll *r;
 
-  struct abstract_write *out;
+  struct lsh_string *out;
+  const struct exception *e;
   
   argp_parse(&main_argp, argc, argv, 0, NULL, options);
 
@@ -241,14 +242,19 @@ int main(int argc, char **argv)
       }
       break;
     default:
-      abort();
+      fatal("Internal error!\n");
     }
 
   /* Now, output a private key spki structure. */
 
-  out = make_blocking_write(STDOUT_FILENO, 0, &handler);
-  A_WRITE(out,
-	  sexp_format(key, options->style, 0));
+  out = sexp_format(key, options->style, 0);
+  e = write_raw(STDOUT_FILENO, out->length, out->data);
+
+  if (e)
+    {
+      werror("lsh-keygen: %z\n", e->msg);
+      return EXIT_FAILURE;
+    }
   
   return EXIT_SUCCESS;
 }

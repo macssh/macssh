@@ -716,8 +716,10 @@ Boolean FindURLAroundPoint(Point curr, short w)
 	start = p;
 	end = q;
 
+/* NONO: wrong, HiliteThis does the deselect if needed */
+	/*UnHiliteSelection(w);*/
+/* NONO */
 
-	UnHiliteSelection(w);
 	HUnlock(block);
 
 										// RJZ 12/11/97

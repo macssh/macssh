@@ -300,7 +300,7 @@
 #define PACKAGE "lsh"
 
 /* Version number of package */
-#define VERSION "1.1.8"
+#define VERSION "1.1.9"
 
 /* MacOS Specific */
 

@@ -312,12 +312,6 @@ make_listen_callback(struct io_backend *backend,
 		     struct command_continuation *c,
 		     struct exception_handler *e);
 
-#if 0
-struct io_callback *
-make_listen_callback_no_peer(struct io_backend *backend,
-			     struct command_continuation *c);
-#endif
-
 /* NONO */
 struct lsh_fd *fwd_io_read_write(struct lsh_fd *fd,
 			     struct io_callback *read,
@@ -338,7 +332,6 @@ struct lsh_fd *io_write(struct lsh_fd *fd,
 			UINT32 block_size,
 			struct lsh_callback *close_callback);
 
-/* Marks a file for close, without touching the close_reason field. */
 void kill_fd(struct lsh_fd *fd);
 
 void close_fd(struct lsh_fd *fd);
@@ -350,7 +343,8 @@ void close_fd_nicely(struct lsh_fd *fd);
 /* Stop reading, but if the fd has a write callback, keep it open. */
 void close_fd_read(struct lsh_fd *fd);
 
-struct lsh_fd *io_write_file(struct io_backend *backend,
+struct lsh_fd *
+io_write_file(struct io_backend *backend,
 			    const char *fname, int flags,
 			    int mode,
 			    UINT32 block_size,

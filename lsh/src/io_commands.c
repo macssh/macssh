@@ -117,50 +117,14 @@ struct io_read_fd io_read_stdin
 = STATIC_IO_READ_FD(STDIN_FILENO);
 
 
-/* GABA:
-   (class
-     (name remember_continuation)
-     (super command_continuation)
-     (vars
-       (resources object resource_list)
-       (up object command_continuation)))
-*/
-
-static void
-do_remember_continuation(struct command_continuation *s,
-			 struct lsh_object *x)
-{
-  CAST(remember_continuation, self, s);
-  CAST_SUBTYPE(resource, resource, x);
-
-  assert(resource);
-  REMEMBER_RESOURCE(self->resources, resource);
-
-  COMMAND_RETURN(self->up, resource);
-}
-
-struct command_continuation *
-make_remember_continuation(struct resource_list *resources,
-			   struct command_continuation *up)
-{
-  NEW(remember_continuation, self);
-  self->super.c = do_remember_continuation;
-
-  self->resources = resources;
-  self->up = up;
-
-  return &self->super;
-}
-
 static struct exception resolve_exception =
 STATIC_EXCEPTION(EXC_RESOLVE, "address could not be resolved");
 
-/* Used by both do_simple_listen and do_listen_connection. */
+/* Used by do_listen_callback and any other listen variants. Currently
+ * doesn't perform any dns lookups. */
 static void
 do_listen(struct io_backend *backend,
 	  struct address_info *a,
-	  int lookup,
-	  struct resource_list *resources,
 	  /* Continuation if listen succeeds. */
 	  struct command_continuation *listen_c,
 	  /* Continuation if accept succeeds. */
@@ -172,15 +136,12 @@ do_listen(struct io_backend *backend,
   
   struct lsh_fd *fd;
 
-  addr = address_info2sockaddr(&addr_length, a, NULL, lookup);
+  addr = address_info2sockaddr(&addr_length, a, NULL, 0);
   if (!addr)
     {
       EXCEPTION_RAISE(e, &resolve_exception);
       return;
     }
-
-  if (resources)
-    accept_c = make_remember_continuation(resources, accept_c);
   
   fd = io_listen(backend,
 		 addr, addr_length,
@@ -189,18 +150,11 @@ do_listen(struct io_backend *backend,
   lsh_space_free(addr);
   
   if (!fd)
-    {
-      EXCEPTION_RAISE(e, make_io_exception(EXC_IO_LISTEN,
-					   NULL, errno, NULL));
-    }
+    EXCEPTION_RAISE(e, make_io_exception(EXC_IO_LISTEN,
+					 NULL, errno, NULL));
   else
-    {
-      if (resources)
-	REMEMBER_RESOURCE(resources, &fd->super);
-      if (listen_c)
 	COMMAND_RETURN(listen_c, fd);
     }
-}
 
 /* A listen function taking three arguments:
  * (listen callback backend port).
@@ -227,8 +181,7 @@ do_listen_with_callback(struct command *s,
   CAST(address_info, address, x);
 
   /* No dns lookups */
-  do_listen(self->backend, address, 0,
-	    NULL,
+  do_listen(self->backend, address,
 	    c,
 	    make_apply(self->callback,
 		       &discard_continuation, e), e);
@@ -375,27 +328,6 @@ make_connect_port(struct io_backend *backend,
   return &self->super;
 }
 
-static struct lsh_object *
-collect_connect_port(struct collect_info_2 *info,
-		     struct lsh_object *a,
-		     struct lsh_object *b)
-{
-  CAST(io_backend, backend, a);
-  CAST(address_info, target, b);
-  assert(!info->next);
-  assert(backend);
-  assert(target);
-  
-  return &make_connect_port(backend, target)->super;
-}
-
-static struct collect_info_2 collect_info_connect_port_2 =
-STATIC_COLLECT_2_FINAL(collect_connect_port);
-
-struct collect_info_1 connect_with_port =
-STATIC_COLLECT_1(&collect_info_connect_port_2);
-
-
 
 /* GABA:
    (class
@@ -465,34 +397,6 @@ make_connect_connection(struct io_backend *backend)
   NEW(connect_connection, self);
   self->super.call = do_connect_connection;
   self->backend = backend;
-
-  return &self->super;
-}
-
-
-static void
-do_simple_listen(struct command *s,
-		 struct lsh_object *a,
-		 struct command_continuation *c,
-		 struct exception_handler *e)
-{
-  CAST(simple_io_command, self, s);
-  CAST(address_info, address, a);
-
-  /* Performs a dns lookup, if needed. */
-  do_listen(self->backend, address, 1, NULL, NULL, c, e);
-}
-
-/* FIXME: The resources argument is never used. */
-struct command *
-make_simple_listen(struct io_backend *backend,
-		   struct resource_list *resources)
-{
-  NEW(simple_io_command, self);
-  self->backend = backend;
-  self->resources = resources;
-  
-  self->super.call = do_simple_listen;
 
   return &self->super;
 }

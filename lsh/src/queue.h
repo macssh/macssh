@@ -89,11 +89,6 @@ struct object_queue_node
           do_object_queue_mark do_object_queue_free)))
 */
 
-#if 0
-#define object_queue_is_empty(x) (lsh_queue_is_empty(&(x)->q))
-#define object_queue_init(x) (lsh_queue_init(&(x)->q))
-#endif
-
 void object_queue_init(struct object_queue *q);
 int object_queue_is_empty(struct object_queue *q);
 

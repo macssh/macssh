@@ -96,11 +96,6 @@ struct channel_request_info
        ; Remote channel number 
        (channel_number . UINT32)
 
-       ; Somewhat redundant. Makes it easier to locate
-       ; the channel_table entry for the channel, which
-       ; is needed for deallocating it.
-       ;; (local_number . UINT32)
-       
        ; Where to pass errors. This is used for two different
        ; purposes: If opening the channel fails, EXC_CHANNEL_OPEN is
        ; raised. Once the channel is open, this handler is used for
@@ -257,14 +252,16 @@ struct channel_request_info
      (vars
        (handler method void "struct ssh_connection *connection"
                             "UINT32 type"
-			    ;; FIXME: Is want-reply really needed?
+			    ; want-reply is needed only by
+			    ; do_gateway_global_request.
                             "int want_reply"
                             "struct simple_buffer *args"
 			    "struct command_continuation *c"
 			    "struct exception_handler *e")))
 */
 
-#define GLOBAL_REQUEST(r, c, t, w, a, n, e) ((r)->handler((r), (c), (t), (w), (a), (n), (e)))
+#define GLOBAL_REQUEST(r, c, t, w, a, n, e) \
+((r)->handler((r), (c), (t), (w), (a), (n), (e)))
 
 /* SSH_MSG_CHANNEL_OPEN */
   
@@ -315,7 +312,6 @@ make_channel_open_exception(UINT32 error_code, const char *msg);
 #define CHANNEL_REQUEST(s, c, conn, i, a, n, e) \
 ((s)->handler((s), (c), (conn), (i), (a), (n), (e)))
 
-/* #define CONNECTION_START(c, s) ((c)->start((c), (s))) */
 
 void init_channel(struct ssh_channel *channel);
 
@@ -327,7 +323,8 @@ void
 use_channel(struct ssh_connection *connection,
 	    UINT32 local_channel_number);
 
-void register_channel(struct ssh_connection *connection,
+void
+register_channel(struct ssh_connection *connection,
 		      UINT32 local_channel_number,
 		      struct ssh_channel *channel,
 		      int take_into_use);
@@ -368,14 +365,6 @@ format_channel_open_s(struct lsh_string *type,
 		      UINT32 local_channel_number,
 		      struct ssh_channel *channel,
 		      struct lsh_string *args);
-
-#if 0
-struct lsh_string *
-format_channel_open_a(int type,
-		      UINT32 local_channel_number,
-		      struct ssh_channel *channel,
-		      struct lsh_string *args);
-#endif
 
 struct lsh_string *
 format_channel_open(int type, UINT32 local_channel_number,

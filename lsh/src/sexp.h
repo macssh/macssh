@@ -54,24 +54,6 @@
 #define SEXP_FORMAT(e, s, i) ((e)->format((e), (s), (i)))
 #define SEXP_ITER(e) ((e)->iter((e)))
 
-/* GABA:
-   (class
-     (name sexp_cons)
-     (super sexp)
-     (vars
-       (car object sexp)
-       (cdr object sexp_cons)))
-*/
-
-/* ;; GABA:
-   (class
-     (name sexp_atom)
-     (super sexp)
-     (vars
-       (atom . int)))
-*/
-
-
 /* Iterator abstraction idea taken from Ron's code */
 /* FIXME: It would make a lot of sense to use (meta)class methods for
  * iterators. */
@@ -80,7 +62,6 @@
      (name sexp_iterator)
      (vars
        (get method "struct sexp *")
-       (set method void "struct sexp *")
        (assoc method "struct sexp *"
               "UINT32 length" "const UINT8 *name"
 	      "struct sexp_iterator **i")
@@ -89,7 +70,6 @@
 */
 
 #define SEXP_GET(i) ((i)->get((i)))
-#define SEXP_SET(i, v) ((i)->set((i), (v)))
 #define SEXP_ASSOC(s, l, n, i) ((s)->assoc((s), (l), (n), (i)))
 #define SEXP_LEFT(i) ((i)->left((i)))
 #define SEXP_NEXT(i) ((i)->next((i)))
@@ -128,25 +108,11 @@ struct sexp *sexp_sn(const mpz_t n);
 /* Small unsigned int -> sexp */
 struct sexp *sexp_uint32(UINT32 n);
 
-/* cons */
-struct sexp *sexp_c(struct sexp *car, struct sexp_cons *cdr);
-
 /* list */
 struct sexp *sexp_l(unsigned n, ...);
 
 /* vector */
 struct sexp *sexp_v(struct object_list *l);
-
-#if 0
-/* Extracting information from sexp. These functions accept NULL
- * arguments, and return NULL if the conversion is not possible */
-
-int sexp_consp(struct sexp *e);
-
-/* For lists */
-struct sexp *sexp_car(const struct sexp *e);
-struct sexp *sexp_cdr(const struct sexp *e);
-#endif
 
 int sexp_nullp(const struct sexp *e);
 int sexp_atomp(const struct sexp *e);
@@ -164,8 +130,6 @@ sexp2bignum_u(struct sexp *e, mpz_t n, UINT32 limit);
 
 int
 sexp2uint32(struct sexp *e, UINT32 *n);
-
-/* int sexp_null_cdr(struct sexp *e); */
 
 struct lsh_string *sexp_contents(const struct sexp *e);
 struct lsh_string *sexp_display(const struct sexp *e);
@@ -221,7 +185,8 @@ make_read_sexp(int style, int goon,
 
 extern const struct argp sexp_input_argp;
 extern const struct argp sexp_output_argp;
-#define sexp_argp_state int
+
+typedef int sexp_argp_state;
 
 #endif /* LSH_SEXP_H_INCLUDED */
 

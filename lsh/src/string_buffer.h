@@ -72,7 +72,6 @@ void string_buffer_clear(struct string_buffer *buffer);
 /* Assumes that the buffer->partial string is full */
 void string_buffer_grow(struct string_buffer *buffer, UINT32 increment);
 
-UINT32 string_buffer_length(struct string_buffer *buffer);
 struct lsh_string *string_buffer_final(struct string_buffer *buffer,
 				       UINT32 left);
 

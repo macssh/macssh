@@ -203,19 +203,10 @@ do_catch_report_collect(struct command_simple *s,
 /* Commands that need to collect some arguments before actually doing
  * anything. */
 
-/* The collect_info_n classes keeps track about what to do whith the
+/* The collect_info_n classes keeps track about what to do with the
  * next argument. As long as we collect arguments without doing
  * anything, the f field in collect_info_n will point to the
  * constructor make_collect_state_n. */
-/* GABA:
-   (class
-     (name collect_info_4)
-     (vars
-       ; No next field
-       (f method "struct lsh_object *"
-                 "struct lsh_object *" "struct lsh_object *"
-		 "struct lsh_object *" "struct lsh_object *")))
-*/
 
 /* GABA:
    (class
@@ -223,8 +214,7 @@ do_catch_report_collect(struct command_simple *s,
      (vars
        (f method  "struct lsh_object *"
                   "struct lsh_object *" "struct lsh_object *"
-		  "struct lsh_object *")
-       (next object collect_info_4)))
+		  "struct lsh_object *")))
 */
 
 /* GABA:
@@ -258,21 +248,9 @@ make_collect_state_2(struct collect_info_2 *info,
 		     struct lsh_object *a,
 		     struct lsh_object *b);
 
-struct lsh_object *
-make_collect_state_3(struct collect_info_3 *info,
-		     struct lsh_object *a,
-		     struct lsh_object *b,
-		     struct lsh_object *c);
-
 #define STATIC_COLLECT_1(next) \
 { { { STATIC_HEADER, do_call_simple_command }, do_collect_1}, \
   make_collect_state_1, next }
-
-#if 0
-#define STATIC_COLLECT_1_FINAL(f) \
-{ { { STATIC_HEADER, do_call_simple_command }, do_collect_1}, \
-  f, NULL }
-#endif
 
 #define STATIC_COLLECT_2(next) \
 { STATIC_HEADER, make_collect_state_2, next }
@@ -280,11 +258,8 @@ make_collect_state_3(struct collect_info_3 *info,
 #define STATIC_COLLECT_2_FINAL(f) \
 { STATIC_HEADER, f, NULL }
 
-#define STATIC_COLLECT_3(next) \
-{ STATIC_HEADER, make_collect_state_3, next }
-
 #define STATIC_COLLECT_3_FINAL(f) \
-{ STATIC_HEADER, f, NULL }
+{ STATIC_HEADER, f }
 
 extern struct command_simple command_unimplemented;
 #define COMMAND_UNIMPLEMENTED (&command_unimplemented.super.super)
@@ -300,34 +275,6 @@ struct lsh_object *collect_trace(const char *name, struct lsh_object *real);
 #else /* !DEBUG_TRACE */
 #define MAKE_TRACE(name, real) (real)
 #endif /* !DEBUG_TRACE */
-
-struct command_continuation *
-make_once_continuation(const char *msg,
-		       struct command_continuation *up);
-
-
-/* Delayed application. This is just a convenient way to record how to
- * apply a function, at some later time. Currently used only by
- * server_userauth.c. */
-
-/* GABA:
-   (class
-     (name delayed_apply)
-     (super command_context)
-     (vars
-       (f object command)
-       (a object lsh_object)))
-*/
-
-struct delayed_apply *
-make_delayed_apply(struct command *f,
-		   struct lsh_object *a);
-
-#define FORCE_APPLY(d, c, e) COMMAND_CALL((d)->f, (d)->a, (c), (e))
-
-struct command_continuation *
-make_delay_continuation(struct command *f,
-			struct command_continuation *c);
 
 /* Useful clobal commands */
 #define PROG1 (&command_K.super.super)

@@ -57,6 +57,7 @@ alist_addv(struct alist *a, unsigned n, va_list args)
   return a;
 }
 
+#if 0
 struct alist
 *alist_add(struct alist *a, unsigned n, ...)
 {
@@ -68,6 +69,7 @@ struct alist
 
   return a;
 }
+#endif
 
 struct alist_node
 {
@@ -209,6 +211,8 @@ do_linked_set(struct alist *c, int atom, struct lsh_object *value)
 {
   CAST(alist_linked, self, c);
   
+  assert(atom >= 0);
+
   if (value)
     {
       struct alist_node *p;
