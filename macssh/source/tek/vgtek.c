@@ -50,6 +50,8 @@ static RGLINK RG[TEK_DEVICE_MAX] = {
 
 extern WindRec *screens;
 
+Boolean		gTekCopying = FALSE;
+
 static fontnum(short vw, short n);
 static storexy(short vw, short x, short y);
 static joinup(short hi, short lo, short e);
@@ -385,15 +387,13 @@ static	short	VGcheck(short dnum)
 short VGnewwin
   (
 	short device, /* number of RG device to use */
-	short theVS
+	short theVS,
+	short tek4105,
+	short tekclear
   )
 {
 	short	vw = 0;
 	short	theScrn;
-
-	theScrn = findbyVS(theVS);
-	if (theScrn < 0)
-		return(-1);
 
 	while ((vw < MAXVG) && (VGwin[vw] != nil)) vw++;
 	if (vw == MAXVG)
@@ -415,7 +415,8 @@ short VGnewwin
 	VGwin[vw]->RGdevice = device;
 	VGwin[vw]->RGnum = (*RG[device].newwin)();
 
-	VGwin[vw]->TEKtype = screens[theScrn].tektype;	// 0 = 4014, 1 = 4105
+	VGwin[vw]->TEKtype = (tek4105 != 0);	// 0 = 4014, 1 = 4105
+	VGwin[vw]->tekclear = tekclear;
 
 	if (VGwin[vw]->RGnum < 0)
 	{
@@ -457,6 +458,25 @@ void	VGclose(short vw)
 	DisposePtr((Ptr)VGwin[vw]);
 	VGwin[vw] = nil;
 }
+
+/* return this window's tek emulation type */
+short VGgettektype(short vw)
+{
+	if (VGcheck(vw)) {
+		return -1;
+	}
+	return VGwin[vw]->TEKtype;
+}
+
+/* return this window's tek clear flag */
+short VGgettekclear(short vw)
+{
+	if (VGcheck(vw)) {
+		return -1;
+	}
+	return VGwin[vw]->tekclear;
+}
+
 
 /*	Detach window from its current device and attach it to the
  *	specified device.  Returns negative number if unable to do so.
@@ -529,7 +549,6 @@ void	VGdumpstore(short vw, short (*func )(short))
  */
 void VGdraw(short vw, char c)			/* the latest input char */
 {
-	short		sn;
 	char		cmd;
 	char		value;
 	char		goagain;	/* true means go thru the function a second time */
@@ -537,16 +556,13 @@ void VGdraw(short vw, char c)			/* the latest input char */
 	RgnHandle	PanelRgn;
 	struct	VGWINTYPE *vp;
 	pointlist	temppoint;
+	GrafPtr		savePort;
 
 	if (VGcheck(vw)) {
 		return;
 	}
 
 	vp = VGwin[vw];		/* BYU */
-
- 	sn = findbyVS(vp->theVS);
- 	if (sn < 0)
- 		return;
 
 	temp[0] = c;
 	temp[1] = (char) 0;
@@ -824,7 +840,7 @@ void VGdraw(short vw, char c)			/* the latest input char */
 				state[vw] = DONE;
 				break;
 			case 12: /* form feed = clrscr */
-				if (sn >= 0 && screens[sn].tekclear) {
+				if (vp->tekclear) {
 					VGpage(vw);
 					VGclrstor(vw);
 				}
@@ -983,6 +999,7 @@ void VGdraw(short vw, char c)			/* the latest input char */
 				{
 					if (vp->TEKPanel)
 					{
+
 						if ((vp->current->x != vp->savx) ||
 							(vp->current->y != vp->savy))
 						{
@@ -1020,6 +1037,7 @@ void VGdraw(short vw, char c)			/* the latest input char */
 						vp->TEKPanel = (pointlist) NULL;
 						vp->curx = vp->savx;
 						vp->cury = vp->savy;
+
 					}
 				}
 				state[vw] = DONE;
@@ -1268,15 +1286,18 @@ void VGdraw(short vw, char c)			/* the latest input char */
 				state[vw] = CMD0;
 				break;
 			default:
-				if (vp->mode == ALPHA)
-				{
+				if (vp->mode == ALPHA) {
 					state[vw] = DONE;
-					if (! vp->TEKtype)
+					if (! vp->TEKtype) {
 						drawc(vw,(short) c);
-					else
-					{
-						VSwrite(vp->theVS,&c,1);
-						TEKunstore(VGstore[vw]);
+					} else {
+						// not while copying a picture !!!
+						if (!gTekCopying) {
+							GetPort(&savePort);
+							VSwrite(vp->theVS, &c, 1);
+							SetPort(savePort);
+							TEKunstore(VGstore[vw]);
+						}
 					}
 					return;
 				}
@@ -1431,7 +1452,7 @@ void VGredraw(short vw, short dest)
 
 	if (VGcheck(vw)) {
 		return;
-		}
+	}
 
 	topTEKstore(VGstore[vw]);
 	while ((data = nextTEKitem(VGstore[vw])) != -1) VGdraw(dest,data);
