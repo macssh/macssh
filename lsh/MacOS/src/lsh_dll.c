@@ -556,18 +556,24 @@ pascal Ptr PLstrrchr(ConstStr255Param s, short c)
 /*
  * InstallTTY
  */
-int InstallTTY(int id, void *ctx)
+int InstallTTY(int id, void *ctx, void *sock)
 {
-#pragma unused (id, ctx)
+	if ( id == 0 ) {
+		lshcontext *context = ctx;
+		context->_insock = sock;
+	}
 	return 0;
 }
 
 /*
  * RemoveTTY
  */
-void RemoveTTY(int fd, void *ctx)
+void RemoveTTY(int id, void *ctx, void *sock)
 {
-#pragma unused (fd, ctx)
+	if ( id == 0 ) {
+		lshcontext *context = ctx;
+		context->_insock = NULL;
+	}
 }
 
 /*
@@ -957,6 +963,7 @@ void *lsh_thread(lshctx *ctx)
 	context->_gConsoleInEOF = 0;
 	context->_convertLFs = 0;
 	context->_lastCR = 0;
+	context->_insock = NULL;
 	context->_gConsoleInBufLen = 0;
 	context->_gConsoleInBufMax = CONSOLEBUFSIZE;
 	context->_gConsoleOutBufLen = 0;
@@ -1283,6 +1290,12 @@ long lsh_write(lshctx *ctx, const void *buffer, long inbytes)
 				(char *)buffer += len;
 				n -= len;
 				outbytes += len;
+
+				if (context->_insock) {
+					extern void GUSIWakeupTTYSocket( void *insock );
+					GUSIWakeupTTYSocket(context->_insock);
+				}
+
 			} else {
 				ssh2_sched();
 			}

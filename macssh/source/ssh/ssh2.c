@@ -380,15 +380,42 @@ char * strsignal( int signo )
 }
 
 /*
+ * getexitbuf
+ */
+
+void setexitbuf(jmp_buf *exitbuf)
+{
+	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+
+	if ( context ) {
+		context->_pexitbuf = exitbuf;
+	}
+}
+
+/*
+ * getexitbuf
+ */
+
+jmp_buf *getexitbuf()
+{
+	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+
+	if ( context ) {
+		return context->_pexitbuf;
+	}
+	return NULL;
+}
+
+/*
  * exit
  */
 
 void exit(int result)
 {
-	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+	jmp_buf *exitbuf;
 
-	if ( context ) {
-		longjmp( context->_exitbuf, 0 );
+	if (exitbuf = getexitbuf()) {
+		longjmp( *exitbuf, 1 );
 	}
 	/* should never go here... */
 	Debugger();
@@ -1077,6 +1104,19 @@ WindRec *ssh2_window()
 	return NULL;
 }
 
+/*
+ * get_context_listener
+ */
+
+int get_context_listener()
+{
+	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+	if ( context ) {
+		return context->_listener;
+	}
+	return -1;
+}
+
 
 /*
  * init_context
@@ -1388,6 +1428,7 @@ void *ssh2_thread(WindRec*w)
 
 	listener = -1;
 
+	context->_pexitbuf = &context->_exitbuf;
 	if (!setjmp(context->_exitbuf)) {
 
 		do {
@@ -1425,6 +1466,11 @@ void *ssh2_thread(WindRec*w)
 		 	set_error_syslog(applname);
 			result = appl_main(argc, argv);
 
+			/* wait for empty output buffer */
+			while (context->_gConsoleOutBufLen) {
+				ssh2_sched();
+			}
+
 			close_all_files(context);
 
 			if ( context->_gMemPool ) {
@@ -1453,8 +1499,6 @@ done:
 			w->sshdata.thread = NULL;
 			w->sshdata.context = NULL;
 		}
-	} else {
-		syslog( 0, "### ssh2_thread done, window is NULL\n" );
 	}
 
 	if ( context ) {
@@ -1687,6 +1731,7 @@ void *ssh2_randomize_thread(struct RandStruct *rnd)
 
 	key_gen = 1;
 
+	context->_pexitbuf = &context->_exitbuf;
 	if (!setjmp(context->_exitbuf)) {
 		/* we need to intercept SIGINT to fake 'exit' */
 		struct sigaction interrupt;
@@ -1747,6 +1792,7 @@ void *ssh2_randomize_thread(struct RandStruct *rnd)
 
 	make_args( argstr, tabargv, &argc, &argv );
 
+	context->_pexitbuf = &context->_exitbuf;
 	if (!setjmp(context->_exitbuf)) {
 		/* we need to intercept SIGINT to fake 'exit' */
 		struct sigaction interrupt;
@@ -1984,6 +2030,7 @@ void *ssh_exportkey_thread(void *)
 
 	make_args( argstr, tabargv, &argc, &argv );
 
+	context->_pexitbuf = &context->_exitbuf;
 	if (!setjmp(context->_exitbuf)) {
 		/* we need to intercept SIGINT to fake 'exit' */
 		struct sigaction interrupt;

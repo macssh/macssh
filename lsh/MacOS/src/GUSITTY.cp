@@ -74,7 +74,9 @@ public:
  // [[select]] requires a walk of the event queue.                          
  //                                                                         
  // <Overridden member functions for class [[GUSITTYSocket]]>=            
- bool select(bool * canRead, bool * canWrite, bool *);
+ virtual bool pre_select(bool wantRead, bool wantWrite, bool wantExcept);
+ virtual bool select(bool * canRead, bool * canWrite, bool * exception);
+ virtual void post_select(bool wantRead, bool wantWrite, bool wantExcept);
 
 protected:
 	GUSITTYSocket(int id, void *context);
@@ -87,8 +89,6 @@ protected:
 
 
 
-
-
 /*
  * GUSIwithTTYSockets
  */
@@ -97,11 +97,22 @@ extern "C" void GUSIwithTTYSockets()
 	GUSIDeviceRegistry::Instance()->AddDevice(GUSITTYDevice::Instance());
 }
 
+/*
+ * GUSIwithoutTTYSockets
+ */
 extern "C" void GUSIwithoutTTYSockets()
 {
 	GUSIDeviceRegistry::Instance()->RemoveDevice(GUSITTYDevice::Instance());
 }
 
+/*
+ * GUSIWakeupTTYSocket
+ */
+extern "C" void GUSIWakeupTTYSocket( void *insock )
+{
+	GUSISocket *sock = (GUSISocket *)insock;
+	sock->Wakeup();
+}
 
 
 /*
@@ -167,7 +178,7 @@ GUSISocket * GUSITTYDevice::open(GUSIFileToken &file, int flags)
  */
 GUSITTYSocket::GUSITTYSocket(int id, void *context) : mId(id), mContext(context)
 {
-	InstallTTY(id, context);
+	InstallTTY(id, context, this);
 }
 
 
@@ -176,7 +187,7 @@ GUSITTYSocket::GUSITTYSocket(int id, void *context) : mId(id), mContext(context)
  */
 GUSITTYSocket::~GUSITTYSocket()
 {
-	RemoveTTY(mId, mContext);
+	RemoveTTY(mId, mContext, this);
 }
 
 /*
@@ -228,6 +239,31 @@ int	GUSITTYSocket::fstat(struct stat * buf)
 int GUSITTYSocket::isatty()
 { 
 	return 1;
+}
+
+extern "C" int get_context_listener();
+
+/*
+ * GUSITTYSocket::pre_select
+ */
+bool GUSITTYSocket::pre_select(bool wantRead, bool wantWrite, bool wantExcept)
+{
+	/* we can't sleep when in pseudo-port forwarding mode */
+	/* because the select functions polls for the connection */
+	if (get_context_listener() == -1) {
+		return GUSISocket::pre_select(wantRead, wantWrite, wantExcept);
+	}
+	return false;
+}
+
+/*
+ * GUSITTYSocket::post_select
+ */
+void GUSITTYSocket::post_select(bool wantRead, bool wantWrite, bool wantExcept)
+{
+	if (get_context_listener() == -1) {
+		GUSISocket::post_select(wantRead, wantWrite, wantExcept);
+	}
 }
 
 /*

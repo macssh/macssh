@@ -284,18 +284,24 @@ static long read_local_socket(lshcontext *context, char *buffer, long n)
 /*
  * InstallTTY
  */
-int InstallTTY(int id, void *ctx)
+int InstallTTY(int id, void *ctx, void *insock)
 {
-#pragma unused (id)
+	if ( id == 0 ) {
+		lshcontext *context = ctx;
+		context->_insock = insock;
+	}
 	return 0;
 }
 
 /*
  * RemoveTTY
  */
-void RemoveTTY(int id, void *ctx)
+void RemoveTTY(int id, void *ctx, void *insock)
 {
-#pragma unused (id)
+	if ( id == 0 ) {
+		lshcontext *context = ctx;
+		context->_insock = NULL;
+	}
 }
 
 /*

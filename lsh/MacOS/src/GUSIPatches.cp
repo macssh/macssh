@@ -32,6 +32,7 @@ extern "C" {
 #endif
 
 void ssh2_init();
+void ssh2_terminate();
 
 int open(const char * path, int mode, ...);
 int dup(int s);
@@ -147,63 +148,6 @@ done:
 	
 	return interrupt;
 }
-
-
-/*
- * The fSvc field of the GUSIOTNetDB instance is no longer valid after
- * an interface switch in the TCP/IP control panel.
- * Let's clear it upon kOTProviderWillClose message.
- */
-
-/* no longer needed: GUSI 2.1.6b2 fixes this */
-/*
-// <Asynchronous notifier function for [[GUSIOTNetDB]]>=                   
-inline uint32_t CompleteMask(OTEventCode code)	
-{ 	
-	return 1 << (code & 0x1F); 
-}
-
-pascal void GUSIOTNetDBNotify(
-	GUSIOTNetDB * netdb, OTEventCode code, OTResult result, void *cookie)
-{
-	GUSI_MESSAGE(("GUSIOTNetDBNotify %08x %d\n", code, result));
-	GUSIContext *	context = netdb->fCreationContext;
-	
-	switch (code & 0x7F000000L) {
-	case 0:
-		netdb->fEvent |= code;
-		result = 0;
-		break;
-	case kPRIVATEEVENT:
-	case kCOMPLETEEVENT:
-		if (!(code & 0x00FFFFE0))
-			netdb->fCompletion |= CompleteMask(code);
-		switch (code) {
-		case T_OPENCOMPLETE:
-			netdb->fSvc = static_cast<InetSvcRef>(cookie);
-			break;
-		case T_DNRSTRINGTOADDRCOMPLETE:
-		case T_DNRADDRTONAMECOMPLETE:
-			context = static_cast<GUSIContext **>(cookie)[-1];
-			break;
-		}
-		break;
-	default:
-		if (code != kOTProviderWillClose)
-			result = 0;
-		else {
-			OTCloseProvider(netdb->fSvc);
-			netdb->fSvc = NULL;
-			netdb->fCreationContext = NULL;
-		}
-		break;
-	}
-	if (result)
-		netdb->fAsyncError = result;
-	context->Wakeup();
-}
-*/
-
 
 
 /*
@@ -332,18 +276,33 @@ int close(int s)
 
 #pragma mark -
 
+static Boolean	sGUSISetup = false;
+
 /*
  * ssh2_init
  */
+extern "C" short SIOUXHandleOneEvent(EventRecord *userevent);
 
 void ssh2_init()
 {
-	static Boolean		sGUSISetup = false;
-
 	if ( !sGUSISetup ) {
 		GUSIContext::Setup(true);
-		/*GUSISetupConsole();*/
+		GUSISetupConsole();
+		GUSISetHook(GUSI_EventHook+keyDown, (GUSIHook)SIOUXHandleOneEvent);
+		GUSISetHook(GUSI_EventHook+keyUp, 	(GUSIHook)SIOUXHandleOneEvent);
+		GUSISetHook(GUSI_EventHook+autoKey, (GUSIHook)SIOUXHandleOneEvent);
 		sGUSISetup = true;
 	}
 }
 
+/*
+ * ssh2_terminate
+ */
+
+void ssh2_terminate()
+{
+
+	if ( sGUSISetup ) {
+		sGUSISetup = false;
+	}
+}

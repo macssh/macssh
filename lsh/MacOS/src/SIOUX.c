@@ -62,6 +62,10 @@ extern "C" {
 /*extern long __myraise(long signal);   now an inline */
 		__inline long __myraise(long _a) {return (__std(raise)(_a));}												
 
+	extern void GUSIWakeupSIOUXSocket();
+
+	extern void sched_yield();
+
 #ifdef __cplusplus
 }
 #endif
@@ -1197,6 +1201,7 @@ short SIOUXHandleOneEvent(EventRecord *userevent)
 #endif /* SIOUX_USE_WASTE */
 							} else {
 								gSIOUXChars[gSIOUXBufSize++] = aChar;
+								GUSIWakeupSIOUXSocket();
 								SIOUXState = IDLE;
 							}
 							SIOUXUpdateScrollbar();

@@ -9,8 +9,10 @@ extern "C" {
 
 extern pthread_key_t ssh2threadkey;
 
-extern int InstallTTY(int id, void *context);
-extern void RemoveTTY(int id, void *context);
+extern void GUSIWakeupTTYSocket( void *sock );
+
+extern int InstallTTY(int id, void *context, void *sock);
+extern void RemoveTTY(int id, void *context, void *sock);
 extern int ReadCharsFromTTY(int id, void *context, char * buffer, int length);
 extern int WriteCharsToTTY(int id, void *context, char * buffer, int length);
 extern int AvailableFromTTY(int id, void *context);

@@ -132,6 +132,8 @@ int main(void)
 
 	strcat(argstr, " --verbose");
 
+	strcat(argstr, " --stdin dev:ttyin --stdout dev:ttyout --stderr dev:ttyerr");
+ 
 	strcat(argstr, " 192.168.1.41");
 
 	//strcat(argstr, " cvs -d/home/macssh server");
