@@ -26,6 +26,8 @@ enum  {
 
 #define 	Fade_Levels 		12
 
+#define 	Scroll_Ticks 		2
+
 #if PRAGMA_ALIGN_SUPPORTED
 #pragma options align=mac68k
 #endif
@@ -350,7 +352,7 @@ void DoAnimation(void)
 		if (animCreditsFade == animate_Active) {
 			PixMapHandle thePixMapH;
 
-			Delay(4, &ticks);
+			Delay(Scroll_Ticks, &ticks);
 			SetGWorld(drawWorldP, nil);
 
 			thePixMapH = GetGWorldPixMap(theCreditsRec.theGWorldP);
@@ -400,7 +402,7 @@ void DoAnimation(void)
 				theCreditsRec.viewRect.right -theCreditsRec.viewRect.left -1;
 			Rect wrapViewRect, wrapPictRect;
 
-			Delay(4, &ticks);
+			Delay(Scroll_Ticks, &ticks);
 			SetGWorld(drawWorldP, nil);
 
 			theCreditsRec.pictRect.top += 1;
