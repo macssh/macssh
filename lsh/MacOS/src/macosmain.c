@@ -263,6 +263,22 @@ void __assertion_failed(char const *condition, char const *filename, int lineno)
 }
 
 /*
+ * __msl_assertion_failed
+ */
+void __msl_assertion_failed(char const *condition, char const *filename, char const *funcname, int lineno)
+{
+	fprintf(stderr, "Assertion (%s) failed in \"%s\" on line %d\n", condition, filename, lineno);
+	if ( pthread_getspecific(ssh2threadkey) ) {
+		abort();
+	} else {
+		#undef abort
+		abort();
+		#define abort macosabort
+	}
+}
+
+
+/*
  * strsignal
  */
 
