@@ -16,11 +16,14 @@ pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply, lon
 														handlerRefCon);
 pascal OSErr  MyHandleWait (AppleEvent *theAppleEvent, AppleEvent* reply, long
 														handlerRefCon);
+pascal OSErr  MyHandleRead (AppleEvent *theAppleEvent, AppleEvent* reply, long
+														handlerRefCon);
 pascal OSErr  MyHandleSuspend (AppleEvent *theAppleEvent, AppleEvent* reply, long
 														handlerRefCon);
 pascal OSErr  MyHandleUnSuspend (AppleEvent *theAppleEvent, AppleEvent* reply, long
 														handlerRefCon);
 OSErr MyGotRequiredParams (AppleEvent *theAppleEvent);
+
 PROTO_UPP(MyHandleODoc, AEEventHandler);
 PROTO_UPP(MyHandleOApp, AEEventHandler);
 PROTO_UPP(MyHandlePDoc, AEEventHandler);
@@ -30,6 +33,8 @@ PROTO_UPP(MyHandleSendData, AEEventHandler);
 PROTO_UPP(MyHandleSendCR, AEEventHandler);
 PROTO_UPP(MyHandleConnect, AEEventHandler);
 PROTO_UPP(MyHandleWait, AEEventHandler);
+PROTO_UPP(MyHandleRead, AEEventHandler);
 PROTO_UPP(MyHandleSuspend, AEEventHandler);
 PROTO_UPP(MyHandleUnSuspend, AEEventHandler);
+
 void AEunload(void);

@@ -21,6 +21,7 @@
 #include "parse.proto.h"
 #include "linemode.proto.h"
 #include "DlogUtils.proto.h"
+#include "prefs.proto.h"
 
 extern WindRec *screens;
 extern short scrn;
@@ -239,6 +240,8 @@ pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply,
 	ConnInitParams **theParams;
 	SessionPrefs	*SessPtr;
 	Boolean		wasAlias;
+	short		port;
+	short		portNegative;
 
 	if (handlerRefCon == 1)
 		return noErr;
@@ -274,13 +277,21 @@ pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply,
 		pstrcpy((unsigned char *)SessPtr->username, loginString);
 	if ( *passwordString )
 		pstrcpy((unsigned char *)SessPtr->password, passwordString);
-	switch ( protoID ) {
-		case 'Tlnt': SessPtr->protocol = 0; break;
-		case 'Rlog': SessPtr->protocol = 1; break;
-		case 'Rsh ': SessPtr->protocol = 2; break;
-		case 'Rexe': SessPtr->protocol = 3; break;
-		case 'Ssh ': SessPtr->protocol = 4; break;
+	if ( protoID ) {
+		switch ( protoID ) {
+			case 'Tlnt': SessPtr->protocol = 0; break;
+			case 'Rlog': SessPtr->protocol = 1; break;
+			case 'Rsh ': SessPtr->protocol = 2; break;
+			case 'Rexe': SessPtr->protocol = 3; break;
+			case 'Ssh ': SessPtr->protocol = 4; break;
+		}
+		/* reset default port if none specified */
+		GetAEStringParam(theAppleEvent, 'host', hostString);
+		if (!ProcessHostnameString(hostString, &port, &portNegative)) {
+			SessPtr->port = getDefaultPort(SessPtr->protocol);
+		}
 	}
+
 	if ( *commandString )
 		pstrcpy((unsigned char *)SessPtr->command, commandString);
 	if ( *titleString )
@@ -306,6 +317,7 @@ pascal OSErr  MyHandleWait (AppleEvent *theAppleEvent, AppleEvent* reply, long
 	OSErr		err;
 	Str255		dataString;
 	short		i, k;
+	Boolean		isSuspended;
 
 	if (handlerRefCon == 1) return noErr;
 	if (handlerRefCon == 2) return paramErr;
@@ -319,6 +331,9 @@ pascal OSErr  MyHandleWait (AppleEvent *theAppleEvent, AppleEvent* reply, long
 	if (dataString[0] == 0)
 		return paramErr;
 
+	if ((err = GetAEBoolParam(theAppleEvent, 'susp', &isSuspended)) != noErr)
+		isSuspended = screens[scrn].enabled;
+
 	// check for missing parameters
 	if ((err = MyGotRequiredParams(theAppleEvent)) != noErr)
 		return err;
@@ -329,7 +344,7 @@ pascal OSErr  MyHandleWait (AppleEvent *theAppleEvent, AppleEvent* reply, long
 	screens[scrn].waWeHaveAppleEvent = 1;
 	screens[scrn].waAppleEvent = *theAppleEvent;
 	screens[scrn].waAEReply = *reply;
-	screens[scrn].waWasEnabled = screens[scrn].enabled;
+	screens[scrn].waWasEnabled = isSuspended;
 	screens[scrn].enabled = 1;
 	screens[scrn].waWaitPos = 0;
 	screens[scrn].waWaiting = 1;
@@ -357,6 +372,43 @@ pascal OSErr  MyHandleWait (AppleEvent *theAppleEvent, AppleEvent* reply, long
 
 	return noErr;
 }
+
+
+SIMPLE_UPP(MyHandleRead, AEEventHandler);
+pascal OSErr  MyHandleRead (AppleEvent *theAppleEvent, AppleEvent* reply, long
+														handlerRefCon)
+{
+	OSErr		err;
+	short		i, k;
+
+	if (handlerRefCon == 1) return noErr;
+	if (handlerRefCon == 2) return paramErr;
+
+	if (TelInfo->numwindows < 1)
+		return noErr; // RAB BetterTelnet 2.0b2 (oops)
+/*
+	// check for missing parameters
+	if ((err = MyGotRequiredParams(theAppleEvent)) != noErr)
+		return err;
+*/
+
+	if (err = AESuspendTheCurrentEvent(theAppleEvent))
+		return err;
+
+	screens[scrn].waWeHaveAppleEvent = 1;
+	screens[scrn].waAppleEvent = *theAppleEvent;
+	screens[scrn].waAEReply = *reply;
+	screens[scrn].waWasEnabled = screens[scrn].enabled;
+	screens[scrn].enabled = 0;
+	screens[scrn].waWaitPos = 0;
+	screens[scrn].waWaiting = 0;
+	screens[scrn].waWaitLength = 0;
+
+	changeport(scrn, scrn);
+
+	return noErr;
+}
+
 
 SIMPLE_UPP(MyHandleGURL, AEEventHandler);
 pascal OSErr  MyHandleGURL (AppleEvent *theAppleEvent, AppleEvent* reply, long
