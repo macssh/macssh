@@ -25,6 +25,8 @@
 #include "netevent.proto.h"
 #include "network.proto.h"
 
+#include "GUSITTY.h"
+
 #include <GUSIInternal.h>
 #include <GUSIBasics.h>
 #include <GUSIContext.h>
@@ -170,6 +172,43 @@ GUSISIOUXSocket::GUSISIOUXSocket()
 	InstallConsole(0);
 }
 */
+
+/*
+ * default GUSISIOUXSocket::select checks for keyDown or
+ * autoKey events from MacOS's EventQueue.
+ * we use an internal buffer.
+ */
+
+class GUSISIOUXSocket : public GUSISocket {
+public:
+	~GUSISIOUXSocket();
+	
+	ssize_t	read(const GUSIScatterer & buffer);
+	ssize_t write(const GUSIGatherer & buffer);
+	virtual int	ioctl(unsigned int request, va_list arg);
+	virtual int	fstat(struct stat * buf);
+	virtual int	isatty();
+	bool select(bool * canRead, bool * canWrite, bool *);
+
+	static GUSISIOUXSocket *	Instance();
+private:
+	static GUSISIOUXSocket *	sInstance;
+	
+	GUSISIOUXSocket();
+};
+
+bool GUSISIOUXSocket::select(bool * canRead, bool * canWrite, bool *)
+{
+	bool cond = false;
+
+	if (canRead) {
+		if (*canRead = (AvailableFromTTY(0, (lshcontext *)pthread_getspecific(ssh2threadkey))))
+			cond = true;
+	}
+	if (canWrite)
+		cond = *canWrite = true;
+	return cond;
+}
 
 /*
  * default GUSIProcess::Yield has 20 ticks to remain in same state

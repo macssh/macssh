@@ -94,8 +94,9 @@ long WriteCharsToConsole(char *buffer, long n)
 	/* since we redirect stdin/out/err to our 'sockets'
 	 * this shouldn't occur ! (or lsh calls printf ? (; )
 	 */
-	DebugStr("\pWriteCharsToConsole");
-	return n;
+//	DebugStr("\pWriteCharsToConsole");
+//	return n;
+	return WriteCharsToTTY(1, pthread_getspecific(ssh2threadkey), buffer, n);
 }
 
 /*
@@ -116,8 +117,9 @@ long ReadCharsFromConsole(char *buffer, long n)
 	/* since we redirect stdin/out/err to our 'sockets'
 	 * this shouldn't occur ! (or lsh calls printf ? (; )
 	 */
-	DebugStr("\pReadCharsFromConsole");
-	return 0;
+//	DebugStr("\pReadCharsFromConsole");
+//	return 0;
+	return ReadCharsFromTTY(0, pthread_getspecific(ssh2threadkey), buffer, n);
 }
 
 /*
