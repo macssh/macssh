@@ -15,7 +15,7 @@
 
 // based on NCSA Telnet 2.7b5
 
-#define SAVE_SET_STRINGS_COUNT 87
+#define SAVE_SET_STRINGS_COUNT 89
 
 #include "macros.proto.h"
 #include "wind.h"			/* For WindRec definition */
@@ -131,6 +131,7 @@ short confile( char *s)
 	int			signedint;
 	Str255		Ckeyw;
 	char		tempCstring[256];
+
 	sets_debug_print(s);
 	if (!(*s) )
 		return(0);
@@ -249,6 +250,9 @@ short confile( char *s)
 			TelInfo->CONFstate=0;
 			break;
 
+
+/* NONO */
+/* NONO: save all macros
 		case 7:
 			setmacro(&TelInfo->newMacros, 0, s);
 			TelInfo->CONFstate=0;
@@ -289,6 +293,21 @@ short confile( char *s)
 			setmacro(&TelInfo->newMacros, 9, s);
 			TelInfo->CONFstate=0;
 			break;
+*/
+		case 7:
+		case 8:
+		case 9:
+		case 10:
+		case 11:
+		case 12:
+		case 13:
+		case 14:
+		case 15:
+		case 16:
+			TelInfo->CONFstate=0;		// Now ignored (was macros 0 to 9)
+			break;
+/* NONO */
+
 		case 17:
 			TelInfo->CONFstate=0;		// Now ignored (was commandkeys)
 			break;
@@ -681,6 +700,21 @@ short confile( char *s)
 			TelInfo->CONFstate = 0;
 			break;
 /* NONO */
+/* NONO: save all macros */
+		case 89: // macro
+			if (1 == sscanf( s, "%d", &a)) {
+				while ((*s >= '0' && *s <= '9'))
+					++s;
+				if (*s) {
+					++s;
+					if (*s) {
+						setmacro(&TelInfo->newMacros, a, s);
+					}
+				}
+			}
+			TelInfo->CONFstate = 0;
+			break;
+/* NONO */
 		default:
 			TelInfo->CONFstate=0;
 		}
@@ -899,18 +933,19 @@ void SaveSet(short doSaveMacros, short dontSaveTitle)
 		CStringToFile(fn,(unsigned char *) "commandkeys = no\015");		/* BYU LSC */
 
 	if (doSaveMacros)
-		for (i = 0; i < 10; i++)
+/* NONO: save all macros */
+		for (i = 0; i < 110; i++)
 		  {
 			getmacro(&TelInfo->newMacros,i, temp, sizeof(temp));			/* BYU LSC */
 			if (*temp) {									/* BYU LSC */
-				sprintf(temp2, "key%d = \"", i);			/* BYU 2.4.16 */
+				sprintf(temp2, "macro= \"%d ", i);			/* BYU 2.4.16 */
 				CStringToFile(fn,(unsigned char *) temp2);	/* BYU LSC */
 				CStringToFile(fn,(unsigned char *) temp);	/* BYU LSC */
 				strcpy(temp2,"\"\015");						/* BYU LSC */
 				CStringToFile(fn,(unsigned char *) temp2);	/* BYU LSC */
 			}												/* BYU LSC */
 		  } /* for */
-
+/* NONO */
 #if 0													/* BYU LSC */
 	for (i = 0; i < TelInfo->numwindows; i++)
 	  {
