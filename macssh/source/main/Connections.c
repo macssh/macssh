@@ -209,6 +209,9 @@ Boolean PresentOpenConnectionDialog(void)
 	LinkedListNode	*theHead;
 	Boolean			portSet;
 	Boolean			wasAlias;
+	Boolean			typedHost;
+	Boolean			parseAliases;
+
 	
 	SetCursor(theCursors[normcurs]);
 
@@ -274,9 +277,11 @@ Boolean PresentOpenConnectionDialog(void)
 	defaultSessHdl = GetDefaultSession();
 	HLock((Handle)defaultSessHdl);
 
+
 	BlockMoveData("\p<Default>", scratchPstring, 15);
-	GetHostNameFromSession(scratchPstring);
 	SetTEText(dptr, NCfavoritename, scratchPstring);
+
+	GetHostNameFromSession(scratchPstring);
 	if ((**defaultSessHdl).port != getDefaultPort((**defaultSessHdl).protocol)) {
 			NumToString((unsigned short)(**defaultSessHdl).port, scritchPstring);
 			pstrcat(scratchPstring, "\p:");
@@ -305,6 +310,8 @@ Boolean PresentOpenConnectionDialog(void)
 	DisposeHandle((Handle)defaultSessHdl);
 	setSessStates(dptr);
 
+	typedHost = false;
+
 	while (ditem > NCcancel) {
 		movableModalDialog(POCdlogfilterUPP, &ditem);
 		switch(ditem) 
@@ -327,6 +334,7 @@ Boolean PresentOpenConnectionDialog(void)
 			case    NChostname:
 				if ( gApplicationPrefs->parseAliases ) {
 					// check if the string matches a favorite name
+					typedHost = true;
 					GetTEText(dptr, NChostname, scratchPstring);
 					scratchshort = FindMenuItemText(SessPopupHdl, scratchPstring);
 					/* revert to default if not found */
@@ -382,6 +390,7 @@ Boolean PresentOpenConnectionDialog(void)
 				DeleteMenu(668);
 				if (scratchlong) 
 				{
+					typedHost = false;
 					scratchshort = scratchlong & 0xFFFF; //	Apple sez ignore the high word
 					SetItemMark(SessPopupHdl, sessMark, 0);
 					sessMark = scratchshort;
@@ -416,6 +425,7 @@ Boolean PresentOpenConnectionDialog(void)
 				}
 				break;
 			case 1001:
+				typedHost = false;
 				SetItemMark(SessPopupHdl, sessMark, 0);
 				sessMark--;
 				if (sessMark < 1)
@@ -445,6 +455,7 @@ Boolean PresentOpenConnectionDialog(void)
 				}
 				break;
 			case 1000:
+				typedHost = false;
 				SetItemMark(SessPopupHdl, sessMark, 0);
 				sessMark++;
 				if (sessMark > CountMItems(SessPopupHdl))
@@ -510,7 +521,13 @@ Boolean PresentOpenConnectionDialog(void)
 
 	MaxMem(&junk);
 	GetMenuItemText(SessPopupHdl, sessMark, scritchPstring);
+
+	/* don't try to convert hostname to alias if nothing has been typed */
+	parseAliases = gApplicationPrefs->parseAliases;
+	if (!typedHost)
+		gApplicationPrefs->parseAliases = false;
 	InitParams = NameToConnInitParams(scratchPstring, FALSE, scritchPstring, &wasAlias);
+	gApplicationPrefs->parseAliases = parseAliases;
 	if (InitParams == NULL)
 	{
 		DisposeMenu(SessPopupHdl);	// drh Ñ Bug fix: memory leak
@@ -967,10 +984,10 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	theScreen->pastemethod = SessPtr->pastemethod;
 	theScreen->pastesize = SessPtr->pasteblocksize;
 	
-	scratchBoolean = RSsetcolor( theScreen->vs, 0, &TermPtr->nfcolor);
-	scratchBoolean = RSsetcolor( theScreen->vs, 1, &TermPtr->nbcolor);
-	scratchBoolean = RSsetcolor( theScreen->vs, 2, &TermPtr->bfcolor);
-	scratchBoolean = RSsetcolor( theScreen->vs, 3, &TermPtr->bbcolor);
+	scratchBoolean = RSsetcolors( theScreen->vs, 0, &TermPtr->nfcolor);
+	scratchBoolean = RSsetcolors( theScreen->vs, 1, &TermPtr->nbcolor);
+	scratchBoolean = RSsetcolors( theScreen->vs, 2, &TermPtr->bfcolor);
+	scratchBoolean = RSsetcolors( theScreen->vs, 3, &TermPtr->bbcolor);
 
 	addinmenu(cur, (**Params).WindowName, diamondMark);
 	theScreen->active = CNXN_DNRWAIT;			// Signal we are waiting for DNR.

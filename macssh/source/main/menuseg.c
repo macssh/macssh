@@ -1426,7 +1426,7 @@ void HandleMenuCommand( long mResult, short modifiers)
 				EditConfigType(TERMINALPREFS_RESTYPE, &EditTerminal);
 				break;
 			case EDmacros+6:
-				EditConfigType(FTPUSER, &EditFTPUser);
+				EditConfigType(FTPUSERPREFS_RESTYPE, &EditFTPUser);
 
 			default:
 				break;
@@ -1434,192 +1434,31 @@ void HandleMenuCommand( long mResult, short modifiers)
 		}
 		break;
 
-	case connMenu:
-	case NconnMenu:
-		if (theItem == COnext) 
-		{
-			if (TelInfo->numwindows >1) 
-			{
-				short	scratchshort;
-				if (!(modifiers &  shiftKey)) //go forward
-				{
-					scratchshort = WindowPtr2ScreenIndex(FrontWindow()) + 1;
-					// Skip over inactive connections
-					while(	(screens[scratchshort].active != CNXN_ACTIVE) &&
-							(screens[scratchshort].active != CNXN_ISCORPSE) &&
-							(scratchshort <= TelInfo->numwindows+1))						
-						scratchshort++;
-					if ((scratchshort < 0) || (scratchshort >= TelInfo->numwindows))
-						scratchshort = 0;
-				}
-				else //go backward
-				{
-					scratchshort = WindowPtr2ScreenIndex(FrontWindow()) - 1;
-					// Skip over inactive connections
-					while(	(screens[scratchshort].active != CNXN_ACTIVE) &&
-							(screens[scratchshort].active != CNXN_ISCORPSE) &&
-							(scratchshort >= 0))						
-						scratchshort--;
-					if ((scratchshort < 0) || (scratchshort >= TelInfo->numwindows))
-						scratchshort = TelInfo->numwindows - 1;
-				}		
-				SelectWindow(screens[scratchshort].wind);
-			}
-			break;
-		}
-		
-		if (theItem == COtitle)	{
-			ChangeWindowName(FrontWindow());
-			break;
-			}
-			
-		if (theItem >= FIRST_CNXN_ITEM) {
-			if ((theItem - FIRST_CNXN_ITEM-1)>(TelInfo->numwindows+1)) break;  /* rotten danish */
-			if (screens[theItem - FIRST_CNXN_ITEM].active != CNXN_ACTIVE) {
-				displayStatus(theItem - FIRST_CNXN_ITEM);	/* Tell them about it..... */
-				break;
-				}
-			else {
-				HiliteWindow(screens[scrn].wind, FALSE);
-				changeport(scrn,(theItem - FIRST_CNXN_ITEM));
-				if (!(modifiers &  optionKey)) SelectWindow(screens[scrn].wind);
-				else HiliteWindow(screens[scrn].wind, TRUE);
-				}
-			}
-		break;
-
-	case netMenu:
-	case NnetMenu:
-		switch(theItem) {
-		case NEftp:										/* Send FTP command */
-		case NEip:										/* Send IP Number */
-			if (TelInfo->numwindows<1) break;
-			{	char tmpout[30];						/* Basically the same except for */
-				unsigned char tmp[4];					/* The ftp -n phrase in NEftp */
-
-				if (screens[scrn].echo && (screens[scrn].kblen>0)) {
-					netwrite( screens[scrn].port, screens[scrn].kbbuf,
-								screens[scrn].kblen);/* if not empty send buffer */
-					screens[scrn].kblen=0;
-					}
-				netgetip(tmp);
-				if (theItem == NEftp) {
-					if ((gFTPServerPrefs->ServerState == 1) && !(modifiers & shiftKey))
-						sprintf(tmpout,"ftp -n %d.%d.%d.%d\015\012",tmp[0],tmp[1],tmp[2],tmp[3]);
-					else
-						sprintf(tmpout,"ftp %d.%d.%d.%d\015\012",tmp[0],tmp[1],tmp[2],tmp[3]);
-					}
-				else
-					sprintf(tmpout,"%d.%d.%d.%d",tmp[0],tmp[1],tmp[2],tmp[3]);
-				netwrite(screens[scrn].port,tmpout,strlen(tmpout));
-				if (screens[scrn].echo)
-					VSwrite(screens[scrn].vs,tmpout, strlen(tmpout));
-			}
-			break;
-
-		case NEayt:								/* Send "Are You There?"*/
-			if (TelInfo->numwindows<1) break;
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\366",2);
-			break;
-
-		case NEao:								/* Send "Abort Output"*/
-			if (TelInfo->numwindows<1) break;
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\365",2);
-			screens[ scrn].timing = 1;						/* set emulate to TMwait */
-			netwrite(screens[scrn].port, "\377\375\006",3);		/* send TM */
-			break;
-
-		case NEinter:								/* Send "Interrupt Process"*/
-			if (TelInfo->numwindows<1) break;
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\364",2);
-			screens[ scrn].timing = 1;						/* set emulate to TMwait */
-			netwrite(screens[scrn].port, "\377\375\006",3);		/* send TM */
-			break;
-
-		case NEbrk:
-			if (TelInfo->numwindows<1) break;
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\363",2); // IAC BRK
-			break;
-
-		case NEsync:
-			if (TelInfo->numwindows<1) break;
-			netpush(screens[scrn].port);
-			netUrgent(); // This must be sent TCP Urgent.
-			netwrite(screens[scrn].port, "\377\362",2); // IAC DM
-			break;
-
-		case NEipsync:
-			if (TelInfo->numwindows<1) break;
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\364", 2); // IAC IP
-			netpush(screens[scrn].port);
-			netUrgent(); // This must also be sent TCP Urgent.
-			netwrite(screens[scrn].port, "\377\362", 2); // IAC DM
-			netpush(screens[scrn].port);
-			screens[scrn].timing = 1; // set emulate to TMwait
-			netwrite(screens[scrn].port, "\377\375\006", 3); // send Timing Mark
-			break;
-
-		case NEeof: // End Of File
-			if (TelInfo->numwindows<1) break;
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\354", 2);
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\375\006", 3);
-			break;
-
-		case NEsusp:
-			if (TelInfo->numwindows<1) break;
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\355", 2);
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\375\006", 3);
-			break;
-
-		case NEabort: // Abort
-			if (TelInfo->numwindows<1) break;
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\356", 2);
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\375\006", 3);
-			break;
-
-		case NEec:								/* Send "Erase Character"*/
-			if (TelInfo->numwindows<1) break;
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\367",2);
-			break;
-
-		case NEel:								/* Send "Erase Line"*/
-			if (TelInfo->numwindows<1) break;
-			netpush(screens[scrn].port);
-			netwrite(screens[scrn].port, "\377\370",2);
-			break;
-			
-		case NEscroll:							/* Suspend Network */
-			TelInfo->ScrlLock=!TelInfo->ScrlLock;
-			if (TelInfo->ScrlLock) 
-				CheckItem(myMenus[Net], NEscroll,TRUE);
-			else 
-				CheckItem(myMenus[Net], NEscroll,FALSE);
-			break;
-
-		case NEnet:								/* Show Network Numbers */
-			showNetNumbers();
-			break;
-
-		default:
-			break;
-		}
-		break;
-
+	/* Session */
 	case termMenu:
 	case NtermMenu:
 		switch(theItem) {
+
+		case EMscreensize:
+			if (TelInfo->numwindows<1) break;					/* NCSA: SB */
+			SetScreenDimensions((short)scrn, modifiers);		/* NCSA: SB */
+			break;
+
+		case EMsetup:							/* need dialog to enter new key values */
+			setupkeys();
+			break;
+
+		case EMcolor:										/* Set color */
+			if (TelInfo->numwindows<1) break;
+			if (TelInfo->haveColorQuickDraw)
+				RScprompt(screens[scrn].vs);	
+			break;
+		case EMAnsiColor:
+			if (TelInfo->haveColorQuickDraw) {
+				AnsiPrompt(0, 0);
+				RSUpdatePalette();
+			}
+			return;
 
 		case EMsuspend:
 			if (TelInfo->numwindows < 1) break;
@@ -1819,11 +1658,6 @@ void HandleMenuCommand( long mResult, short modifiers)
 				CheckItem(myMenus[Emul],EMclear, FALSE);
 			break;
 
-		case EMscreensize:
-			if (TelInfo->numwindows<1) break;					/* NCSA: SB */
-			SetScreenDimensions((short)scrn, modifiers);		/* NCSA: SB */
-			break;
-
 		case EMreset:									/* Reset Screen */
 			//RESTORE WRAP AFTER THE RESET!!! BUGG
 			if (TelInfo->numwindows<1) break;
@@ -1840,23 +1674,6 @@ void HandleMenuCommand( long mResult, short modifiers)
 			FlushNetwork(scrn);							/* Flush it */
 			break;
 			
-		case EMsetup:							/* need dialog to enter new key values */
-			setupkeys();
-			break;
-
-		case EMcolor:										/* Set color */
-			if (TelInfo->numwindows<1) break;
-			if (TelInfo->haveColorQuickDraw)
-				RScprompt(screens[scrn].vs);	
-			break;
-		case EMAnsiColor:
-			if (TelInfo->haveColorQuickDraw) {
-				SetUpMovableModalMenus();
-				AnsiPrompt(0, 0);
-				ResetMenus();
-				RSUpdatePalette();
-			}
-			return;
 		case EMqprint:
 			screens[scrn].qprint = !screens[scrn].qprint;
 			CheckItem(myMenus[Emul], EMqprint, screens[scrn].qprint);
@@ -1880,6 +1697,204 @@ void HandleMenuCommand( long mResult, short modifiers)
 			break;
 		}
 		break;
+
+	/* Net */
+	case netMenu:
+	case NnetMenu:
+		switch(theItem) {
+		case NEftp:										/* Send FTP command */
+		case NEip:										/* Send IP Number */
+			if (TelInfo->numwindows<1) break;
+			{	char tmpout[30];						/* Basically the same except for */
+				unsigned char tmp[4];					/* The ftp -n phrase in NEftp */
+
+				if (screens[scrn].echo && (screens[scrn].kblen>0)) {
+					netwrite( screens[scrn].port, screens[scrn].kbbuf,
+								screens[scrn].kblen);/* if not empty send buffer */
+					screens[scrn].kblen=0;
+					}
+				netgetip(tmp);
+				if (theItem == NEftp) {
+					if ((gFTPServerPrefs->ServerState == 1) && !(modifiers & shiftKey))
+						sprintf(tmpout,"ftp -n %d.%d.%d.%d\015\012",tmp[0],tmp[1],tmp[2],tmp[3]);
+					else
+						sprintf(tmpout,"ftp %d.%d.%d.%d\015\012",tmp[0],tmp[1],tmp[2],tmp[3]);
+					}
+				else
+					sprintf(tmpout,"%d.%d.%d.%d",tmp[0],tmp[1],tmp[2],tmp[3]);
+				netwrite(screens[scrn].port,tmpout,strlen(tmpout));
+				if (screens[scrn].echo)
+					VSwrite(screens[scrn].vs,tmpout, strlen(tmpout));
+			}
+			break;
+
+		case NEayt:								/* Send "Are You There?"*/
+			if (TelInfo->numwindows<1) break;
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\366",2);
+			break;
+
+		case NEao:								/* Send "Abort Output"*/
+			if (TelInfo->numwindows<1) break;
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\365",2);
+			screens[ scrn].timing = 1;						/* set emulate to TMwait */
+			netwrite(screens[scrn].port, "\377\375\006",3);		/* send TM */
+			break;
+
+		case NEinter:								/* Send "Interrupt Process"*/
+			if (TelInfo->numwindows<1) break;
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\364",2);
+			screens[ scrn].timing = 1;						/* set emulate to TMwait */
+			netwrite(screens[scrn].port, "\377\375\006",3);		/* send TM */
+			break;
+
+		case NEbrk:
+			if (TelInfo->numwindows<1) break;
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\363",2); // IAC BRK
+			break;
+
+		case NEsync:
+			if (TelInfo->numwindows<1) break;
+			netpush(screens[scrn].port);
+			netUrgent(); // This must be sent TCP Urgent.
+			netwrite(screens[scrn].port, "\377\362",2); // IAC DM
+			break;
+
+		case NEipsync:
+			if (TelInfo->numwindows<1) break;
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\364", 2); // IAC IP
+			netpush(screens[scrn].port);
+			netUrgent(); // This must also be sent TCP Urgent.
+			netwrite(screens[scrn].port, "\377\362", 2); // IAC DM
+			netpush(screens[scrn].port);
+			screens[scrn].timing = 1; // set emulate to TMwait
+			netwrite(screens[scrn].port, "\377\375\006", 3); // send Timing Mark
+			break;
+
+		case NEeof: // End Of File
+			if (TelInfo->numwindows<1) break;
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\354", 2);
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\375\006", 3);
+			break;
+
+		case NEsusp:
+			if (TelInfo->numwindows<1) break;
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\355", 2);
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\375\006", 3);
+			break;
+
+		case NEabort: // Abort
+			if (TelInfo->numwindows<1) break;
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\356", 2);
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\375\006", 3);
+			break;
+
+		case NEec:								/* Send "Erase Character"*/
+			if (TelInfo->numwindows<1) break;
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\367",2);
+			break;
+
+		case NEel:								/* Send "Erase Line"*/
+			if (TelInfo->numwindows<1) break;
+			netpush(screens[scrn].port);
+			netwrite(screens[scrn].port, "\377\370",2);
+			break;
+			
+		case NEscroll:							/* Suspend Network */
+			TelInfo->ScrlLock=!TelInfo->ScrlLock;
+			if (TelInfo->ScrlLock) 
+				CheckItem(myMenus[Net], NEscroll,TRUE);
+			else 
+				CheckItem(myMenus[Net], NEscroll,FALSE);
+			break;
+
+		case NEnet:								/* Show Network Numbers */
+			showNetNumbers();
+			break;
+
+		default:
+			break;
+		}
+		break;
+
+	/* Favorites */
+	case opspecMenu:											// JMB
+		switch (theItem) {
+			case 1:
+				EditConfigType(SESSIONPREFS_RESTYPE, &EditSession);
+				CheckOpSpecSubmenu();
+				break;
+			default:
+				OpenPortSpecial(myMenus[OpSpec], theItem);
+		}
+		break;													// JMB
+
+	/* Window */
+	case connMenu:
+	case NconnMenu:
+		if (theItem == COnext) 
+		{
+			if (TelInfo->numwindows >1) 
+			{
+				short	scratchshort;
+				if (!(modifiers &  shiftKey)) //go forward
+				{
+					scratchshort = WindowPtr2ScreenIndex(FrontWindow()) + 1;
+					// Skip over inactive connections
+					while(	(screens[scratchshort].active != CNXN_ACTIVE) &&
+							(screens[scratchshort].active != CNXN_ISCORPSE) &&
+							(scratchshort <= TelInfo->numwindows+1))						
+						scratchshort++;
+					if ((scratchshort < 0) || (scratchshort >= TelInfo->numwindows))
+						scratchshort = 0;
+				}
+				else //go backward
+				{
+					scratchshort = WindowPtr2ScreenIndex(FrontWindow()) - 1;
+					// Skip over inactive connections
+					while(	(screens[scratchshort].active != CNXN_ACTIVE) &&
+							(screens[scratchshort].active != CNXN_ISCORPSE) &&
+							(scratchshort >= 0))						
+						scratchshort--;
+					if ((scratchshort < 0) || (scratchshort >= TelInfo->numwindows))
+						scratchshort = TelInfo->numwindows - 1;
+				}		
+				SelectWindow(screens[scratchshort].wind);
+			}
+			break;
+		}
+		
+		if (theItem == COtitle)	{
+			ChangeWindowName(FrontWindow());
+			break;
+			}
+			
+		if (theItem >= FIRST_CNXN_ITEM) {
+			if ((theItem - FIRST_CNXN_ITEM-1)>(TelInfo->numwindows+1)) break;  /* rotten danish */
+			if (screens[theItem - FIRST_CNXN_ITEM].active != CNXN_ACTIVE) {
+				displayStatus(theItem - FIRST_CNXN_ITEM);	/* Tell them about it..... */
+				break;
+				}
+			else {
+				HiliteWindow(screens[scrn].wind, FALSE);
+				changeport(scrn,(theItem - FIRST_CNXN_ITEM));
+				if (!(modifiers &  optionKey)) SelectWindow(screens[scrn].wind);
+				else HiliteWindow(screens[scrn].wind, TRUE);
+				}
+			}
+		break;
+
 	case fontMenu:
 		if (TelInfo->numwindows>0) {
 			short 	itemFontNum;
@@ -1935,16 +1950,6 @@ void HandleMenuCommand( long mResult, short modifiers)
 			CheckFonts();
 		}
 		break;
-	case opspecMenu:											// JMB
-		switch (theItem) {
-			case 1:
-				EditConfigType(SESSIONPREFS_RESTYPE, &EditSession);
-				CheckOpSpecSubmenu();
-				break;
-			default:
-				OpenPortSpecial(myMenus[OpSpec], theItem);
-		}
-		break;													// JMB
 	case prefsMenu:
 		switch(theItem) {
 			case prfGlobal:
@@ -1961,7 +1966,7 @@ void HandleMenuCommand( long mResult, short modifiers)
 				EditConfigType(TERMINALPREFS_RESTYPE, &EditTerminal);
 				break;
 			case prfFTPUser:
-				EditConfigType(FTPUSER, &EditFTPUser);
+				EditConfigType(FTPUSERPREFS_RESTYPE, &EditFTPUser);
 			}
 		break;
 	case transMenu:

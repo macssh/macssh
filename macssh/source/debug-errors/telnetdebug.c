@@ -55,10 +55,10 @@ void InitDebug(void)
 	DetachResource((Handle) termHdl);
 	HLock((Handle)termHdl);
 
-	RSsetcolor( console->vs, 0, &(*termHdl)->nfcolor);
-	RSsetcolor( console->vs, 1, &(*termHdl)->nbcolor);
-	RSsetcolor( console->vs, 2, &(*termHdl)->bfcolor);
-	RSsetcolor( console->vs, 3, &(*termHdl)->bbcolor);
+	RSsetcolors( console->vs, 0, &(*termHdl)->nfcolor);
+	RSsetcolors( console->vs, 1, &(*termHdl)->nbcolor);
+	RSsetcolors( console->vs, 2, &(*termHdl)->bfcolor);
+	RSsetcolors( console->vs, 3, &(*termHdl)->bbcolor);
 
 	DisposeHandle((Handle)termHdl);
 #else

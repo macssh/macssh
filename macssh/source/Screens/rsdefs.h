@@ -19,12 +19,18 @@
 #define BLOCKCURSOR				0	/* BYU 2.4.11 */
 #define UNDERSCORECURSOR		1	/* BYU 2.4.11 */
 #define VERTICALCURSOR			2	/* BYU 2.4.11 */
+#define NOCURSOR				3
+#define LOWER_THIRDCURSOR		4
+#define LOWER_HALFCURSOR		5
+#define TWO_THIRDSCURSOR		6
 
 /*  Capable of shifting the text to the right some # of pixels		*/
 #define CVO 0
 #define CHO (-2)
 
 #define LOCKWIDTH 16
+
+#define CURS_BLINK_PERIOD		30
 
 
 #define INFINITY	20000		// Will screens ever be this large?
@@ -89,8 +95,10 @@ struct RSdata {
 	Boolean
 		skip;		/* TRUE if we are skipping the output */
 	Boolean
-		active;
-	};
+		active;		/* true if window is currently active */
+	short
+		cursType;
+};
 
 typedef struct RSdata RSdata;
 

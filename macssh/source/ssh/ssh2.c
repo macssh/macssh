@@ -830,7 +830,6 @@ char *getpass( const char *prompt )
 	char			*password;
 	Boolean			valid;
 
-	LockDialog();
 	if ( wind && strstr(prompt, "assword for") ) {
 		/* password authentication */
 		password = wind->sshdata.currentpass;
@@ -841,9 +840,15 @@ char *getpass( const char *prompt )
 
 		if ( gApplicationPrefs->cachePassphrase
 		  && getnextcachedpassphrase(cprompt, password, &context->_pindex) ) {
+			return password;
+		}
+		LockDialog();
+		if ( gApplicationPrefs->cachePassphrase
+		  && getnextcachedpassphrase(cprompt, password, &context->_pindex) ) {
 			UnlockDialog();
 			return password;
 		}
+
 		if ( wind->sshdata.password[0] ) {
 			memcpy(password, wind->sshdata.password + 1, wind->sshdata.password[0]);
 			password[wind->sshdata.password[0]] = '\0';
@@ -867,6 +872,11 @@ char *getpass( const char *prompt )
 		/* encrypted private key */
 		int plen;
 		assert(context != NULL);
+		if ( gApplicationPrefs->cachePassphrase
+		  && getnextcachedpassphrase(prompt, context->_kpassword, &context->_kindex) ) {
+			return context->_kpassword;
+		}
+		LockDialog();
 		if ( gApplicationPrefs->cachePassphrase
 		  && getnextcachedpassphrase(prompt, context->_kpassword, &context->_kindex) ) {
 			UnlockDialog();

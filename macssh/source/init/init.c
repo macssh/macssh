@@ -129,10 +129,10 @@ void initftplog( void)
 	DetachResource((Handle) termHdl);
 	HLock((Handle)termHdl);
 	
-	scratchBoolean = RSsetcolor( ftplog->vs, 0, &(*termHdl)->nfcolor);
-	scratchBoolean = RSsetcolor( ftplog->vs, 1, &(*termHdl)->nbcolor);
-	scratchBoolean = RSsetcolor( ftplog->vs, 2, &(*termHdl)->bfcolor);
-	scratchBoolean = RSsetcolor( ftplog->vs, 3, &(*termHdl)->bbcolor);
+	scratchBoolean = RSsetcolors( ftplog->vs, 0, &(*termHdl)->nfcolor);
+	scratchBoolean = RSsetcolors( ftplog->vs, 1, &(*termHdl)->nbcolor);
+	scratchBoolean = RSsetcolors( ftplog->vs, 2, &(*termHdl)->bfcolor);
+	scratchBoolean = RSsetcolors( ftplog->vs, 3, &(*termHdl)->bbcolor);
 
 	DisposeHandle((Handle)termHdl);
 	VSwrite(ftplog->vs,"\033[24;0H",7);		/* Move to bottom of screen */
