@@ -104,8 +104,8 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 	tempwndo = RSlocal[w].window;
 	
 	curr = normalize(pt, w, TRUE);
-	clickTime = TickCount();
-	
+	clickTime = LMGetTicks();
+
 	if  ( ( EqualPt(RSlocal[w].anchor, curr) || EqualPt(RSlocal[w].anchor, RSlocal[w].last) )
 			&&  ((clickTime - lastClick) <= GetDblTime())
 			&& EqualPt(curr, lastClickLoc)) {
@@ -554,7 +554,7 @@ void RSshow( short w)		/* reveals a hidden terminal window. */
 	ShowWindow(RScurrent->window);
 }
 
-Boolean RSsetcolor
+Boolean RSsetcolors
 	(
 	short w, /* window number */
 	short n, /* color entry number */
@@ -593,7 +593,7 @@ Boolean RSsetcolor
 	SetPort(RScurrent->window);
 	InvalRect(&RScurrent->window->portRect);
 	return(TRUE);
-  } /* RSsetcolor */
+  } /* RSsetcolors */
   
   void RSsendstring
   (
@@ -811,6 +811,7 @@ short RSnewwindow
 	RSsetsize(w, wheight, wwidth, screenNumber);
 
 	RScurrent->active = 0;
+	RScurrent->cursType = gApplicationPrefs->CursorType;
 
 	RSTextFont(RScurrent->fnum,RScurrent->fsiz,0);	/* BYU LSC */
 	TextSize(RScurrent->fsiz);				/* 9 point*/
@@ -863,7 +864,7 @@ void RSkillwindow
 	RSw = -1;
   }
 
-void RSgetcolor
+void RSgetcolors
   (
 	short w, /* window number */
 	short n, /* color entry number */
@@ -872,7 +873,7 @@ void RSgetcolor
   /* gets the current value for the specified color entry of a terminal window. */
   {
 	GetEntryColor(RSlocal[w].pal,n,color);  
-  } /* RSgetcolor */
+  } /* RSgetcolors */
 
 void	RShide( short w)		/* hides a terminal window. */
 {
@@ -1069,6 +1070,8 @@ void RSdeactivate
 
 	RSsetConst(w);
 
+	RScursoff(w);
+
 	BackColor(whiteColor);
 
   	/* deactivate the scroll bars */
@@ -1091,64 +1094,85 @@ void RSdeactivate
 	RSlocal[w].active = 0;
 
  	SetPort(port);
-  } /* RSdeactivate */
+} /* RSdeactivate */
 
-void	RScursblink( short w)		/* Blinks the cursor */
+
+
+/*
+ * RSsetcurstype
+ */
+
+void RSsetcurstype( short w, long cursType )
 {
-	GrafPtr	oldwindow;
-	long	now = TickCount();
-	
-	if (now > TelInfo->blinktime) {
-		if (VSvalids(w) != 0)			/* BYU 2.4.12 */
-			return;						/* BYU 2.4.12 */
-		if (!VSIcursorvisible())		/* BYU 2.4.12 */
-			return;						/* BYU 2.4.12 - cursor isn't visible */
-	
-		GetPort(&oldwindow);			/* BYU 2.4.11 */
-		TelInfo->blinktime = now + 40;	/* BYU 2.4.11 */
-		RSlocal[w].cursorstate ^= 1; 	/* BYU 2.4.11 */
-		SetPort(RSlocal[w].window);		/* BYU 2.4.11 */
-		InvertRect(&RSlocal[w].cursor);	/* BYU 2.4.11 */
-		SetPort(oldwindow);				/* BYU 2.4.11 */
+	if ( VSvalids(w) != 0 )
+		return;
+	if ( VSIcursorvisible() && RSlocal[w].cursorstate )
+		RScursoff( w );
+	RSlocal[w].cursType = cursType;
+} /* RSsetcurstype */
+
+
+/*
+ * RScursblink
+ */
+
+void RScursblink( short w )
+{
+	unsigned long	now;
+
+	if (VSvalids(w) || !VSIcursorvisible())
+		return;
+	if ( (now = LMGetTicks()) - TelInfo->blinktime >= CURS_BLINK_PERIOD ) {
+		GrafPtr savePort;
+		GetPort(&savePort);
+		TelInfo->blinktime = now;
+		RSlocal[w].cursorstate ^= 1;
+		SetPort(RSlocal[w].window);
+		InvertRect(&RSlocal[w].cursor);
+		SetPort(savePort);
 	}
 } /* RScursblink */
 
-void RScursblinkon						/* BYU 2.4.18 */
-  (										/* BYU 2.4.18 */
-    short w								/* BYU 2.4.18 */
-  )										/* BYU 2.4.18 */
-  /* Blinks the cursor */				/* BYU 2.4.18 */
-  {										/* BYU 2.4.18 */
-	if (VSvalids(w) != 0)				/* BYU 2.4.12 */
-		return;							/* BYU 2.4.12 */
-  	if (!VSIcursorvisible()) return;	/* Bri 970610 */
-  	if (!RSlocal[w].cursorstate) {		/* BYU 2.4.18 */
-		GrafPtr oldwindow;				/* BYU 2.4.18 */
-		GetPort(&oldwindow);			/* BYU 2.4.18 */
-		RSlocal[w].cursorstate = 1; 	/* BYU 2.4.18 */
-		SetPort(RSlocal[w].window);		/* BYU 2.4.18 */
-		InvertRect(&RSlocal[w].cursor);	/* BYU 2.4.18 */
-		SetPort(oldwindow);				/* BYU 2.4.18 */
-	}									/* BYU 2.4.18 */
-  } /* RScursblink */					/* BYU 2.4.18 */
 
-void RScursblinkoff						/* BYU 2.4.11 */
-  (										/* BYU 2.4.11 */
-    short w								/* BYU 2.4.11 */
-  )										/* BYU 2.4.11 */
-  /* Blinks the cursor */				/* BYU 2.4.11 */
-  {										/* BYU 2.4.11 */
-	if (VSvalids(w) != 0)				/* BYU 2.4.12 */
-		return;							/* BYU 2.4.12 */
-  	if (RSlocal[w].cursorstate) {		/* BYU 2.4.11 */
-		GrafPtr oldwindow;				/* BYU 2.4.11 */
-		GetPort(&oldwindow);			/* BYU 2.4.11 */
-		RSlocal[w].cursorstate = 0; 	/* BYU 2.4.11 */
-		SetPort(RSlocal[w].window);		/* BYU 2.4.11 */
-		InvertRect(&RSlocal[w].cursor);	/* BYU 2.4.11 */
-		SetPort(oldwindow);				/* BYU 2.4.11 */
-	}									/* BYU 2.4.11 */
-  } /* RScursblink */					/* BYU 2.4.11 */
+/*
+ * RScursblinkon
+ */
+
+void RScursblinkon( short w )
+{
+	if (VSvalids(w) || !VSIcursorvisible())
+  		return;
+	TelInfo->blinktime = LMGetTicks();
+  	if (!RSlocal[w].cursorstate) {
+		GrafPtr savePort;
+		GetPort(&savePort);
+		RSlocal[w].cursorstate = 1;
+		SetPort(RSlocal[w].window);
+		InvertRect(&RSlocal[w].cursor);
+		SetPort(savePort);
+	}
+} /* RScursblinkon */
+
+
+/*
+ * RScursblinkoff
+ */
+
+void RScursblinkoff( short w )
+{
+	if (VSvalids(w) || !VSIcursorvisible())
+		return;
+  	if (RSlocal[w].cursorstate) {
+		GrafPtr savePort;
+		GetPort(&savePort);
+		RSlocal[w].cursorstate = 0;
+		TelInfo->blinktime = LMGetTicks() - CURS_BLINK_PERIOD;
+		SetPort(RSlocal[w].window);
+		InvertRect(&RSlocal[w].cursor);
+		SetPort(savePort);
+	}
+} /* RScursblinkoff */
+
 
 void	RScprompt(short w)
   /* puts up the dialog that lets the user examine and change the color
@@ -1165,7 +1189,7 @@ void	RScprompt(short w)
 
 	for (scratchshort = 0, NumberOfColorBoxes = 4; scratchshort < NumberOfColorBoxes; scratchshort++)
 	{
-		RSgetcolor(w,scratchshort, &scratchRGBcolor);
+		RSgetcolors(w,scratchshort, &scratchRGBcolor);
 		BoxColorItems[scratchshort] = ColorNF + scratchshort;
 		BlockMoveData(&scratchRGBcolor,&BoxColorData[scratchshort], sizeof(RGBColor));
 		UItemAssign( dptr, ColorNF + scratchshort, ColorBoxItemProcUPP);
@@ -1174,6 +1198,10 @@ void	RScprompt(short w)
 	ColorBoxPoint.h = 0;			// Have the color picker center the box on the main
 	ColorBoxPoint.v = 0;			// screen
 	
+	SetDialogDefaultItem(dptr, 1);
+	SetDialogCancelItem(dptr, 2);
+	//SetDialogTracksCursor(dptr, 1);
+
 	ditem = 3;	
 	while (ditem > 2) {
 		/*ModalDialog(ColorBoxModalProcUPP, &ditem);*/
@@ -1207,7 +1235,7 @@ void	RScprompt(short w)
 		}
 		
 	for (scratchshort = 0; scratchshort < NumberOfColorBoxes; scratchshort++) 
-			RSsetcolor(w,scratchshort, &BoxColorData[scratchshort]);
+			RSsetcolors(w,scratchshort, &BoxColorData[scratchshort]);
 	
 	/* force redrawing of entire window contents */
 	SetPort(RSlocal[w].window);
@@ -1372,7 +1400,6 @@ void RSactivate
 		ShowControl(RSlocal[w].left);
 	}
 	RSlocal[w].active = 1;
-
   } /* RSactivate */
 
 /*--------------------------------------------------------------------------*/
