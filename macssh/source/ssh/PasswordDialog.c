@@ -548,19 +548,24 @@ Boolean SSH2PasswordDialog(const char *prompt, StringPtr password)
 			SetControlValue(cntlHandle, addKey = true);
 		} else {
 			HideDialogItem(dlog, 6);
+			cntlHandle = NULL;
+			addKey = false;
 		}
 		SetDialogDefaultItem(dlog, 1);
 		SetDialogCancelItem(dlog, 2);
 		SetDialogTracksCursor(dlog, 1);
 		ShowWindow(dlog);
 		SetWRefCon(dlog, (long)password);	// Stash the buffer's address
+		DrawDialog(dlog);
 		do {
 			movableModalDialog(internalBufferFilterUPP, &item);
-			if (item == 6) {
+			if (item == 6 && cntlHandle) {
 				SetControlValue(cntlHandle, !GetControlValue(cntlHandle));
 			} 
 		} while (item != 1 && item != 2);	// Until the OK button is hit
-		addKey = GetControlValue(cntlHandle);
+		if ( cntlHandle ) {
+			addKey = GetControlValue(cntlHandle);
+		}
 		DisposeDialog(dlog);
 	}
 	DisposeRoutineDescriptor(internalBufferFilterUPP);
