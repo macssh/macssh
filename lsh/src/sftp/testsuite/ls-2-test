@@ -1,0 +1,11 @@
+#! /bin/sh
+
+if [ -z "$srcdir" ] ; then
+    srcdir=.
+fi
+
+. $srcdir/common.sh
+
+# Match the d directory
+client ls "d" | grep -q ' x3$'
+

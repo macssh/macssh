@@ -1,0 +1,14 @@
+#! /bin/sh
+
+if [ -z "$srcdir" ] ; then
+    srcdir=.
+fi
+
+. $srcdir/common.sh
+
+rm -f "$TESTHOME/d/new"
+echo data | client put "d/new" && \
+    [ -r "$TESTHOME/d/new" ] && grep -q data "$TESTHOME/d/new"
+
+
+

@@ -1,0 +1,21 @@
+#! /bin/sh
+
+if [ -z "$srcdir" ] ; then
+    srcdir=.
+fi
+
+. $srcdir/common.sh
+
+# Clean up first.
+rm -rf $TESTHOME
+
+# Create a directory to play with
+mkdir $TESTHOME
+cd $TESTHOME
+
+# Create some files
+echo foo >x1
+echo bar >x2
+
+mkdir d
+echo gazonk >d/x3
