@@ -132,6 +132,7 @@ struct VGWINTYPE {
 	short	pencolor;						/* current pen color */
 	short	fontnum,charx,chary;			/* char size */
 	short	count;							/* for temporary use in special state loops */
+	char	tekclear;
 	char	TEKtype;						/* 4105 or 4014?  added: 16jul90dsw */
 	char	TEKMarker;						/* 4105 marker type 17jul90dsw */
 	char	TEKOutline;						/* 4105 panel outline boolean */

@@ -497,7 +497,7 @@ short	sendmacro(struct WindRec *tw, short n)				/* send macro number n */
 					plabel = s;
 			} else {
 				*s = 0;
-				if (plabel && SSH2PasswordDialog(plabel, password)) {
+				if (plabel && SSH2PasswordDialog(plabel, password, NULL)) {
 					SendStringAsIfTyped(tw, (char *)first, p-first);
 					// better wait for echo off...
 					startTicks = TickCount();

@@ -64,6 +64,15 @@ extern	Boolean	encryptOK;
 extern	unsigned char *gReadspace;
 extern	short	gBlocksize;
 
+extern ConstStringPtr gDefaultName;
+
+static short	numWind = 1;
+static short	stagNum = 1;
+
+static Boolean startautocomplete = false;
+static Boolean doneautocomplete = false;
+static unsigned long autoTicks;
+
 /*
 extern void LockDialog();
 extern void UnlockDialog();
@@ -97,14 +106,17 @@ void OpenPortSpecial(MenuHandle menuh, short item)
 	if (theParams == NULL) {
 		OutOfMemory(1020);
 		return;
-		}
-		
+	}
+	// use favorite's name as window name
+	if ( !(**theParams).WindowName[0] && memcmp(scratchPstring, gDefaultName, gDefaultName[0] + 1) ) {
+		BlockMoveData(scratchPstring, (**theParams).WindowName, scratchPstring[0] + 1);
+		NumToString(numWind++, scratchPstring);
+		pstrcat((**theParams).WindowName, "\p (");
+		pstrcat((**theParams).WindowName, scratchPstring);
+		pstrcat((**theParams).WindowName, "\p)");
+	}
 	success = CreateConnectionFromParams(theParams);
 }
-
-static Boolean startautocomplete = false;
-static Boolean doneautocomplete = false;
-static unsigned long autoTicks;
 
 SIMPLE_UPP(POCdlogfilter, ModalFilter);
 pascal short POCdlogfilter( DialogPtr dptr, EventRecord *evt, short *item)
@@ -148,44 +160,16 @@ pascal short POCdlogfilter( DialogPtr dptr, EventRecord *evt, short *item)
 //	if (evt->what == mouseDown)
 //		return(PopupMousedown(dptr, evt, item));
 
-/* NONO */
-/*
-	if ( gApplicationPrefs->parseAliases ) {
-		editField = ((DialogPeek)dptr)->editField + 1;
-		if ( editField == NChostname ) {
-			GetTEText(dptr, editField, scratch1Pstring);
-		}
-	}
-*/
-/* NONO */
-
 // RAB BetterTelnet 1.2 - we let StdFilterProc handle this now
 //	return(DLOGwOK_Cancel(dptr, evt, item));
 	result = CallStdFilterProc(dptr, evt, item);
 
-/* NONO */
-/*
-	if ( gApplicationPrefs->parseAliases ) {
-		if ( editField == NChostname && (evt->what == keyDown || evt->what == autoKey) ) {
-			GetTEText(dptr, editField, scratch2Pstring);
-			if (memcmp(scratch1Pstring, scratch2Pstring, scratch1Pstring[0] + 1)) {
-				// host name changed
-				//*item = editField;
-				//result = true;
-				autoTicks = LMGetTicks();
-				startautocomplete = true;
-			}
-		}
-	}
-*/
 	if ( startautocomplete && LMGetTicks() - autoTicks >= 30 ) {
 		startautocomplete = false;
 		doneautocomplete = true;
 		*item = NChostname;
 		result = -1;
 	}
-
-/* NONO */
 
 	return result;
 }
@@ -253,7 +237,9 @@ Boolean PresentOpenConnectionDialog(void)
 	Boolean			success;
 	long			scratchlong;
 	Str255			hostString;
-	Str255			scratchPstring, terminalPopupString, scritchPstring;
+	Str255			scratchPstring;
+	Str255			terminalPopupString;
+	Str255			favoriteString;
 	Handle			ItemHandle;
 	SessionPrefs	**tempSessHdl;
 	short 			numberOfTerms, sessMark, requestPort;
@@ -474,13 +460,13 @@ Boolean PresentOpenConnectionDialog(void)
 	}
 
 	MaxMem(&junk);
-	GetMenuItemText(SessPopupHdl, sessMark, scritchPstring);
+	GetMenuItemText(SessPopupHdl, sessMark, favoriteString);
 
 	/* don't try to convert hostname to alias if nothing has been typed */
 	parseAliases = gApplicationPrefs->parseAliases;
 	if (!typedHost)
 		gApplicationPrefs->parseAliases = false;
-	InitParams = NameToConnInitParams(scratchPstring, FALSE, scritchPstring, &wasAlias);
+	InitParams = NameToConnInitParams(scratchPstring, FALSE, favoriteString, &wasAlias);
 	gApplicationPrefs->parseAliases = parseAliases;
 	if (InitParams == NULL)
 	{
@@ -489,7 +475,7 @@ Boolean PresentOpenConnectionDialog(void)
 		ResetMenus();
 		OutOfMemory(1000);
 		return;
-		}
+	}
 
 //	if ((**InitParams).terminal == NULL)  //if this is not null, then the string was an alias,
 //	{										// so dont use the popup terminal
@@ -539,10 +525,19 @@ Boolean PresentOpenConnectionDialog(void)
 	HUnlock((Handle)(**InitParams).session);
 	HUnlock((Handle)InitParams);
 
-	DisposeMenu(SessPopupHdl);	// drh Ñ Bug fix: memory leak
+	DisposeMenu(SessPopupHdl);
 	DisposeDialog(dptr);
 	ResetMenus();
 	
+	// use favorite's name as window name
+	if ( !(**InitParams).WindowName[0] && memcmp(favoriteString, gDefaultName, gDefaultName[0] + 1) ) {
+		BlockMoveData(favoriteString, (**InitParams).WindowName, favoriteString[0] + 1);
+		NumToString(numWind++, favoriteString);
+		pstrcat((**InitParams).WindowName, "\p (");
+		pstrcat((**InitParams).WindowName, favoriteString);
+		pstrcat((**InitParams).WindowName, "\p)");
+	}
+
 	success = CreateConnectionFromParams(InitParams);
 	return success;
 }
@@ -625,7 +620,6 @@ Boolean OpenConnectionFromURL(char *host, char *portstring, char *user, char *pa
 Boolean CreateConnectionFromParams( ConnInitParams **Params)
 {
 	short			scratchshort, fontnumber, otherfnum;
-	static short	numWind = 1, stagNum = 1;
 	SessionPrefs	*SessPtr;
 	TerminalPrefs	*TermPtr;
 	short			cur;
@@ -641,8 +635,7 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	// Check if we have the max number of sessions open
 	if (TelInfo->numwindows == MaxSess) return(FALSE);
 	
-	cur = TelInfo->numwindows;			/* Adjust # of windows and get this window's number */
-	TelInfo->numwindows++;
+	cur = TelInfo->numwindows++;		// Adjust # of windows and get this window's number
 	theScreen = &screens[cur];
 	
 	theScreen->active = CNXN_NOTINUSE;	// Make sure it is marked as dead (in case we
@@ -667,30 +660,21 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 		pstrcat((**Params).WindowName, "\p (");
 		pstrcat((**Params).WindowName, numPstring);	// tack the number onto the end.
 		pstrcat((**Params).WindowName, "\p)");
-		}
+	}
 
 	if (SessPtr->hostname[0] == 0) {
 		OperationFailedAlert(5, 0, 0);
-		DisposeHandle((Handle)(**Params).terminal);
-		DisposeHandle((Handle)(**Params).session);
-		DisposeHandle((Handle)Params);
-		TelInfo->numwindows--;
-		updateCursor(1);
-		return(FALSE);
+		goto failed;
 	}
-
+/* we have SSH.
 	if (SessPtr->protocol == 4) // make sure we have SSH
 	{
 		if (!ssh_glue_installed()) {
 			OperationFailedAlert(6, 0, 0);
-			DisposeHandle((Handle)(**Params).terminal);
-			DisposeHandle((Handle)(**Params).session);
-			DisposeHandle((Handle)Params);
-			TelInfo->numwindows--;
-			updateCursor(1);
-			return(FALSE);
+			goto failed;
 		}
 	}
+*/
 
 	Mnetinit();	// RAB BetterTelnet 1.0fc4
 
@@ -716,13 +700,8 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	// Get the IP for the host while we set up the connection
 	if (DoTheDNR(hostname, cur) != noErr) {
 		OutOfMemory(1010);
-		DisposeHandle((Handle)(**Params).terminal);
-		DisposeHandle((Handle)(**Params).session);
-		DisposeHandle((Handle)Params);
-		TelInfo->numwindows--;
-		updateCursor(1);
-		return(FALSE);
-		}
+		goto failed;
+	}
 */
 	DoTheMenuChecks();
 
@@ -819,28 +798,19 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 		if ( !theScreen->sshdata.login[0]
 		  /*|| !theScreen->sshdata.password[0]*/ ) {
 		 	if ( !SSH2LoginDialog(theScreen->sshdata.host, theScreen->sshdata.login, theScreen->sshdata.password) ) {
-				DisposeHandle((Handle)(**Params).terminal);
-				DisposeHandle((Handle)(**Params).session);
-				DisposeHandle((Handle)Params);
-				TelInfo->numwindows--;
-				updateCursor(1);
-				return(FALSE);
+				goto failed;
 			}
 		}
 	}
 /* NONO */
 
+	theScreen->active = CNXN_DNRWAIT;			// Signal we are waiting for DNR.
 
 	// Get the IP for the host while we set up the connection
 	if (DoTheDNR(hostname, cur) != noErr) {
 		OutOfMemory(1010);
-		DisposeHandle((Handle)(**Params).terminal);
-		DisposeHandle((Handle)(**Params).session);
-		DisposeHandle((Handle)Params);
-		TelInfo->numwindows--;
-		updateCursor(1);
-		return(FALSE);
-		}
+		goto failed;
+	}
 
 	GetFNum(TermPtr->DisplayFont, &fontnumber);
 	GetFNum(TermPtr->BoldFont, &otherfnum);
@@ -861,33 +831,28 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	if (TermPtr->realbold)
 		flags |= RSWrealbold;
 	if (TermPtr->oldScrollback)
-		flags |= RSWsavelines;
+		flags |= RSWoldscrollback;
 	if (TermPtr->jumpScroll)
 		flags |= RSWjumpscroll;
 	if (TermPtr->realBlink)
 		flags |= RSWrealBlink;
+	if (TermPtr->vt7bits)
+		flags |= RSWvt7bit;
 
 	theScreen->vs = RSnewwindow(&((**Params).WindowLocation), TermPtr->numbkscroll, TermPtr->vtwidth,
 									TermPtr->vtheight, (**Params).WindowName, fontnumber,
 									TermPtr->fontsize, cur, otherfnum, TermPtr->boldFontSize,
 									TermPtr->boldFontStyle, TermPtr->vtemulation, flags);
 
-	if (theScreen->vs <0 ) { 	/* we have a problem opening up the virtual screen */
+	if (theScreen->vs < 0 ) { 	/* we have a problem opening up the virtual screen */
 		OutOfMemory(1011);
-		DisposeHandle((Handle)(**Params).terminal);
-		DisposeHandle((Handle)(**Params).session);
-		DisposeHandle((Handle)Params);
-		TelInfo->numwindows--;
-		DoTheMenuChecks();
-		updateCursor(1);
-		return(FALSE);
-		}
+		goto failed;
+	}
 
 	theScreen->wind = RSgetwindow( theScreen->vs);
 	((WindowPeek)theScreen->wind)->windowKind = WIN_CNXN;
 	
-	
-	
+
 	/*
 	 * Attach our extra part to display encryption status
 	 */
@@ -962,7 +927,6 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	scratchBoolean = RSsetcolors( theScreen->vs, 3, &TermPtr->bbcolor);
 
 	addinmenu(cur, (**Params).WindowName, diamondMark);
-	theScreen->active = CNXN_DNRWAIT;			// Signal we are waiting for DNR.
 
 	theScreen->myInitParams = (Handle)Params;
 	HUnlock((Handle)(**Params).terminal);
@@ -972,7 +936,21 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	VSscrolcontrol( theScreen->vs, -1, theScreen->ESscroll);
 
 	updateCursor(1);							/* Done stalling the user */
-	return(TRUE);
+	return TRUE;
+
+failed:
+
+	theScreen->active = CNXN_NOTINUSE;
+	disposetranslation(theScreen);
+	disposemacros(&theScreen->sessmacros);
+	DisposeHandle((Handle)(**Params).terminal);
+	DisposeHandle((Handle)(**Params).session);
+	DisposeHandle((Handle)Params);
+	TelInfo->numwindows--;
+	DoTheMenuChecks();
+	updateCursor(1);
+
+	return FALSE;
 }
 
 void	CompleteConnectionOpening(short dat, ip_addr the_IP, OSErr DNRerror, char *cname)
@@ -1325,7 +1303,6 @@ void destroyport(short wind)
  		DisposePtr((Ptr)tw->aedata);
 	}
 
-	disposetranslation(tw);
 
 	/*
 	 * Get handle to the WDEF patch block, kill the window, and then
@@ -1371,6 +1348,8 @@ void removeport(WindRecPtr tw)
 	if (tw->protocol == 4) {
 		ssh_glue_close(tw);
 	}
+
+	disposetranslation(tw);
 
 	if (tw->outlen>0) {
 				tw->outlen=0;				/* Kill the remaining send*/

@@ -62,7 +62,7 @@ static	Boolean InNumOnly(short item);
 static Str255 configPassword;
 static Str255 configPassword2;
 
-static ConstStringPtr gDefaultName = "\p<Default>";
+ConstStringPtr gDefaultName = "\p<Default>";
 
 static LinkedListNode *currentHead;
 static ListHandle currentList;
@@ -1045,11 +1045,22 @@ pascal short ColorBoxModalProc( DialogPtr dptr, EventRecord *evt, short *item)
 	return CallStdFilterProc(dptr, evt, item);
 }
 
+popup TPopup[] = {{TermFontPopup, (MenuHandle) 0, 1},
+					{41, (MenuHandle) 0, 1},
+					{0, (MenuHandle) 0, 0}};
+
 SIMPLE_UPP(TerminalModalProc, ModalFilter);
 pascal short TerminalModalProc( DialogPtr dptr, EventRecord *evt, short *item)
 {
-	if (evt->what == mouseDown) return(PopupMousedown(dptr, evt, item));
-
+	if ( evt->what == mouseDown ) {
+		short oldChoice = TPopup[0].choice;
+		short result = PopupMousedown(dptr, evt, item);
+		if ( result && *item == TPopup[0].item ) {
+			TPopup[1].choice = TPopup[0].choice;
+			DrawPopUp(dptr, TPopup[1].item);
+		}
+		return result;
+	}
 	return(ColorBoxModalProc(dptr, evt, item));
 }
 
@@ -1201,10 +1212,12 @@ void ShowTermPanel(DialogPtr dptr, short panel)
 		ShowDialogItemRange(dptr, 22, 23);
 		ShowDialogItemRange(dptr, 25, 26);
 		ShowDialogItemRange(dptr, 29, 30);
-		//ShowDialogItemRange(dptr, 32, 33);
 		ShowDialogItem(dptr, 32);
 		ShowDialogItemRange(dptr, 45, 46);
-//		ShowDialogItem(dptr, TermANSIE);
+		if ( GetCntlVal(dptr, TermType) != 1 ) {
+			ShowDialogItem(dptr, 48);
+		}
+		//ShowDialogItem(dptr, 48);
 		break;
 
 		case 2:
@@ -1237,10 +1250,9 @@ void HideTermPanel(DialogPtr dptr, short panel)
 		HideDialogItemRange(dptr, 22, 23);
 		HideDialogItemRange(dptr, 25, 26);
 		HideDialogItemRange(dptr, 29, 30);
-		//HideDialogItemRange(dptr, 32, 33);
 		HideDialogItem(dptr, 32);
 		HideDialogItemRange(dptr, 45, 46);
-//		HideDialogItem(dptr, TermANSIE);
+		HideDialogItem(dptr, 48);
 		break;
 
 		case 2:
@@ -1278,9 +1290,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	RGBColor		scratchRGBcolor;
 	Point			ColorBoxPoint;
 	MenuHandle		WeNeedAFontMenuHandle, WeNeedAnotherFontMenuHandle;
-	popup TPopup[] = {{TermFontPopup, (MenuHandle) 0, 1},
-						{41, (MenuHandle) 0, 1},
-						{0, (MenuHandle) 0, 0}};
+	short			editField;
 
 	SetUpMovableModalMenus();
 	dptr = GetNewMySmallStrangeDialog(TermDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
@@ -1330,8 +1340,6 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	HideTermPanel(dptr, 3);
 	HideTermPanel(dptr, 4);
 
-	ShowTermPanel(dptr, currentPanel);
-
 	if (PrefRecordNamePtr[0] != 0) {
 		IsNewPrefRecord = FALSE;
 		UseResFile(TelInfo->SettingsFile);
@@ -1371,6 +1379,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 
 	SetCntrl(dptr, TermRemapKeypad, TermPrefsPtr->remapKeypad);
 	SetCntrl(dptr, 47, TermPrefsPtr->realBlink);
+	SetCntrl(dptr, 48, TermPrefsPtr->vt7bits);
 	scratchlong = (long)(TermPrefsPtr->vtwidth);
 	NumToString(scratchlong, scratchPstring);
 	SetTEText(dptr, TermWidth, scratchPstring);
@@ -1389,13 +1398,13 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 		GetMenuItemText(TPopup[0].h, scratchshort, scratchPstring);
 		if (EqualString(scratchPstring, (TermPrefsPtr->DisplayFont), TRUE, FALSE))
 			TPopup[0].choice = scratchshort;
-		}
+	}
 
 	for(scratchshort = CountMItems(TPopup[1].h); scratchshort; scratchshort--) {
 		GetMenuItemText(TPopup[1].h, scratchshort, scratchPstring);
 		if (EqualString(scratchPstring, (TermPrefsPtr->BoldFont), TRUE, FALSE))
 			TPopup[1].choice = scratchshort;
-		}
+	}
 
 	ZeroNumOnly();
 	NumOnly[0] = TermSafeItem;
@@ -1422,7 +1431,12 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	ColorBoxPoint.h = 0;			// Have the color picker center the box on the main
 	ColorBoxPoint.v = 0;			// screen
 		
-	SelectDialogItemText(dptr, TermName, 0, 32767);
+	ShowTermPanel(dptr, currentPanel);
+
+	if ( ((DialogPeek)dptr)->editField >= 0 ) {
+		SelectDialogItemText(dptr, ((DialogPeek)dptr)->editField + 1, 0, 255);
+	}
+
 	ShowWindow(dptr);
 	wasInAliasText = FALSE;
 	while (ditem > 2) 
@@ -1480,6 +1494,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 				case	45:
 				case	46:
 				case	47:
+				case	48:
 				case	Termvtwrap:
 				case	Termarrow:
 				case	TermMAT:
@@ -1493,21 +1508,25 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 					switch (GetCntlVal(dptr, ditem)) {
 						case 1:
 							SetTEText(dptr, TermAnswerback, "\pvt100");
+							HideDialogItem(dptr, 48);
 							//HideDialogItem(dptr,TermRemapKeypad);
 							//HideDialogItem(dptr,TermMAT);
 							break;
 						case 2:
 							SetTEText(dptr, TermAnswerback, "\pvt220");
+							ShowDialogItem(dptr, 48);
 							//ShowDialogItem(dptr,TermRemapKeypad);
 							//ShowDialogItem(dptr,TermMAT);
 							break;
 						case 3:
 							SetTEText(dptr, TermAnswerback, "\pansi");
+							ShowDialogItem(dptr, 48);
 							//ShowDialogItem(dptr,TermRemapKeypad);
 							//ShowDialogItem(dptr,TermMAT);
 							break;
 						case 4:
 							SetTEText(dptr, TermAnswerback, "\plinux");
+							ShowDialogItem(dptr, 48);
 							//ShowDialogItem(dptr,TermRemapKeypad);
 							//ShowDialogItem(dptr,TermMAT);
 							break;
@@ -1543,13 +1562,17 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 						}
 					break;
 				case	43: // switch tabs
-
 					newPanel = GetCntlVal(dptr, ditem);
-					if (newPanel == currentPanel) break;
-
+					if (newPanel == currentPanel)
+						break;
+					editField = ((DialogPeek)dptr)->editField + 1;
 					HideTermPanel(dptr, currentPanel);
 					ShowTermPanel(dptr, newPanel);
 					currentPanel = newPanel;
+					if (editField != ((DialogPeek)dptr)->editField + 1
+					  && ((DialogPeek)dptr)->editField >= 0) {
+						SelectDialogItemText(dptr, ((DialogPeek)dptr)->editField + 1, 0, 255);
+					}
 					break;
 
 				case 	TermName:
@@ -1599,6 +1622,7 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 	TermPrefsPtr->jumpScroll = GetCntlVal(dptr, 46);
 	TermPrefsPtr->boldFontStyle = GetCntlVal(dptr, 42);
 	TermPrefsPtr->realBlink = GetCntlVal(dptr, 47);
+	TermPrefsPtr->vt7bits = GetCntlVal(dptr, 48);
 	TermPrefsPtr->vtwrap = GetCntlVal(dptr, Termvtwrap);
 
 	if (GetCntlVal(dptr, TermMetaIsCmdCntrol))
@@ -1819,6 +1843,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	popup SPopup[] = {{SessTermPopup, (MenuHandle) 0, 1},
 						{SessTransTablePopup, (MenuHandle) 0, 1},
 						{0, (MenuHandle) 0, 0}};
+	short			editField;
 
 	SetUpMovableModalMenus();
 	dptr = GetNewMySmallStrangeDialog(SessionConfigDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
@@ -1973,25 +1998,25 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	if (SessPrefsPtr->ckey != -1) {
 		scratchPstring[2] = SessPrefsPtr->ckey ^ 64;
 		SetTEText(dptr, SessInterrupt, scratchPstring);
-		}
+	}
 	if (SessPrefsPtr->skey != -1) {
 		scratchPstring[2] = SessPrefsPtr->skey ^ 64;
 		SetTEText(dptr, SessSuspend, scratchPstring);
-		}
+	}
 	if (SessPrefsPtr->qkey != -1) {
 		scratchPstring[2] = SessPrefsPtr->qkey ^ 64;
 		SetTEText(dptr, SessResume, scratchPstring);
-		}
+	}
 	for(scratchshort = CountMItems(SPopup[0].h); scratchshort; scratchshort--) {
 		GetMenuItemText(SPopup[0].h, scratchshort, scratchPstring);
 		if (EqualString(scratchPstring, (SessPrefsPtr->TerminalEmulation), TRUE, FALSE))
 			SPopup[0].choice = scratchshort;
-		}
+	}
 	for(scratchshort = CountMItems(SPopup[1].h); scratchshort; scratchshort--) {
 		GetMenuItemText(SPopup[1].h, scratchshort, scratchPstring);
 		if (EqualString(scratchPstring, (SessPrefsPtr->TranslationTable), TRUE, FALSE))
 			SPopup[1].choice = scratchshort;
-		}
+	}
 
 	NumberOfColorBoxes = 0;
 	ZeroNumOnly();
@@ -2004,7 +2029,10 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 		HideSessPanel(dptr, i);
 	ShowSessPanel(dptr, currentPanel);
 
-	SelectDialogItemText(dptr, SessAlias, 0, 32767);
+	if ( ((DialogPeek)dptr)->editField >= 0 ) {
+		SelectDialogItemText(dptr, ((DialogPeek)dptr)->editField + 1, 0, 255);
+	}
+
 	ShowWindow(dptr);
 	wasInAliasText = FALSE;
 	while ((ditem > 2) || (ditem == 0)) {
@@ -2187,12 +2215,17 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 
 				case 45: // tab control
 				newPanel = GetCntlVal(dptr, 45);
-				if (newPanel == currentPanel) break;
-
+				if (newPanel == currentPanel)
+					break;
+				editField = ((DialogPeek)dptr)->editField + 1;
 				HideSessPanel(dptr, currentPanel);
 				ShowSessPanel(dptr, newPanel);
 				SelectDialogItemText(dptr,((DialogPeek)dptr)->editField + 1,0,32767);
 				currentPanel = newPanel;
+				if (editField != ((DialogPeek)dptr)->editField + 1
+				  && ((DialogPeek)dptr)->editField >= 0) {
+					SelectDialogItemText(dptr, ((DialogPeek)dptr)->editField + 1, 0, 255);
+				}
 				break;
 
 				case 40: // Save as Set...
@@ -2551,6 +2584,9 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 	DialogPtr		dptr;
 	Boolean			UserLikesNewColor;
 	RGBColorPtr 	scratchRGB;
+	short			itemType;
+	Handle			itemHandle;
+	Rect			itemRect;
 
 	SetUpMovableModalMenus();
 	scratchRGB = (RGBColorPtr) myNewPtr(sizeof(RGBColor));
@@ -2605,14 +2641,17 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 			case	ANSIBoldMagenta:
 			case	ANSIBoldCyan:
 			case	ANSIBoldWhite:
-				if (TelInfo->haveColorQuickDraw) 
-				{
+				if (TelInfo->haveColorQuickDraw) {
 					Str255 askColorString;
 					GetIndString(askColorString,MISC_STRINGS,PICK_NEW_COLOR_STRING);
 					UserLikesNewColor = GetColor(ColorBoxPoint,askColorString,
 						 &BoxColorData[ditem-ANSIBlack], scratchRGB);
-					if (UserLikesNewColor)
+					if (UserLikesNewColor) {
 						BoxColorData[ditem-ANSIBlack] = *scratchRGB;
+						// force refresh
+						GetDialogItem(dptr, ditem, &itemType, &itemHandle, &itemRect);
+						InvalRect(&itemRect);
+					}
 				}
 				break;
 			case	ANSIBlackRadio:

@@ -37,7 +37,7 @@ void InitDebug(void)
 //	SetRect(&pRect, 50, 150, 700, 350);		// Need to make this a resource!
 	SetRect(&pRect, 50, 150, 0, 0);
 	
-	flags = RSWwrapon | RSWgoaway | RSWignoreBeeps | RSWsavelines;
+	flags = RSWwrapon | RSWgoaway | RSWignoreBeeps | RSWoldscrollback;
 	if (TelInfo->debug)
 		flags |= RSWshowit;
 

@@ -83,14 +83,18 @@ void printsleep(void)
 
 void printGraph(short dnum)			/* Which drawing to print */
 {
-	short h,v;			/* used for centering (h=horiz. , v=vert.) */
-	short wh,wv;			/* Window horiz and vert */
-	TPrStatus
-		prStatus;		/* Printing status record */
-	Rect prRect;		/* the rectangle to print in */
-	TPPrPort prPort;	/* the printing port */
-	short j;				/* VG identifier for pass-through */
+	short		h,v;			/* used for centering (h=horiz. , v=vert.) */
+	short		wh,wv;			/* Window horiz and vert */
+	TPrStatus	prStatus;		/* Printing status record */
+	Rect		prRect;			/* the rectangle to print in */
+	TPPrPort	prPort;			/* the printing port */
+	short		j;				/* VG identifier for pass-through */
 	THPrint		PrRecHandle;	/* our print record handle */
+	short		vs;
+
+	vs = VGgetVS(dnum);
+	if ( vs < 0 )
+		return;
 
 	PrRecHandle = PrintSetupRecord();
 		
@@ -119,8 +123,7 @@ void printGraph(short dnum)			/* Which drawing to print */
 				prRect.left = (h- wh) /2;
 				prRect.bottom = prRect.top + wv;
 				prRect.right = prRect.left + wh;
-
-				j=VGnewwin(TEK_DEVICE_PICTURE,VGgetVS(dnum));		/* NCSA 2.5: fixed the print call */
+				j = VGnewwin(TEK_DEVICE_PICTURE, vs, VGgettektype(vs), VGgettekclear(vs)); 
 				RGMPsize( &prRect );
 				VGzcpy( dnum, j);				/* Love dat zm factr */
 				VGredraw(dnum,j);				/* Copy the picture in i to j */

@@ -100,12 +100,14 @@ typedef	struct {
 		realbold,
 		oldScrollback,
 		jumpScroll,
-		realBlink;
+		realBlink,
+		vt7bits;
 	short
-		padding[100];			// So I'm generous....
+		padding[99];			// So I'm generous....
 }	TerminalPrefs;
 #define	TERMINALPREFS_RESTYPE	'TeR2'
 #define	TERMINALPREFS_APPID		1991		// The "<Default>" terminal seed copy
+#define	JPTERMINALPREFS_APPID	1992		// The "<Default>" terminal seed for japan
 
 // Name of each instance is the resource name.  Resource type SeSn
 typedef	struct {
@@ -212,6 +214,7 @@ typedef	struct {
 }	SessionPrefs;
 #define	SESSIONPREFS_RESTYPE	'SeSn'
 #define SESSIONPREFS_APPID		1991		// The "<Default>" session seed copy
+#define JPSESSIONPREFS_APPID	1992		// The "<Default>" session seed for japan
 
 
 // Only one instance of this resource type.  Resource type PrEf

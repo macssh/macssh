@@ -93,20 +93,18 @@ void	main(void)
 	ProfilerClear();
 #endif
 
-	if (!Gestalt('appr',&dummy)) {
+	if ( !Gestalt('appr', &dummy) ) {
 		gHasAppearance = true;
-
-		if (!Gestalt(gestaltAppearanceVersion, &dummy) && dummy >= 0x110 ) {
+		if ( !Gestalt(gestaltAppearanceVersion, &dummy) && dummy >= 0x110 ) {
 			gHasAppearance11 = true;
 		}
-
 		RegisterAppearanceClient();
 	}
 
 	init();					/* JMB 2.6 - Call all init routines */
 	UnloadSeg(&init);		/* Bye, bye to init routines... 	*/
 
-	if (gApplicationPrefs->autoOpenDefault)
+	if ( gApplicationPrefs->autoOpenDefault )
 		OpenSpecial(3);
 
 	TelInfo->gotDocument = 0;
@@ -120,13 +118,10 @@ void	main(void)
 		if (!TelInfo->done) {
 			DoNetEvents();
 		}
-		//ssh2_sched();
-
 		memOK = RecoverReserveMemory();
-		if (memOK) 
+		if ( memOK ) {
 			haveNotifiedLowMemory = false;
-		else if (!haveNotifiedLowMemory) 
-		{
+		} else if (!haveNotifiedLowMemory) {
 			Alert(MemoryLowAlert, NULL);
 			haveNotifiedLowMemory = true;
 		}
@@ -140,8 +135,8 @@ void	main(void)
 				gPresentOpenConnectionDialog = 0;
 			}
 		}
-	} while (!TelInfo->done);						/* BYU mod */
-		
+	} while ( !TelInfo->done );
+
 #ifdef	PERFORMANCE
 	if (!PerfDump(ThePGlobals, "\pPerform.out", TRUE, 80))
 		DebugStr("\pDump Failed");

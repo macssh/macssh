@@ -76,12 +76,15 @@ unsigned short VSIkpnums[] =	// RAB BetterTelnet 2.0b5 - macro numbers
 	   0, 80, 81, 83, 82, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 71,
 	  70, 72, 73, 50, 51, 52, 53 };
 */
-unsigned short VSIkpnums[] =	// RAB BetterTelnet 2.0b5 - macro numbers
-	{ 24, 25, 26, 22, 27, 28,  0, 40,  0, 42,  0,
-	  43,  0, 29,  0, 41,  0, 44, 58, 56, 54, 59,
-	  23, 57, 21, 55, 20, 27,  0,  0,  0,  0,  0,
-	  90, 91, 93, 92, 70, 71, 72, 73, 74, 75, 76,
-	  77, 78, 79, 81, 80, 82, 83, 50, 51, 52, 53 };
+
+// macro numbers
+unsigned short VSIkpnums[] = {
+  24, 25, 26, 22, 27, 28,  0, 40,  0, 42,  0,
+  43,  0, 29,  0, 41,  0, 44, 58, 56, 54, 59,
+  23, 57, 21, 55, 20, 27,  0,  0,  0,  0,  0,
+  90, 91, 93, 92, 70, 71, 72, 73, 74, 75, 76,
+  77, 78, 79, 81, 80, 82, 83, 50, 51, 52, 53
+};
 
 extern TelInfoRec *TelInfo;
 extern WindRec	*screens;
@@ -89,32 +92,32 @@ extern long		TempItemsDirID;
 extern short	TempItemsVRefNum;
 extern short RSa;
 
-short
-  /* Internal variables for use in managing windows */
-	VSmax = 0, /* max nr screens allowed */
-	VSinuse = 0; /* nr screens actually in existence */
-VSscrndata *VSscreens;
+extern void syslog( int priority, const char *format, ...);
+
+/* Internal variables for use in managing windows */
+short		VSmax = 0;			/* max nr screens allowed */
+short		VSinuse = 0;		/* nr screens actually in existence */
+VSscrndata	*VSscreens;
 
 short VSinit
   (
 	short max /* max nr screens to allow */
   )
   /* initializes virtual screen and window handling. */
-  {
+{
 	short i;
 
 	RSinitall(max);
 	VSmax = max;
 	VSIwn = 0;
 	if ((VSscreens = (VSscrndata *) myNewPtr(max * sizeof(VSscrndata))) == 0L)
-		return(-2);
-	for (i = 0; i < max; i++)
-	  {
+		return -2;
+	for (i = 0; i < max; i++) {
 		VSscreens[i].loc = 0L;
 		VSscreens[i].stat = 0;
-	  } /* for */
+	} /* for */
 	return(0);
-  } /* VSinit */
+} /* VSinit */
 
 
 short VSiscapturing(short w) {								/* BYU 2.4.18 */
@@ -215,6 +218,11 @@ short	VSisprinting(short w)
 	return ((VSscreens[w].loc)->prredirect);
 }
 
+Boolean	VSisvt7bit(short w)
+{
+	return !(VSscreens[w].loc)->vteightbits;
+}
+
 void	ClosePrintingFile(short w)
 {
 	OSErr sts;
@@ -297,26 +305,24 @@ short VSnewscreen
 	short screensave, /* whether to have a scrollback buffer */
 	short numLines, //numLines initially on screen  (CCP 2.7)
 	short maxwid, /* number of columns on screen */
-	short forcesave,	/* NCSA 2.5: force lines to be saved */
-	short ignoreBeeps,
-	short oldScrollback,
-	short jump,
-	short realBlink
+	unsigned long flags
   )
   /* creates a new virtual screen, and returns its number. */
   {
 	if (maxlines < VSDEFLINES)
 		maxlines = VSDEFLINES;
 
-	if (VSinuse >= VSmax)
-	  /* too many screens in existence */
-		return(-1);
+	if ( VSinuse >= VSmax ) {
+		// too many screens in existence
+		return -1;
+	}
 	VSIwn = 0;
-	while ((VSIwn < VSmax) && (VSscreens[VSIwn].stat == 1))
+	while ( VSIwn < VSmax && VSscreens[VSIwn].stat == 1 )
 		VSIwn++;
-	if (VSIwn >= VSmax)
-	  /* shouldn't occur? */
-		return(-1);
+	if ( VSIwn >= VSmax ) {
+		// shouldn't occur?
+		return -1;
+	}
 	numLines -= 1;  //correct for internal use
 	
 	/*
@@ -344,12 +350,14 @@ short VSnewscreen
 	/* All memory allocation for this function is done at once, to help damage control in 
 	low memory situations */
 
-	if ((VSscreens[VSIwn].loc = VSIw = (VSscrn *) myNewPtr(sizeof(VSscrn))) == 0L)
+	if ((VSscreens[VSIwn].loc = VSIw = (VSscrn *) myNewPtr(sizeof(VSscrn))) == 0L) {
 		return(-2);
+	}
 
 	VSIw->vtemulation = vtemulation;
+	VSIw->vteightbits = !(flags & RSWvt7bit);
 
-	VSIw->oldScrollback = oldScrollback;
+	VSIw->oldScrollback = flags & RSWoldscrollback;
 	VSIw->lines = numLines;
 	//VSIw->lines = 23; CCP 2.7 set this from the start
 
@@ -447,14 +455,14 @@ short VSnewscreen
 
 	VSIw->disableCursor = 0; // cursor may be visible (RAB BetterTelnet 2.0b4)
 	VSIw->linesjumped = 0; // reset the jump scrolling (RAB BetterTelnet 2.0b3)
-	VSIw->jumpScroll = jump;
+	VSIw->jumpScroll = flags & RSWjumpscroll;
 	VSIw->maxlines = maxlines;
 	VSIw->numlines = 0;
 	VSscreens[VSIwn].captureRN = 0;		/* BYU 2.4.18 - capture file's RefNum */
 	VSIw->id = 'VSCR';
 	VSIw->maxwidth = maxwid - 1;
 	VSIw->savelines = screensave;
-	VSIw->forcesave = forcesave;		/* NCSA 2.5 */
+	VSIw->forcesave = flags & RSWforcesave;		/* NCSA 2.5 */
 	VSIw->attrib = 0;
 	VSIw->Pattrib = 0xffffffff; /* initially no saved attribute */
 	VSIw->x = 0;
@@ -482,11 +490,11 @@ short VSnewscreen
 	VSIw->ESscroll = 1;
 	VSIw->prredirect = 0;						/* LU */
 	VSIw->qprint = 0;
-	VSIw->ignoreBeeps = ignoreBeeps;
+	VSIw->ignoreBeeps = flags & RSWignoreBeeps;
 	VSIw->prbuf = 0;							/* LU */
 	VSIw->refNum = -1;							/* LU */
 	VSIw->possibleForce = 0;
-	VSIw->realBlink = realBlink;
+	VSIw->realBlink = flags & RSWrealBlink;
 	VSIclrbuf();
 	VSItabinit();
 	VSscreens[VSIwn].stat = 1;
@@ -612,7 +620,6 @@ short VSredraw
 	short sx2;
 	Boolean cursOff;
 
-
 	if (VSvalids(w) != 0)
 		return(-3);
 
@@ -638,139 +645,75 @@ short VSredraw
 	ty1 = y1;
 	ty2 = y2;
 	tn = -1;		// so we include more than 1 line
-	
-//	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
 
-	cursOff = 0;
-	if ( VSIcursorenabled() && RScursison(w) ) {
-		cursOff = 1;
-		VSIcuroff(w); 						// temporarily hide cursor
-	}
+	if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
 
-	// draw visible part of scrollback buffer
-	if (y1 < 0) {
-	
-		tx1 = x1;		// Set up to clip redraw area to visible area of scrollback buffer
-		tx2 = x2;
-		ty1 = y1;
-		ty2 = (y2>=0) ? -1 : y2;
-		tn = -1;
-		
-		if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
-
-			sx1 = tx1;
-			sx2 = tx2;
-
-			ypt = VSIw->vistop;
-			for(y=VSIw->Rtop; y<y1; y++)
-				ypt = ypt->next;		// Get pointer to top line we need
-			
-			for (y=ty1; y<=ty2; y++) {
-				char *pt;
-				VSAttrib *pa;
-				VSAttrib lasta;
-				short x, lastx;
-				short chw;
-
-				pt = ypt->text + VSIw->Rleft;
-				pa = ypt->attr + VSIw->Rleft;
-
-				// if double size, we must shift width
-				if (VSisdecdwh(ypt->lattr)) {
-					tx1 >>= 1;
-					tx2 >>= 1;
-					chw = 2;
-				} else
-					chw = 1;
-
-				// multi-byte
-				if ( tx1 > 0 && (pa[tx1-1] & kVSansi2b) )
-					--tx1;
-				if ( tx2 < VSIw->maxwidth && (pa[tx2] & kVSansi2b) )
-					++tx2;
-
-				lastx = tx1;
-				lasta = pa[tx1] & ~kVSansi2b;
-				for(x = tx1+1; x <= tx2; x++) {
-					if ( (pa[x] & ~kVSansi2b) != lasta ) {
-						RSdraw(w, lastx, y, ypt->lattr, lasta, x-lastx, pt + lastx);
-						lastx = x;
-						lasta = pa[x] & ~kVSansi2b;
-					}
-				}
-				if (lastx<=tx2)
-					RSdraw(w, lastx, y, ypt->lattr, lasta, tx2-lastx+1, pt + lastx);
-
-				tx1 = sx1;
-				tx2 = sx2;
-				ypt = ypt->next;
-			}
+		cursOff = 0;
+		if ( VSIcursorenabled() && RScursison(w) ) {
+			cursOff = 1;
+			VSIcuroff(w); 						// temporarily hide cursor
 		}
-		y1 = 0;			// continue with on-screen buffer, if any
-	}
 
-	// draw visible part of on-screen buffer, taking account of attributes
-	if (y2 >= 0) {
-	
-		tx1 = x1;		// Set up to clip redraw area to visible area of on-screen buffer
-		tx2 = x2;
-		ty1 = y1;
-		ty2 = y2;
-		tn = -1;
+		sx1 = tx1;
+		sx2 = tx2;
 
-		if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
+		ypt = VSIGetLineStart(w, y1);
 
-			sx1 = tx1;
-			sx2 = tx2;
+		for ( y = ty1; y <= ty2; y++ ) {
+			char *pt;
+			VSAttrib *pa;
+			VSAttrib lasta;
+			short x, lastx;
+			short chw;
 
-			ypt = VSIw->linest[VSIw->Rtop+ty1];
-			
-			for (y=ty1; y<=ty2; y++) {
-				char *pt;
-				VSAttrib *pa;
-				VSAttrib lasta;
-				short x, lastx;
-				short chw;
-			
-				pt = ypt->text + VSIw->Rleft;
-				pa = ypt->attr + VSIw->Rleft;
-				
-				// if double size, we must shift width
-				if (VSisdecdwh(ypt->lattr)) {
-					tx1 >>= 1;
-					tx2 >>= 1;
-					chw = 2;
-				} else
-					chw = 1;
-
-				// multi-byte
-				if ( tx1 > 0 && (pa[tx1-1] & kVSansi2b) )
-					--tx1;
-				if ( tx2 < VSIw->maxwidth && (pa[tx2] & kVSansi2b) )
-					++tx2;
-
-				lastx = tx1;
-				lasta = pa[tx1] & ~kVSansi2b;
-				for(x = tx1+1; x <= tx2; x++) {
-					if ( (pa[x] & ~kVSansi2b) != lasta ) {
-						RSdraw(w, lastx, y, ypt->lattr, lasta, x-lastx, pt + lastx);
-						lastx = x;
-						lasta = pa[x] & ~kVSansi2b;
-					}
-				}
-				if (lastx<=tx2)
-					RSdraw(w, lastx, y, ypt->lattr, lasta, tx2-lastx+1, pt + lastx);
-
-				tx1 = sx1;
-				tx2 = sx2;
-				ypt = ypt->next;
+			if ( VSIw->Rtop + y == 0 ) {
+				// on-screen buffer
+				ypt = *VSIw->linest;
 			}
-		}
-	}
 
-	if (VSIcursorenabled() && cursOff)
-		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
-	return(0);
+			pt = ypt->text + VSIw->Rleft;
+			pa = ypt->attr + VSIw->Rleft;
+
+			// if double size, we must shift width
+			if (VSisdecdwh(ypt->lattr)) {
+				tx1 >>= 1;
+				tx2 >>= 1;
+				chw = 2;
+			} else
+				chw = 1;
+
+			// multi-byte
+			if ( tx1 > 0 && (pa[tx1-1] & kVSansi2b) )
+				--tx1;
+			if ( tx2 < VSIw->maxwidth && (pa[tx2] & kVSansi2b) )
+				++tx2;
+
+			lastx = tx1;
+			lasta = pa[tx1] & ~kVSansi2b;
+			for (x = tx1+1; x <= tx2; x++) {
+				if ( (pa[x] & ~kVSansi2b) != lasta ) {
+					RSdraw(w, lastx, y, ypt->lattr, lasta, x-lastx, pt + lastx);
+					lastx = x;
+					lasta = pa[x] & ~kVSansi2b;
+				}
+			}
+			if (lastx <= tx2)
+				RSdraw(w, lastx, y, ypt->lattr, lasta, tx2-lastx+1, pt + lastx);
+
+			tx1 = sx1;
+			tx2 = sx2;
+			ypt = ypt->next;
+		}
+
+		if ( cursOff ) {
+			VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
+		} else {
+			// just calcutate the new coordinates
+			VScursset(w, VSIw->x, VSIw->y);
+		}
+
+	}
+	return 0;
 } /* VSredraw */
 
 
@@ -816,16 +759,12 @@ short VSOredraw
 	ty1 = y1;
 	ty2 = y2;
 	tn = -1;		// so we include more than 1 line
-	
-//	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
 
 	cursOff = 0;
 	if ( VSIcursorenabled() && RScursison(w) ) {
 		cursOff = 1;
 		VSIcuroff(w); 						// temporarily hide cursor
 	}
-
-//	RSerase(w, tx1, ty1, tx2, ty2);		// Erase the offending area
 
 	// draw visible part of scrollback buffer
 	if (y1 < 0) {
@@ -930,9 +869,12 @@ short VSOredraw
 		}
 	}
 
-	if (VSIcursorenabled() && cursOff)
+	if ( cursOff ) {
 		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
-
+	} else {
+		// just calcutate the new coordinates
+		VScursset(w, VSIw->x, VSIw->y);
+	}
 	return(0);
   } /* VSOredraw */
 
@@ -953,7 +895,7 @@ short VSwrite
 	if (VSvalids(w) != 0)
 		return(-3);
 	cursOff = 0;
-	if ( VSIcursorenabled() ) {
+	if ( VSIcursorenabled() && RScursison(w) ) {
 		cursOff = 1;
 		VSIcuroff(w); // hide cursor momentarily
 	}
@@ -961,8 +903,12 @@ short VSwrite
 	VSem((unsigned char *) ptr, len);	/* BYU LSC - interpret the character stream */
 	VSIflush(); // RAB BetterTelnet 2.0b3
 	VSIcursenable();
-	if ( VSIcursorenabled() && cursOff )
+	if ( cursOff ) {
 		VSIcurson(w, VSIw->x, VSIw->y, 1); /* restore cursor, force it to be visible. */
+	} else {
+		// just calcutate the new coordinates
+		VScursset(w, VSIw->x, VSIw->y);
+	}
 //	_profile = 0;
 	return(0);
 } /* VSwrite */
@@ -1693,14 +1639,13 @@ char *VSIstrcopy(char *src, short len, char *dest, short table, short noClip)
 	trailing blanks. If table is nonzero, then this number (or more) of
 	consecutive embedded blanks will be replaced with a tab. Returns a pointer
 	to the position one past the last character copied to the *dest buffer. */
-  {
+{
 	char *p, *tempp;
 	short tblck;
 
 	p = src + len - 1;
-  /* skip trailing blanks, but only if !noClip */
-  	if (!noClip && (table || gApplicationPrefs->clipTrailingSpaces))
-  											// RAB BetterTelnet 1.0fc7, 1.1
+	/* skip trailing blanks, but only if !noClip */
+  	if (!noClip)
 		while ((*p == ' ') && (p >= src))
 			p--;
 	if (p < src)
@@ -1732,7 +1677,7 @@ char *VSIstrcopy(char *src, short len, char *dest, short table, short noClip)
 			  } /* if */
 		  } /* while */
 	return(dest);
-  } /* VSIstrcopy */
+} /* VSIstrcopy */
 
 
 long VSOgettext(short w, short x1, short y1, short x2, short y2, char *charp, long max, char *EOLS, short table)
@@ -1851,9 +1796,9 @@ long VSgettext(short w, short x1, short y1, short x2, short y2,
 	short outlen;
 	short i;
 	VSlinePtr ypt;
-	VSattrlinePtr ypa;
 	char *pt;
-	VSAttrib *pa;
+	char *tp;
+//	VSAttrib *pa;
 
 	if (VSvalids(w) != 0)
 		return(-3);
@@ -1890,7 +1835,7 @@ long VSgettext(short w, short x1, short y1, short x2, short y2,
 	origcp = charp;
 	elen = strlen(EOLS);
 
-	/* Order the lower and upper bounds */
+	// Order the lower and upper bounds
 	ux = x1;
 	lx = x2;
 	uy = y1;
@@ -1900,6 +1845,8 @@ long VSgettext(short w, short x1, short y1, short x2, short y2,
 			ux = x2;
 			lx = x1;
 		}
+		// single line
+		clipspaces = clipspaces && gApplicationPrefs->clipTrailingSpaces;
 	} else if (y1 > y2) {
 		uy = y2;
 		ly = y1;
@@ -1908,55 +1855,29 @@ long VSgettext(short w, short x1, short y1, short x2, short y2,
 	}
 
 	x1 = ux + 1;
-
-	// get text from scrollback buffer
-	if (uy < 0) {
-		x2 = mw;
-		y2 = (ly >= 0) ? -1 : ly;
-		ypt = VSIGetLineStart(w, uy);
-		for ( y1 = uy; y1 <= y2 && max >= elen; y1++, x1 = 0, x2 = mw, ypt = ypt->next ) {
-			pt = ypt->text;
-//			pa = ypt->attr;
-			if (y1 == ly)
-				x2 = lx; // end last line
-			outlen = x2 - x1 + 1;
-			if (outlen > max) {
-				outlen = max;
-			}
-			charp = VSIstrcopy(pt + x1, outlen, pt = charp, table, !clipspaces);
-			max -= charp - pt;
-			if (max >= elen && !VSiswrap(ypt->lattr) && y1 != ly) {
-				strcpy(charp, EOLS);
-				charp += elen;
-				max -= elen;
-			}
+	x2 = mw;
+	ypt = VSIGetLineStart(w, uy);
+	for ( y1 = uy; y1 <= ly && max >= elen; y1++, x1 = 0, x2 = mw, ypt = ypt->next ) {
+		if ( y1 == 0 ) {
+			// get text from on-screen buffer
+			ypt = *VSIw->linest;
 		}
-		uy = 0; // continue with on-screen buffer, if any
-	}
-
-	// get text from on-screen buffer
-	if (ly >= 0) {
-		x2 = mw;
-		ypt = VSIw->linest[uy];
-		for ( y1 = uy; y1 <= ly && max >= elen; y1++, x1 = 0, x2 = mw, ypt = ypt->next ) {
-			pt = ypt->text;
-//			pa = ypt->attr;
-			if (y1 == ly)
-				x2 = lx;
-			outlen = x2 - x1 + 1;
-			if (outlen > max) {
-				outlen = max;
-			}
-			charp = VSIstrcopy(pt + x1, outlen, pt = charp, table, !clipspaces);
-			max -= charp - pt;
-			if (max >= elen && !VSiswrap(ypt->lattr) && y1 != ly) {
-				strcpy(charp, EOLS);
-				charp += elen;
-				max -= elen;
-			}
+		pt = ypt->text;
+//		pa = ypt->attr;
+		if (y1 == ly)
+			x2 = lx; // end last line
+		outlen = x2 - x1 + 1;
+		if (outlen > max) {
+			outlen = max;
+		}
+		charp = VSIstrcopy(pt + x1, outlen, tp = charp, table, !clipspaces);
+		max -= charp - tp;
+		if (max >= elen && !VSiswrap(ypt->lattr) && y1 != ly) {
+			strcpy(charp, EOLS);
+			charp += elen;
+			max -= elen;
 		}
 	}
-
 	return charp - origcp;
 }
 
@@ -2025,45 +1946,24 @@ long VSgetattr(short w, short x1, short y1, short x2, short y2,
 	}
 
 	x1 = ux + 1;
-
-	// get attributes from scrollback buffer
-	if (uy < 0) {
-		x2 = mw;
-		y2 = (ly >= 0) ? -1 : ly;
-		ypt = VSIGetLineStart(w, uy);
-		for ( y1 = uy; y1 <= y2 && max >= sizeof(VSAttrib); y1++, x1 = 0, x2 = mw, ypt = ypt->next ) {
-			pa = ypt->attr;
-			if (y1 == ly)
-				x2 = lx; // end last line
-			outlen = (x2 - x1 + 1) * sizeof(VSAttrib);
-			if (outlen > max / sizeof(VSAttrib)) {
-				outlen = max / sizeof(VSAttrib);
-			}
-			memcpy(attrp, pa + x1, outlen * sizeof(VSAttrib));
-			attrp += outlen;
-			max -= outlen * sizeof(VSAttrib);
+	x2 = mw;
+	ypt = VSIGetLineStart(w, uy);
+	for ( y1 = uy; y1 <= ly && max >= sizeof(VSAttrib); y1++, x1 = 0, x2 = mw, ypt = ypt->next ) {
+		if (y1 == 0) {
+			// get text from on-screen buffer
+			ypt = *VSIw->linest;
 		}
-		uy = 0; // continue with on-screen buffer, if any
-	}
-
-	// get attributes from on-screen buffer
-	if (ly >= 0) {
-		x2 = mw;
-		ypt = VSIw->linest[uy];
-		for ( y1 = uy; y1 <= ly && max >= sizeof(VSAttrib); y1++, x1 = 0, x2 = mw, ypt = ypt->next ) {
-			pa = ypt->attr;
-			if (y1 == ly)
-				x2 = lx;
-			outlen = (x2 - x1 + 1) * sizeof(VSAttrib);
-			if (outlen > max / sizeof(VSAttrib)) {
-				outlen = max / sizeof(VSAttrib);
-			}
-			memcpy(attrp, pa + x1, outlen * sizeof(VSAttrib));
-			attrp += outlen;
-			max -= outlen * sizeof(VSAttrib);
+		pa = ypt->attr;
+		if (y1 == ly)
+			x2 = lx; // end last line
+		outlen = (x2 - x1 + 1) * sizeof(VSAttrib);
+		if (outlen > max / sizeof(VSAttrib)) {
+			outlen = max / sizeof(VSAttrib);
 		}
+		memcpy(attrp, pa + x1, outlen * sizeof(VSAttrib));
+		attrp += outlen;
+		max -= outlen * sizeof(VSAttrib);
 	}
-
 	return attrp - origap;
 }
 

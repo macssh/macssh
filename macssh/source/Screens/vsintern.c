@@ -43,7 +43,7 @@
 #define ScrollbackQuantum 100
 
 //#define VSIclrattrib 0
-#define VSIclrattrib (VSIw->attrib & 0x0003ffff)
+//#define VSIclrattrib (VSIw->attrib & 0x0003ffff)
 
 #include "vsintern.proto.h"
 
@@ -151,24 +151,45 @@ short VSIcinslines(short w, short top, short bottom, short n, short scrolled) /*
 	return 0;
   } /* VSIcinslines */
 
-void VSIcurson
-  (
-	short w,
-	short x,
-	short y,
-	short ForceMove
-  )
-  /* displays the text cursor at the specified position. If
-	ForceMove is true, I am to do any appropriate scrolling of
-	the display to ensure the cursor is within the visible region.
-	Assumes cursor isn't currently being shown. */
-  {
+
+void VScursset( short w, short x, short y )
+{
+	short		x2;
+	short		y2;
+	short		n = 1;
+	short		offset;
+	short		lattr;
+
+	if (VSvalids(w) != 0)
+		return;
+
+	lattr = VSIw->linest[y]->lattr;
+
+	if (!VSIclip(&x, &y, &x2, &y2, &n, &offset)) {
+		/* cursor already lies within visible region */
+		RScursset(w, lattr, x, y);
+	}
+}
+
+/*
+ * VSIcurson
+ *
+ * displays the text cursor at the specified position. If
+ * ForceMove is true, I am to do any appropriate scrolling of
+ * the display to ensure the cursor is within the visible region.
+ * Assumes cursor isn't currently being shown.
+ */
+void VSIcurson( short w, short x, short y, short ForceMove )
+{
 	short
 		x2,
 		y2,
 		n = 1,
 		offset;
 	short lattr;
+
+	if (VSvalids(w) != 0)
+		return;
 
 	if (!VSIw->DECCM) return; // Bri 970610
 	if (VSIw->disableCursor) return; // RAB BetterTelnet 2.0b4
@@ -200,26 +221,35 @@ void VSIcurson
 	} /* if */
 } /* VSIcurson */
 
-void VSIcuroff
-  (
-	short w
-  )
-  /* hides the cursor for the specified screen. Assumes it
-	is currently being shown (or that it's on an invisible
-	part of the screen). */
-  {
+
+/*
+ * VSIcuroff
+ *
+ * hides the cursor for the specified screen. Assumes it
+ * is currently being shown (or that it's on an invisible
+ * part of the screen).
+ */
+void VSIcuroff( short w )
+{
 	short
-		x = VSIw->x,
-		y = VSIw->y,
+		x,
+		y,
 		x2,
 		y2,
 		n = 1,
 		offset;
 
+	if (VSvalids(w) != 0)
+		return;
+
+	x = VSIw->x;
+	y = VSIw->y;
+
 	if (!VSIclip(&x, &y, &x2, &y2, &n, &offset) || !VSIw->DECCM) // Bri 970610
 	  /* cursor is on visible part of screen */
 		RScursoff(w);
-  } /* VSIcuroff */
+} /* VSIcuroff */
+
 
 void VSIcursdisable() // RAB BetterTelnet 2.0b4
 {
@@ -697,6 +727,7 @@ void VSIelo
 	Doesn't do anything to the display. */
   {
 	char *tt;
+	VSAttrib attrib;
 	VSAttrib *ta;
 	short i;
 
@@ -710,9 +741,16 @@ void VSIelo
 		ta = &VSIw->linest[s]->attr[0];
 	}
 	tt = &VSIw->linest[s]->text[0];
+
+	if (VSIw->vtemulation == 3)
+		attrib = VSIw->attrib;
+	else
+		// all off, keep multi-byte / graphic
+		attrib = VSIw->attrib & (kVSansi2b | kVSgrph);
+
 	for (i = 0; i <= VSIw->allwidth; i++)
 	  {
-		*ta++ = VSIclrattrib;
+		*ta++ = attrib;
 		*tt++ = ' ';
 	  } /* for */
   } /* VSIelo */
@@ -852,6 +890,7 @@ void VSIdellines
   {
 	short i, j;
 	char *tt;
+	VSAttrib attrib;
 	VSAttrib *ta;
 	VSlinePtr  ts, TD, BD, TI, BI, itt;
 
@@ -892,6 +931,12 @@ void VSIdellines
 		their new position */
 		VSIlistmove(TD, BD, TI, BI);
 
+	if (VSIw->vtemulation == 3)
+		attrib = VSIw->attrib;
+	else
+		// all off, keep multi-byte / graphic
+		attrib = VSIw->attrib & (kVSansi2b | kVSgrph);
+
 	for (i = 0; i < n; i++)
 	  {
 	    itt->lattr = 0;
@@ -900,7 +945,7 @@ void VSIdellines
 		for (j = 0; j <= VSIw->allwidth; j++)
 		  {
 			*tt++ = ' ';
-			*ta++ = VSIclrattrib;
+			*ta++ = attrib;
 		  } /* for */
 		itt = itt->next;
 	  } /* for */
@@ -929,6 +974,7 @@ void VSOdellines
 	VSAttrib *ta;
 	VSlinePtr  as, ts, TD, BD, TI, BI, itt;
 	VSattrlinePtr ita;
+	VSAttrib attrib;
 
 	if (s < 0)
 		s = VSIw->y;
@@ -974,6 +1020,12 @@ void VSOdellines
 		their new position */
 		VSIlistmove(TD, BD, TI, BI);
 
+	if (VSIw->vtemulation == 3)
+		attrib = VSIw->attrib;
+	else
+		// all off, keep multi-byte / graphic
+		attrib = VSIw->attrib & (kVSansi2b | kVSgrph);
+
   /* blank out the newly-created replacement lines */
 	ita = (VSattrlinePtr)TD; /* start of attribute lines to be blanked out */
 	for (i = 0; i < n; i++)
@@ -984,7 +1036,7 @@ void VSOdellines
 		for (j = 0; j <= VSIw->allwidth; j++)
 		  {
 			*tt++ = ' ';
-			*ta++ = VSIclrattrib;
+			*ta++ = attrib;
 		  } /* for */
 		ita = ita->next;
 		itt = itt->next;
@@ -1014,6 +1066,7 @@ void VSIinslines
 	char *tt;
 	VSAttrib *ta;		
 	VSlinePtr ts, TD, BD, TI, BI, itt;
+	VSAttrib attrib;
 
 	VSIflush(); // RAB BetterTelnet 2.0b3
 
@@ -1052,6 +1105,12 @@ void VSIinslines
 		to its new position */
 		VSIlistmove(TD, BD, TI, BI);
 
+	if (VSIw->vtemulation == 3)
+		attrib = VSIw->attrib;
+	else
+		// all off, keep multi-byte / graphic
+		attrib = VSIw->attrib & (kVSansi2b | kVSgrph);
+
   /* blank out the newly-inserted lines */
 	for (i = 0; i < n; i++)
 	  {
@@ -1060,7 +1119,7 @@ void VSIinslines
 		for (j = 0; j <= VSIw->allwidth; j++)
 		  {
 			*tt++ = ' ';
-			*ta++ = VSIclrattrib;
+			*ta++ = attrib;
 		  }
 		itt = itt->next;
 	  } /* for */
@@ -1088,7 +1147,8 @@ void VSOinslines
 	char *tt;
 	VSAttrib *ta;		
 	VSlinePtr ts, TD, BD, TI, BI, itt;
-	VSattrlinePtr as, aTD, aBD, aTI, aBI, ita;	
+	VSattrlinePtr as, aTD, aBD, aTI, aBI, ita;
+	VSAttrib attrib;
 
 	if (s < 0)
 		s = VSIw->y;
@@ -1132,6 +1192,12 @@ void VSOinslines
 		to its new position */
 		VSIlistmove((VSlinePtr)aTD, (VSlinePtr)aBD, (VSlinePtr)aTI, (VSlinePtr)aBI); 
 
+	if (VSIw->vtemulation == 3)
+		attrib = VSIw->attrib;
+	else
+		// all off, keep multi-byte / graphic
+		attrib = VSIw->attrib & (kVSansi2b | kVSgrph);
+
   /* blank out the newly-inserted lines */
 	ita = aTD; /* start of attribute lines to be blanked out */
 	for (i = 0; i < n; i++)
@@ -1142,7 +1208,7 @@ void VSOinslines
 		for (j = 0; j <= VSIw->allwidth; j++)
 		  {
 			*tt++ = ' ';
-			*ta++ = VSIclrattrib;
+			*ta++ = attrib;
 		  }
 		itt = itt->next;
 		ita = ita->next;
@@ -1202,32 +1268,27 @@ void VSIscroll
 				tmp->prev = VSIw->linest[VSIw->lines];
 				VSIw->numlines++; /* use one of the newly-allocated scrollback lines */
 				RSbufinfo(VSIwn, VSIw->numlines, VSIw->Rtop, VSIw->Rbottom); /* update vertical scroll bar accordingly */
-			  }
-			else
-			  {
+			} else {
 			  /* not enough memory to extend scrollback buffer--reuse
 				oldest line and give up on future extensions */
 				VSIw->linest[VSIw->lines]->next = VSIw->buftop;		/* Make it circular */
 				VSIw->buftop->prev = VSIw->linest[VSIw->lines];
 				VSIw->buftop = VSIw->buftop->next;	/* step one forward */
-			  } /* if */
-		  }	
-		else
-		  {
-		  /* either there's allocated, but not yet used, space at
+			} /* if */
+		} else {
+		  	/* either there's allocated, but not yet used, space at
 			VSIw->linest[VSIw->lines]->next, or the text line list
 			is circular. Either way, don't do any new scrollback
 			allocation. */
-			if (VSIw->linest[VSIw->lines]->next == VSIw->buftop)
-			  /* scrollback buffer is at full size--reuse oldest line */
+			if (VSIw->linest[VSIw->lines]->next == VSIw->buftop) {
+				/* scrollback buffer is at full size--reuse oldest line */
 				VSIw->buftop = VSIw->buftop->next;
-			else
-			  {
+			} else {
 			  /* haven't used up all the space I allocated last time */
 				VSIw->numlines++;					/* count another line */
 				RSbufinfo(VSIwn, VSIw->numlines, VSIw->Rtop, VSIw->Rbottom); /* update vertical scroll bar accordingly */
-			  } /* if */
-		  } /* if */
+			} /* if */
+		} /* if */
 
 		VSIw->scrntop = VSIw->scrntop->next; /* scroll the screen buffer */
 		VSIlistndx(VSIw->scrntop); /* update screen arrays */
@@ -1259,14 +1320,16 @@ void VSIscroll
 		  }
 		else
 			VSIw->vistop = VSIw->vistop->next; /* consistent with changed display */
-	  /* blank out newly-revealed bottom line */
+
+		/* clear line attribute */
+		VSIw->linest[VSIw->lines]->lattr = 0;
+		/* blank out newly-revealed bottom line */
 		tempa = VSIw->linest[VSIw->lines]->attr;
 		temp = VSIw->linest[VSIw->lines]->text;
-		for (i = 0; i <= VSIw->allwidth; i++)
-		  {
+		for (i = 0; i <= VSIw->allwidth; i++) {
 			*temp++ = ' ';
 			*tempa++ = 0;
-		  } /* for */
+		} /* for */
 
 // RAB BetterTelnet 1.2.1 - another bug fix for NCSA's insanity!
 
@@ -1515,6 +1578,7 @@ void VSIeeol
 		offset;
 	short
 		i;
+	VSAttrib attrib;
 
 // RAB BetterTelnet 2.0b1 - Fix for forcesave bug
 
@@ -1560,6 +1624,12 @@ void VSIeeol
 		DisposePtr((Ptr) savedTextBlock); // VSIfreelinelist adds un-needed overhead here
 	}
 
+	if (VSIw->vtemulation == 3)
+		attrib = VSIw->attrib;
+	else
+		// all off, keep multi-byte / graphic
+		attrib = VSIw->attrib & (kVSansi2b | kVSgrph);
+
 	VSIwrapnow(&x1, &y1);
 	y2 = y1;
   /* clear out screen line */
@@ -1572,7 +1642,7 @@ void VSIeeol
 	tt = &VSIw->linest[y1]->text[x1];
 	for (i = VSIw->allwidth - x1 + 1; i > 0; i--)
 	  {
-		*ta++ = VSIclrattrib;
+		*ta++ = attrib;
 		*tt++ = ' ';
 	  }
   /* update display */
@@ -1604,6 +1674,7 @@ void VSIdelchars
 		*tempa;
 	short
 		lattr;
+	VSAttrib attrib;
 
 	VSIwrapnow(&x1, &y1);
 	y2 = y1;
@@ -1617,6 +1688,13 @@ void VSIdelchars
 		tempa = VSIw->linest[y1]->attr;
 	}
 	temp = VSIw->linest[y1]->text;
+
+	if (VSIw->vtemulation == 3)
+		attrib = VSIw->attrib;
+	else
+		// all off, keep multi-byte / graphic
+		attrib = VSIw->attrib & (kVSansi2b | kVSgrph);
+
 	for (i = x1; i <= VSIw->maxwidth - x; i++)
 	  {
 	  /* move remainder of line to the left */
@@ -1627,7 +1705,7 @@ void VSIdelchars
 	  {
 	  /* insert blank characters after end of line */
 		temp[i] = ' ';
-		tempa[i] = VSIclrattrib;
+		tempa[i] = attrib;
 	  }
   /* update display */
 	if (!VSIclip(&x1, &y1, &x2, &y2, &n, &offset))
@@ -1712,6 +1790,7 @@ void VSIebol
 		offset;
 	short
 		i;
+	VSAttrib attrib;
 
 	VSIwrapnow(&x2, &y1);
 	y2 = y1;
@@ -1722,10 +1801,17 @@ void VSIebol
 	} else {
 		ta = &VSIw->linest[y1]->attr[0];
 	}
+
+	if (VSIw->vtemulation == 3)
+		attrib = VSIw->attrib;
+	else
+		// all off, keep multi-byte / graphic
+		attrib = VSIw->attrib & (kVSansi2b | kVSgrph);
+
 	tt = &VSIw->linest[y1]->text[0];
 	for (i = 0; i <= x2; i++)
 	  {
-		*ta++ = VSIclrattrib;
+		*ta++ = attrib;
 		*tt++ = ' ';
 	  }
   /* update display */
@@ -1743,6 +1829,7 @@ void VSIel
 	VSAttrib *ta;
 	short x1 = 0, y1 = s, x2 = VSIw->maxwidth, y2 = s, n = -1, offset;
 	short i;
+	VSAttrib attrib;
 
 	if (s < 0)
 	  {
@@ -1757,10 +1844,17 @@ void VSIel
 	} else {
 		ta = &VSIw->linest[s]->attr[0];
 	}
+
+	if (VSIw->vtemulation == 3)
+		attrib = VSIw->attrib;
+	else
+		// all off, keep multi-byte / graphic
+		attrib = VSIw->attrib & (kVSansi2b | kVSgrph);
+
 	tt = &VSIw->linest[s]->text[0];
 	for(i = 0; i <= VSIw->allwidth; i++)
 	  {
-		*ta++ = VSIclrattrib;
+		*ta++ = attrib;
 		*tt++ = ' ';
 	  }
   /* update display */
@@ -2109,6 +2203,8 @@ void VSIinschar
 	short i, j; 
 	char  *temp;
 	VSAttrib *tempa;
+	VSAttrib attrib;
+
 	VSIwrapnow(&i, &j);
 
 	if (VSIw->oldScrollback)
@@ -2122,10 +2218,17 @@ void VSIinschar
 		tempa[x + i] = tempa[i];
 	}
 	if ( clear ) {
+
+		if (VSIw->vtemulation == 3)
+			attrib = VSIw->attrib & (kVSansi2b | kVSgrph);
+		else
+			// all off, keep multi-byte / graphic
+			attrib = VSIw->attrib;
+
 		for (i = VSIw->x; i < VSIw->x + x; i++) {
 			/* insert appropriate number of blanks */
 			temp[i] = ' ';
-			tempa[i] = VSIclrattrib;
+			tempa[i] = attrib;
 		}
 	}
 } /* VSIinschar */

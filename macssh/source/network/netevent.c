@@ -282,19 +282,29 @@ void pasteText(short scrn)
 			SetHandleSize(tw->outhand, uploadLength);
 			if ( GetTranslationIndex(tw->outnational) != kTRJIS )
 				tw->outhand = htrbuf_mac_nat(tw, tw->outhand);
-			HLock(tw->outhand);
-			tw->outptr = *tw->outhand;
-			tw->outlen = GetHandleSize(tw->outhand);
-			tw->clientflags |= PASTE_IN_PROGRESS;
-			if (uploadLength != 16384) {
-				tw->isUploading = 0;
-				FSClose(tw->uploadRefNum);
+			if ( tw->outhand && !(tw->outlen = GetHandleSize(tw->outhand)) ) {
+				DisposeHandle( tw->outhand );
+				tw->outhand = NULL;
 			}
-			tw->incount = 0;
-			tw->outcount = 0;
-			//pasteText(scrn);
-			netputevent(USERCLASS, PASTELEFT, scrn, 0);
-			return;
+			if ( tw->outhand ) {
+				HLock(tw->outhand);
+				tw->outptr = *tw->outhand;
+				tw->outlen = GetHandleSize(tw->outhand);
+				tw->clientflags |= PASTE_IN_PROGRESS;
+				if (uploadLength != 16384) {
+					tw->isUploading = 0;
+					FSClose(tw->uploadRefNum);
+				}
+				tw->incount = 0;
+				tw->outcount = 0;
+				//pasteText(scrn);
+				netputevent(USERCLASS, PASTELEFT, scrn, 0);
+				return;
+			} else {
+				// translation failed...
+				SysBeep(5);
+				tw->outlen = 0;
+			}
 		}
 	}
 
@@ -303,8 +313,10 @@ void pasteText(short scrn)
 		tw->clientflags &= ~PASTE_IN_PROGRESS;
 		if (tw->isUploading)
 			FSClose(tw->uploadRefNum);
-		HUnlock(tw->outhand);
-		DisposeHandle(tw->outhand);
+		if ( tw->outhand ) {
+			HUnlock(tw->outhand);
+			DisposeHandle(tw->outhand);
+		}
 		tw->outptr = (char *) 0L;	
 		tw->outhand = (char **) 0L;	
 		

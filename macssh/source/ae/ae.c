@@ -29,7 +29,6 @@ extern short scrn;
 extern Boolean			gPresentOpenConnectionDialog;
 extern unsigned long	gPresentOpenConnectionTicks;
 
-
 static void ProcessURLEscapeCodes (char *url, char **end);
 
 void AEunload(void) { }
@@ -85,7 +84,7 @@ pascal OSErr  MyHandleODoc (AppleEvent *theAppleEvent, AppleEvent* reply, long
 	AEKeyword	keywd;
 	DescType	returnedType;
 	FInfo		fileInfo;
-	
+
 	if ((err = AEGetParamDesc (theAppleEvent, keyDirectObject, typeAEList, &docList)) != noErr)
 		return err;
 

@@ -3,6 +3,7 @@
 short VSinit(short max);
 short VSiscapturing(short w);
 short VSisprinting(short w);
+Boolean	VSisvt7bit(short w);
 void ClosePrintingFile(short w);
 Boolean VSopencapture(short scrn_num, short w);
 void VSclosecapture(short w);
@@ -11,7 +12,7 @@ short VSvalids(short w);
 VSscrn *VSwhereis(short i);
 void VSIclrbuf(void);
 short VSnewscreen(short vtemulation, short maxlines, short screensave, short numLines,
-	short maxwid, short forcesave, short ignoreBeeps, short oldScrollback, short jump, short blink);
+	short maxwid, unsigned long flags);
 short VSdestroy(short w);
 short VSredraw(short w, short x1, short y1, short x2, short y2);
 short VSOredraw(short, short, short, short, short);

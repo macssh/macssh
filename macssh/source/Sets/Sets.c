@@ -15,7 +15,7 @@
 
 // based on NCSA Telnet 2.7b5
 
-#define SAVE_SET_STRINGS_COUNT 89
+#define SAVE_SET_STRINGS_COUNT 92
 
 #include "macros.proto.h"
 #include "wind.h"			/* For WindRec definition */
@@ -42,6 +42,8 @@ extern RSdata *RScurrent;
 ConnInitParams	**SetParams;
 SessionPrefs	*SetSessionPtr;
 TerminalPrefs	*SetTerminalPtr;
+
+#define			kMaxSetLine 300
 
 char			*Cspace;
 
@@ -121,69 +123,107 @@ short ncstrcmp(char *sa, char *sb)
 		return(1);
 }
 
+/*
+ * PStrFromC copies a C string into a pascal one
+ */
+static StringPtr PStrFromC( StringPtr destPString, const char *srcCString )
+{
+	int			size = 0;
+	char		theChar;
+
+	theChar = *srcCString++;
+	while ( theChar != '\0' && size < 255 ) {
+		char tempChar = *srcCString++;
+		destPString[++size] = theChar;
+		theChar = tempChar;
+	}
+	destPString[0] = size;
+	return destPString;
+}
+
+/*
+ * PStrFromNC copies a C string into a pascal one
+ * limit the max output size
+ */
+static StringPtr PStrFromNC( StringPtr destPString, const char *srcCString, unsigned char n  )
+{
+	int			size = 0;
+	char		theChar;
+
+	theChar = *srcCString++;
+	while ( theChar != '\0' && size < 255 && n--) {
+		char tempChar = *srcCString++;
+		destPString[++size] = theChar;
+		theChar = tempChar;
+	}
+	destPString[0] = size;
+	return destPString;
+}
+
+
+
 /* confile() now gets all of its keywords from the string resources, for greater
 	ease, flexibility, and overall coolness.  */
 short confile( char *s)
 {
 	short		i, port, portNeg;
+	short		confState;
 	Boolean		success;
 	unsigned	int a,b,c,d;
 	int			signedint;
 	Str255		Ckeyw;
 	char		tempCstring[256];
+	char		*p;
 
 	sets_debug_print(s);
-	if (!(*s) )
-		return(0);
+	if ( !*s )
+		return 0;
 
-	switch( TelInfo->CONFstate) {
+	confState = TelInfo->CONFstate;
+	TelInfo->CONFstate = 0;
+
+	switch ( confState) {
 		case 0:				/* No keyword yet! */
-			for (i=0; i<TelInfo->position; i++)
+			for ( i = 0; i < TelInfo->position; i++ )
 				s[i] = tolower(s[i]);
-			for (i=1; i<= SAVE_SET_STRINGS_COUNT ;i++) 
-				{
-				GetIndString(Ckeyw,SAVE_SET_STRINGS_ID,i);
+			for ( i = 1; i <= SAVE_SET_STRINGS_COUNT ;i++ )  {
+				GetIndString(Ckeyw, SAVE_SET_STRINGS_ID, i);
 				p2cstr(Ckeyw);
-				if (!ncstrcmp((char *)Ckeyw,s))				
-				break;										
-				}
-
-			if ( i > SAVE_SET_STRINGS_COUNT ) 
-				{
-//				OperationFailedAlert(BAD_SET_ERR, 0, 0);
-				TelInfo->CONFstate = 0;
+				if (!ncstrcmp((char *)Ckeyw,s))
+					break;
+			}
+			if ( i > SAVE_SET_STRINGS_COUNT ) {
+				// ignore unknown labels
+				//OperationFailedAlert(BAD_SET_ERR, 0, 0);
+				//return(1);
 				break;
-//				return(1);
-				}
-
-			TelInfo->CONFstate=i;
-
-			if (TelInfo->CONFstate==5) {
+			}
+			if ( i == 5 ) {
 				SetSessionPtr->bksp = 0;
-				TelInfo->CONFstate=0;
-				}
-			if (TelInfo->CONFstate==6) {
+			} else if ( i == 6 ) {
 				SetSessionPtr->bksp = 1;
-				TelInfo->CONFstate=0;
-				}
+			} else {
+				TelInfo->CONFstate = i;
+			}
 			break;
 
 		case 1:				/* NAME */
-			{ char *p;
-			if (NULL == (p = myNewPtr(40000))) 		/* is there enough memory? */
-				{					/* NOT enough memory for the set! */
+			/* is there enough memory? */
+			if ((p = myNewPtr(40000)) == NULL) {
 				DoError(107 | MEMORY_ERRORCLASS, LEVEL2, NULL);	/* register the error */
-				return(-1);
-				}
-			else
+				return -1;
+			} else {
 				DisposePtr(p);
 			}
 			if (TelInfo->CONFactive) {
 				success = CreateConnectionFromParams(SetParams);
 				SetParams = NULL;
+				SetSessionPtr = NULL;
+				SetTerminalPtr = NULL;
+				TelInfo->CONFactive = 0;
 				if (!success) {
 					sets_debug_print("ERROR IN OPENING!! ");
-					return(42);
+					return 42;
 				}
 			}
 			if (SetParams == NULL) {
@@ -196,29 +236,24 @@ short confile( char *s)
 					SetTerminalPtr = *(**SetParams).terminal;
 				} else {
 					DoError(107 | MEMORY_ERRORCLASS, LEVEL2, NULL);	/* register the error */
-					return(-1);
+					return -1;
 				}
 			}
-			strncpy(tempCstring, s, 255);			/* Move name in */
-			CtoPstr(tempCstring);
+			PStrFromC(tempCstring, s);
 			if ((tempCstring[0] == 1) && (tempCstring[1] == ' '))
 				tempCstring[0] = 0;
 			BlockMoveData(tempCstring, (**SetParams).WindowName, tempCstring[0]+1);
-			TelInfo->CONFstate=0;
-			TelInfo->CONFactive=1;
+			TelInfo->CONFactive = 1;
 			break;
 
 		case 2:				/* HOST */
-			strncpy(tempCstring, s, sizeof(SetSessionPtr->hostname) - 1);	/* Move name in */
-			CtoPstr(tempCstring);
-
+			PStrFromNC(tempCstring, s, sizeof(SetSessionPtr->hostname) - 1);
 			//	Process the hosname string.
 			if (ProcessHostnameString((StringPtr)tempCstring, &port, &portNeg))
 				SetSessionPtr->port = port;
 			
 			BlockMoveData(tempCstring, SetSessionPtr->hostname, tempCstring[0]+1);
 
-			TelInfo->CONFstate=0;
 			break;
 
 		case 3:				/* SIZE */
@@ -231,7 +266,6 @@ short confile( char *s)
 			(**SetParams).WindowLocation.left=b;
 			(**SetParams).WindowLocation.bottom=c;
 			(**SetParams).WindowLocation.right=d;
-			TelInfo->CONFstate=0;
 			break;
 
 		case 4:
@@ -240,17 +274,14 @@ short confile( char *s)
 				return(1);
 				}
 			SetTerminalPtr->numbkscroll = a;
-			TelInfo->CONFstate=0;
 			break;
 
 		case 5:
 			SetSessionPtr->bksp = 0;			
-			TelInfo->CONFstate=0;
 			break;
 
 		case 6:
 			SetSessionPtr->bksp = 1;
-			TelInfo->CONFstate=0;
 			break;
 
 
@@ -258,43 +289,33 @@ short confile( char *s)
 /* NONO: save all macros
 		case 7:
 			setmacro(&TelInfo->newMacros, 0, s);
-			TelInfo->CONFstate=0;
 			break;
 		case 8:
 			setmacro(&TelInfo->newMacros, 1, s);
-			TelInfo->CONFstate=0;
 			break;
 		case 9:
 			setmacro(&TelInfo->newMacros, 2, s);
-			TelInfo->CONFstate=0;
 			break;
 		case 10:
 			setmacro(&TelInfo->newMacros, 3, s);
-			TelInfo->CONFstate=0;
 			break;
 		case 11:
 			setmacro(&TelInfo->newMacros, 4, s);
-			TelInfo->CONFstate=0;
 			break;
 		case 12:
 			setmacro(&TelInfo->newMacros, 5, s);
-			TelInfo->CONFstate=0;
 			break;
 		case 13:
 			setmacro(&TelInfo->newMacros, 6, s);
-			TelInfo->CONFstate=0;
 			break;
 		case 14:
 			setmacro(&TelInfo->newMacros, 7, s);
-			TelInfo->CONFstate=0;
 			break;
 		case 15:
 			setmacro(&TelInfo->newMacros, 8, s);
-			TelInfo->CONFstate=0;
 			break;
 		case 16:
 			setmacro(&TelInfo->newMacros, 9, s);
-			TelInfo->CONFstate=0;
 			break;
 */
 		case 7:
@@ -307,32 +328,27 @@ short confile( char *s)
 		case 14:
 		case 15:
 		case 16:
-			TelInfo->CONFstate=0;		// Now ignored (was macros 0 to 9)
 			break;
 /* NONO */
 
-		case 17:
-			TelInfo->CONFstate=0;		// Now ignored (was commandkeys)
+		case 17: /* commandkeys unused ? */
 			break;
 		case 18:
 			if (!strcmp(s,"backspace") )
 				SetSessionPtr->bksp = 0;
 			else
 				SetSessionPtr->bksp = 1;
-			TelInfo->CONFstate=0;
 			break;
 		case 19:
 		case 21:
 			if ( 1 == sscanf(s,"%d", &a) ) 
 				SetTerminalPtr->vtwidth = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 20:
 			if (affirmative(s))
 				SetSessionPtr->tekclear = 1;
 			else
 				SetSessionPtr->tekclear = 0;
-			TelInfo->CONFstate = 0;
 			break;
 		case 22:
 			if ( 3 != sscanf(s, "{%u,%u,%u}", &a, &b, &c)) {	/* BYU LSC - "%d" changed to "%u" */
@@ -342,7 +358,6 @@ short confile( char *s)
 			SetTerminalPtr->nfcolor.red = a;
 			SetTerminalPtr->nfcolor.green = b;
 			SetTerminalPtr->nfcolor.blue = c;
-			TelInfo->CONFstate = 0;
 			break;			
 		case 23:
 			if ( 3 != sscanf(s, "{%u,%u,%u}", &a, &b, &c)) {	/* BYU LSC - "%d" changed to "%u" */
@@ -352,7 +367,6 @@ short confile( char *s)
 			SetTerminalPtr->nbcolor.red = a;
 			SetTerminalPtr->nbcolor.green = b;
 			SetTerminalPtr->nbcolor.blue = c;
-			TelInfo->CONFstate = 0;
 			break;			
 		case 24:
 			if ( 3 != sscanf(s, "{%u,%u,%u}", &a, &b, &c)) {	/* BYU LSC - "%d" changed to "%u" */
@@ -362,7 +376,6 @@ short confile( char *s)
 			SetTerminalPtr->bfcolor.red = a;
 			SetTerminalPtr->bfcolor.green = b;
 			SetTerminalPtr->bfcolor.blue = c;
-			TelInfo->CONFstate = 0;
 			break;			
 		case 25:
 			if ( 3 != sscanf(s, "{%u,%u,%u}", &a, &b, &c)) {	/* BYU LSC - "%d" changed to "%u" */
@@ -372,341 +385,247 @@ short confile( char *s)
 			SetTerminalPtr->bbcolor.red = a;
 			SetTerminalPtr->bbcolor.green = b;
 			SetTerminalPtr->bbcolor.blue = c;
-			TelInfo->CONFstate = 0;
 			break;
 		case 26:		/* Font Name */
-//			strncpy(tempCstring, s, 63);			/* Move name in */
-//			CtoPstr(tempCstring);
-//			BlockMoveData(tempCstring, &(SetTerminalPtr->DisplayFont[0]), tempCstring[0]+1);
-			strncpy((char *) SetTerminalPtr->DisplayFont, s, sizeof(SetTerminalPtr->DisplayFont) - 1);
-			CtoPstr((char *) SetTerminalPtr->DisplayFont);
-			TelInfo->CONFstate = 0;
+			PStrFromNC(SetTerminalPtr->DisplayFont, s, sizeof(SetTerminalPtr->DisplayFont) - 1);
 			break;
 		case 27:		/* Font Size */
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->fontsize = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 28:		/* number of lines to use for window's editable region */
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->vtheight = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 29:		/* keystop, XOFF key */
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->skey = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 30:		/* keygo, XON key */
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->qkey = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 31:		/* keyip, kill key */
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->ckey = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 32:		/* cr-map */
 			if ((1 == sscanf( s, "%d", &a)) && (a !=0))
 				SetSessionPtr->crmap = TRUE;
 			else
 				SetSessionPtr->crmap = FALSE;
-			TelInfo->CONFstate = 0;
 			break;
 		case 33:					/* BYU 2.4.9 */
 			if ((1 == sscanf( s, "%d", &a)) && (a !=0))		/* BYU 2.4.9 */
 				SetSessionPtr->linemode = TRUE;	/* BYU 2.4.9 */
 			else					/* BYU 2.4.9 */
 				SetSessionPtr->linemode = FALSE;	/* BYU 2.4.9 */
-			TelInfo->CONFstate=0;			/* BYU 2.4.9 */
 			break;					/* BYU 2.4.9 */
 		case 34:					/* BYU 2.4.9 */
 			if ((1 == sscanf( s, "%d", &a)) && (a !=0))
 				SetTerminalPtr->eightbit = TRUE;	/* BYU 2.4.9 */
 			else					/* BYU 2.4.9 */
 				SetTerminalPtr->eightbit = FALSE;	/* BYU 2.4.9 */
-			TelInfo->CONFstate=0;			/* BYU 2.4.9 */
 			break;					/* BYU 2.4.9 */
 		case 35:					/* BYU */
 //			(**SetParams).ftpstate = 1;		/* BYU */
-			TelInfo->CONFstate=0;			/* BYU */
 			break;					/* BYU */
 		case 36:	// ignored
-			TelInfo->CONFstate=0;
 			break;
 		case PORTNUM:							/* NCSA 2.5: get the real port # */
 			if (1 == sscanf( s, "%d", &a))		/* NCSA */
 				SetSessionPtr->port = a;				/* NCSA */
-			TelInfo->CONFstate = 0;				/* NCSA */
 			break;								/* NCSA */
 		case 38:	// translation
-			strncpy((char *) SetSessionPtr->TranslationTable, s, sizeof(SetSessionPtr->TranslationTable) - 1);
-			CtoPstr((char *) SetSessionPtr->TranslationTable);
-			TelInfo->CONFstate=0;
+			PStrFromNC(SetSessionPtr->TranslationTable, s, sizeof(SetSessionPtr->TranslationTable) - 1);
 			break;
 		case 39:	// tekem
 			if (1 == sscanf(s, "%d", &signedint))
 				SetSessionPtr->tektype = signedint;
-			TelInfo->CONFstate=0;
 			break;
 		case 40:	// answerback
-			strncpy((char *) SetTerminalPtr->AnswerBackMessage, s, sizeof(SetTerminalPtr->AnswerBackMessage) - 1);
-			CtoPstr((char *) SetTerminalPtr->AnswerBackMessage);
-			TelInfo->CONFstate=0;
+			PStrFromNC(SetTerminalPtr->AnswerBackMessage, s, sizeof(SetTerminalPtr->AnswerBackMessage) - 1);
 			break;
-		case 41: //authenticate
-			if (affirmative(s))		
-				SetSessionPtr->authenticate = TRUE;
-			else				
-				SetSessionPtr->authenticate = FALSE;	
-			TelInfo->CONFstate=0;		
+		case 41: // authenticate
+			SetSessionPtr->authenticate = affirmative(s);
 			break;
-		case 42: //encrypt
-			if (affirmative(s))		
-				SetSessionPtr->encrypt = TRUE;	
-			else					
-				SetSessionPtr->encrypt = FALSE;	
-			TelInfo->CONFstate=0;			
+		case 42: // encrypt
+			SetSessionPtr->encrypt = affirmative(s);		
 			break;
-		
-		case 43: //pageup/down map
-			if (affirmative(s))
-				SetTerminalPtr->MATmappings = TRUE;
-			else					
-				SetTerminalPtr->MATmappings = FALSE;
-			TelInfo->CONFstate=0;	
+		case 43: // pageup/down map
+			SetTerminalPtr->MATmappings = affirmative(s);
 			break;
-		case 44: //keypad map
-			if (affirmative(s))
-				SetTerminalPtr->remapKeypad = TRUE;
-			else					
-				SetTerminalPtr->remapKeypad = FALSE;
-			TelInfo->CONFstate=0;	
+		case 44: // keypad map
+			SetTerminalPtr->remapKeypad = affirmative(s);
 			break;
 		case 45: // ansicolor
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->ANSIgraphics = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 46: // arrowmap
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->emacsarrows = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 47: // emacsmeta
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->emacsmetakey = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 48: // pastemethod
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->pastemethod = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 49: // pastesize
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->pasteblocksize = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 50: // saveclear
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->clearsave = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 51: // vtemulation
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->vtemulation = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 52: // forcesave
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->forcesave = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 53: // vtwrap
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->vtwrap = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 54: // xterm
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->Xtermsequences = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 55: // localecho
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->localecho = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 56: // halfdup
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->halfdup = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 57: // remapctrld
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->remapCtrlD = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 58: // negative
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->portNegative = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 59: // allowbold
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->allowBold = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 60: // colorbold
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->colorBold = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 61: // ignorebeeps
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->ignoreBeeps = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 62: // ignoreff
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->ignoreff = a;
-			TelInfo->CONFstate=0;
 			break;
 		case 63: // boldfont
-			//strncpy(tempCstring, s, 63);			/* Move name in */
-			//CtoPstr(tempCstring);
-			//BlockMoveData(tempCstring, &(SetTerminalPtr->BoldFont[0]), tempCstring[0]+1);
-			strncpy((char *) SetTerminalPtr->BoldFont, s, sizeof(SetTerminalPtr->BoldFont) - 1);
-			CtoPstr((char *) SetTerminalPtr->BoldFont);
-			TelInfo->CONFstate = 0;
+			PStrFromNC(SetTerminalPtr->BoldFont, s, sizeof(SetTerminalPtr->BoldFont) - 1);
 			break;
 		case 64: // inversebold
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->boldFontStyle = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 65: // otpauto
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->otpauto = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 66: // otpmulti
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->otpmulti = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 67: // otphex
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->otphex = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 68: // otpnoprompt
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->otpnoprompt = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 69: // otppassword
-			//strncpy(tempCstring, s, 63);			/* Move name in */
-			//CtoPstr(tempCstring);
-			//BlockMoveData(tempCstring, &(SetSessionPtr->otppassword[0]), tempCstring[0]+1);
-			strncpy((char *) SetSessionPtr->otppassword, s, sizeof(SetSessionPtr->otppassword) - 1);
-			CtoPstr((char *) SetSessionPtr->otppassword);
-			TelInfo->CONFstate = 0;
+			PStrFromNC(SetSessionPtr->otppassword, s, sizeof(SetSessionPtr->otppassword) - 1);
 			break;
 		case 70: // realbold
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->realbold = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 71: // otpsavepass
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->otpsavepass = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 72: // oldscrollback
 			if (1 == sscanf( s, "%d", &a))
 				SetTerminalPtr->oldScrollback = a;
-			TelInfo->CONFstate = 0;
 			break;
 /* NONO */
 		case 73: // protocol
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->protocol = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 74: // encryption
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->encryption = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 75: // authentication
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->authentication = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 76: // compression
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->compression = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 77: // verbose
 			SetSessionPtr->verbose = (affirmative(s)) ? TRUE : FALSE;	
-			TelInfo->CONFstate=0;			
 			break;
 		case 78: // trace
 			SetSessionPtr->trace = (affirmative(s)) ? TRUE : FALSE;	
-			TelInfo->CONFstate=0;			
 			break;
 		case 79: // debug
 			SetSessionPtr->debug = (affirmative(s)) ? TRUE : FALSE;	
-			TelInfo->CONFstate=0;			
 			break;
 		case 80: // restricted
 			SetSessionPtr->restricted = (affirmative(s)) ? TRUE : FALSE;	
-			TelInfo->CONFstate=0;			
 			break;
 		case 81: // ssh2method
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->ssh2method = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 82: // ssh2guests
 			SetSessionPtr->ssh2guests = (affirmative(s)) ? TRUE : FALSE;	
-			TelInfo->CONFstate=0;			
 			break;
 		case 83: // localport
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->localport = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 84: // remoteport
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->remoteport = a;
-			TelInfo->CONFstate = 0;
 			break;
 		case 85: // remotehost
 			strncpy(SetSessionPtr->remotehost, s, sizeof(SetSessionPtr->remotehost) - 1);
 			CtoPstr(SetSessionPtr->remotehost);
-			TelInfo->CONFstate = 0;
 			break;
 		case 86: // username
-			strncpy(SetSessionPtr->username, s, sizeof(SetSessionPtr->username) - 1);
-			CtoPstr(SetSessionPtr->username);
-			TelInfo->CONFstate = 0;
+			PStrFromNC(SetSessionPtr->username, s, sizeof(SetSessionPtr->username) - 1);
 			break;
 /*
 		case 87: // password
-			strncpy(SetSessionPtr->password, s, sizeof(SetSessionPtr->password) - 1);
-			CtoPstr(SetSessionPtr->password);
-			TelInfo->CONFstate = 0;
+			PStrFromNC(SetSessionPtr->password, s, sizeof(SetSessionPtr->password) - 1);
 			break;
 */
 		case 88: // command
-			strncpy(SetSessionPtr->command, s, sizeof(SetSessionPtr->command) - 1);
-			CtoPstr(SetSessionPtr->command);
-			TelInfo->CONFstate = 0;
+			PStrFromNC(SetSessionPtr->command, s, sizeof(SetSessionPtr->command) - 1);
 			break;
 /* NONO */
 /* NONO: save all macros */
@@ -721,72 +640,77 @@ short confile( char *s)
 					}
 				}
 			}
-			TelInfo->CONFstate = 0;
+			break;
+		case 90: // jumpScroll
+			SetTerminalPtr->jumpScroll = affirmative(s);
+			break;
+		case 91: // realBlink
+			SetTerminalPtr->realBlink = affirmative(s);
+			break;
+		case 92: // vt7bits
+			SetTerminalPtr->vt7bits = affirmative(s);
 			break;
 /* NONO */
-		default:
-			TelInfo->CONFstate=0;
-		}
+	}
 	return(0);
-  } /* confile */
+} /* confile */
+
 
 /************************************************************************/
 /* contoken
 *  tokenize the strings which get passed to confile.
 *  Handles quotes and uses separators:  <33, ;:=
 */ 
-short contoken( char c)
+short contoken(char c)
 {
 	short		retval;
 	Boolean		success;
 
 	if (c == EOF) {
+		if ( TelInfo->position && Cspace[TelInfo->position - 1] == '"' )
+			TelInfo->position--;
 		Cspace[TelInfo->position++] = '\0';
 		sets_debug_print("Eof handler called");
-		confile(Cspace);
+		confile( Cspace );
 		if (TelInfo->CONFactive) {
-				success = CreateConnectionFromParams(SetParams);
-				if (!success) {
-					sets_debug_print("ERROR IN OPENING!! ");
-					return(42);
-					}
-				}
-		return(-1);
+			success = CreateConnectionFromParams(SetParams);
+			if (!success) {
+				sets_debug_print("ERROR IN OPENING!! ");
+				return 42;
+			}
+		}
+		return EOF;
 	}
 	
-	if (!TelInfo->position && !TelInfo->inquote && Sissep(c))
-	/*if (!TelInfo->position && Sissep(c))	*/	/* old_skip over junk before keyword */
-		return(0);
+	if ( !TelInfo->position && !TelInfo->inquote && Sissep(c) )
+		return 0;
 
-	if (TelInfo->inquote || !Sissep(c)) {
+	if ( TelInfo->position >= kMaxSetLine ) {
+		sets_debug_print("Out of bounds error!");
+		return 1;
+	}
 
-		if (TelInfo->position > 200) {
-			sets_debug_print("Out of bounds error!");
-			return(1);
-		}
-/*
-*  check for quotes, a little mixed up here, could be reorganized
-*/
-		if (c == '"' ) {
-			if (!TelInfo->inquote) {			/* beginning of quotes */
+	if ( TelInfo->inquote || !Sissep(c) ) {
+		/*
+		*  check for quotes, a little mixed up here, could be reorganized
+		*/
+		if ( c == '"' ) {
+			if ( !TelInfo->inquote ) {			/* beginning of quotes */
 				TelInfo->inquote = 1;
-				return(0);
-			}
-			 Cspace[TelInfo->position++] =c;
-			return(0);
-		}
-		else 
-			{						/* include in current string */
-			if (c != '\012' && c != '\015')		/* BYU 2.4.18 - changed \n to \015 and added \012 */
-				{
+			} else {
 				Cspace[TelInfo->position++] = c;
-				return(0);
-				}
 			}
-				
+			return 0;
+		} else if ( c != '\012' && c != '\015' ) {
+			/* include in current string */
+			Cspace[TelInfo->position++] = c;
+			return 0;
 		}
+	}
 
-	if (Cspace[TelInfo->position-1] == '"') TelInfo->position--;
+	if ( TelInfo->position && Cspace[TelInfo->position - 1] == '"' )
+		TelInfo->position--;
+
 	Cspace[TelInfo->position++] = '\0';
 
 	retval = confile(Cspace);			/* pass the token along */
@@ -795,7 +719,7 @@ short contoken( char c)
 	TelInfo->inquote = 0;
 	Cspace[0] = '\0';
 
-	return(retval);
+	return retval;
 }
 
 /************************************************************************/
@@ -809,14 +733,12 @@ void readconfig(FSSpec theSet)
 	short fn;
 	OSErr err;
 
-	Cspace = myNewPtr(256);				/* BYU LSC - get room for gathering stuff */
-
-	if (NULL == Cspace) 				/* no memory left for the set to load in */
-		{								/* we're out of memory */
+	Cspace = myNewPtr(kMaxSetLine + 1);
+	if ( Cspace == NULL ) {
 		DoError(107 | MEMORY_ERRORCLASS, LEVEL2, NULL);	
 		return;
-		}
-	
+	}
+
 	SetParams = ReturnDefaultConnInitParams();
 	if ( SetParams ) {
 		HLockHi((Handle)SetParams);
@@ -825,7 +747,7 @@ void readconfig(FSSpec theSet)
 		HLockHi((Handle)(**SetParams).terminal);
 		SetTerminalPtr = *(**SetParams).terminal;
 	} else {
-		DisposePtr((Ptr) Cspace);
+		DisposePtr( (Ptr)Cspace );
 		DoError(107 | MEMORY_ERRORCLASS, LEVEL2, NULL);	
 		return;
 	}
@@ -874,7 +796,7 @@ void LoadSet( void)
 
 	if (! sfr.good) return;
 
-	BlockMoveData(&sfr.fName, set.name, (*sfr.fName)+1); // pstring copy sfr.fName -> set.name
+	BlockMoveData(&sfr.fName, set.name, *sfr.fName + 1);
 	GetWDInfo(sfr.vRefNum, &set.vRefNum, &set.parID, &junk);
 	readconfig(set);
 }
@@ -889,643 +811,429 @@ char Myfgetc(short myfile)
 	if ((err = FSRead(myfile, &count, &buffer)) == eofErr)
 		buffer = EOF;
 	
-	return (buffer);
+	return buffer;
 }
 
-void CStringToFile(short myfile, unsigned char *mystring) 
+/*
+ * BoolItemToFile
+ */
+static OSErr BoolItemToFile(short refNum, short index, Boolean value) 
 {	
-	long mycount;										/* BYU LSC */
-	short fstatus;										/* BYU LSC */
-  
-  mycount = strlen((char *) mystring);				/* BYU LSC */
-  fstatus = FSWrite(myfile,&mycount,mystring);		/* BYU LSC */
+	long		count;
+	OSErr		theErr;
+	Str255		tempStr;
+
+	GetIndString( tempStr, SAVE_SET_STRINGS_ID, index );
+	pstrcat( tempStr, (value) ? "\p = yes\015" : "\p = no\015" );
+	count = tempStr[0];
+	theErr = FSWrite( refNum, &count, (Ptr)tempStr + 1 );
+	return theErr;
+}
+
+/*
+ * IntItemToFile
+ */
+static OSErr IntItemToFile(short refNum, short index, int value) 
+{	
+	long		count;
+	OSErr		theErr;
+	Str255		tempStr;
+	Str32		numStr;
+
+	GetIndString( tempStr, SAVE_SET_STRINGS_ID, index );
+	NumToString( value, numStr );
+	pstrcat( tempStr, "\p = " );
+	pstrcat( tempStr, numStr );
+	pstrcat( tempStr, "\p\015" );
+	count = tempStr[0];
+	theErr = FSWrite( refNum, &count, (Ptr)tempStr + 1 );
+	return theErr;
+}
+
+/*
+ * CStringItemToFile
+ */
+static OSErr CStringItemToFile(short refNum, short index, char *value) 
+{	
+	long		len;
+	long		count;
+	OSErr		theErr;
+	Str255		tempStr;
+	Str32		numStr;
+
+	len = strlen(value);
+	if ( len ) {
+		GetIndString( tempStr, SAVE_SET_STRINGS_ID, index );
+		pstrcat( tempStr, "\p = \"" );
+		count = tempStr[0];
+		theErr = FSWrite( refNum, &count, (Ptr)tempStr + 1 );
+		if ( !theErr ) {
+			count = len;
+			theErr = FSWrite( refNum, &count, value );
+			if ( !theErr ) {
+				count = 2;
+				theErr = FSWrite( refNum, &count, "\"\015" );
+			}
+		}
+	}
+	return theErr;
+}
+
+/*
+ * PStringItemToFile
+ */
+static OSErr PStringItemToFile(short refNum, short index, StringPtr value) 
+{	
+	long		count;
+	OSErr		theErr = noErr;
+	Str255		tempStr;
+	Str32		numStr;
+
+	if ( value[0] ) {
+		GetIndString( tempStr, SAVE_SET_STRINGS_ID, index );
+		pstrcat( tempStr, "\p = \"" );
+		count = tempStr[0];
+		theErr = FSWrite( refNum, &count, (Ptr)tempStr + 1 );
+		if ( !theErr ) {
+			count = value[0];
+			theErr = FSWrite( refNum, &count, (Ptr)value + 1 );
+			if ( !theErr ) {
+				count = 2;
+				theErr = FSWrite( refNum, &count, "\"\015" );
+			}
+		}
+	}
+	return theErr;
 }
 
 
 void SaveSet(short doSaveMacros, short dontSaveTitle)
 {
+	Point		where;
+	Str255		scratchPstring;
+	Str255		scratchPstring2;
 	SFReply		sfr;
-	short		fn, truncate;
+	FSSpec		set;
+	short		fn;
+	short		truncate;
+	OSErr		err;
 	WindowPeek	wpeek;
 	Rect		rect;
-	Point		where;
 	long		junk;
-	char		temp[256], temp2[300];			/* BYU LSC */
-	short			fnum,fsiz;
-	short			i;
-	FSSpec		set;
-	OSErr		err;
-	Str255		scratchPstring,scratchPstring2;
+	char		temp[256];
+	char		temp2[300];
+	short		fnum,fsiz;
+	short		i;
 	
 	where.h = 100; where.v = 100;
-	GetIndString(scratchPstring,MISC_STRINGS,SAVE_SET_STRING);
-	GetIndString(scratchPstring2,MISC_STRINGS,DEFAULT_SAVE_SET_NAME);
-	SFPutFile(where,scratchPstring,scratchPstring2, 0L, &sfr);	/* BYU LSC */
+	GetIndString(scratchPstring, MISC_STRINGS, SAVE_SET_STRING);
+	GetIndString(scratchPstring2, MISC_STRINGS, DEFAULT_SAVE_SET_NAME);
+
+	SFPutFile(where, scratchPstring, scratchPstring2, 0L, &sfr);
 
 	if (!sfr.good)
 		return;
 
-	BlockMoveData(&sfr.fName, set.name, (*sfr.fName)+1); // pstring copy sfr.fName -> set.name
+	BlockMoveData(&sfr.fName, set.name, *sfr.fName + 1);
 	GetWDInfo(sfr.vRefNum, &set.vRefNum, &set.parID, &junk);
 
 	if ((err = HCreate(set.vRefNum, set.parID, set.name, kNCSACreatorSignature, kNCSASetFileType)) == dupFNErr)
 		truncate = 1;
-		
+
 	err = HOpenDF(set.vRefNum, set.parID, set.name, fsWrPerm, &fn);
+	if ( err ) {
+		// FIXME: add error message
+		return;
+	}
 
 	if (truncate) 
 		SetEOF(fn, 0L);
 
-	if (gApplicationPrefs->CommandKeys)
-		CStringToFile(fn,(unsigned char *) "commandkeys = yes\015");	/* BYU LSC */
-	else
-		CStringToFile(fn,(unsigned char *) "commandkeys = no\015");		/* BYU LSC */
+	BoolItemToFile(fn, 17, gApplicationPrefs->CommandKeys);
 
-	if (doSaveMacros)
-/* NONO: save all macros */
-		for (i = 0; i < 110; i++)
-		  {
-			getmacro(&TelInfo->newMacros,i, temp, sizeof(temp));			/* BYU LSC */
-			if (*temp) {									/* BYU LSC */
-				sprintf(temp2, "macro= \"%d ", i);			/* BYU 2.4.16 */
-				CStringToFile(fn,(unsigned char *) temp2);	/* BYU LSC */
-				CStringToFile(fn,(unsigned char *) temp);	/* BYU LSC */
-				strcpy(temp2,"\"\015");						/* BYU LSC */
-				CStringToFile(fn,(unsigned char *) temp2);	/* BYU LSC */
-			}												/* BYU LSC */
-		  } /* for */
-/* NONO */
-#if 0													/* BYU LSC */
-	for (i = 0; i < TelInfo->numwindows; i++)
-	  {
-		short j;
-		j = RSgetfont(screens[i].vs, &fnum, &fsiz);
-	  } /* for */
-#endif													/* BYU LSC */
-
-	for (i = 0; i < TelInfo->numwindows; i++)
-	  {
-	  	if (!dontSaveTitle) {
-		  	GetWTitle(screens[i].wind, scratchPstring);
-		  	PtoCstr(scratchPstring);
-			sprintf(temp2, "name= \"%s\"\015", scratchPstring);
+	if (doSaveMacros) {
+		// save all macros
+		for (i = 0; i < 110; i++) {
+			getmacro(&TelInfo->newMacros, i, temp, sizeof(temp));
+			if (*temp) {
+				sprintf(temp2, "%d %s", i, temp);
+				CStringItemToFile(fn, 89, temp2);			// macro
+			}
 		}
-		else
-			sprintf(temp2, "name= \" \"\015", scratchPstring);
+	}
 
-		CStringToFile(fn,(unsigned char *) temp2);				/* BYU LSC */
-
-		BlockMoveData((Ptr)screens[i].machine, (Ptr)scratchPstring, StrLength(screens[i].machine)+1);
-		PtoCstr(scratchPstring);
-		sprintf(temp2, "host= \"%s\"\015", scratchPstring);
-		CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-
-		sprintf (temp2,"port= %d\015",screens[i].portNum);	/* NCSA: save port # */
-		CStringToFile(fn,(unsigned char *) temp2);						/* BYU LSC */
-
-		sprintf(temp2, "scrollback= %d\015", (screens[i].maxscroll));	/* BYU LSC */
-		CStringToFile(fn,(unsigned char *) temp2);						/* BYU LSC */
-
-		if (screens[i].bsdel)
-			CStringToFile(fn,(unsigned char *)  "erase = delete\015");		/* BYU LSC */
-		else
-			CStringToFile(fn,(unsigned char *)  "erase = backspace\015");	/* BYU LSC */
-
-		wpeek = (WindowPeek) screens[i].wind;
-		rect = (*wpeek->contRgn)->rgnBBox;
-
-		if (!dontSaveTitle) {
-			sprintf(temp2, "size = {%d,%d,%d,%d}\015", rect.top, rect.left,	/* BYU LSC */
-						rect.bottom, rect.right);
-			CStringToFile(fn,(unsigned char *) temp2);						/* BYU LSC */
+	for (i = 0; i < TelInfo->numwindows; i++) {
+		WindRec *tw = &screens[i];
+		scratchPstring[0] = '\0';
+	  	if ( !dontSaveTitle )
+		  	GetWTitle( tw->wind, scratchPstring );
+		PStringItemToFile(fn, 1, scratchPstring);			// name
+		PStringItemToFile(fn, 2, tw->machine);				// host
+		IntItemToFile(fn, 37, tw->portNum);					// port
+		IntItemToFile(fn, 4, tw->maxscroll);				// scrollback
+		CStringItemToFile(fn, 18, (tw->bsdel) ? "delete" : "backspace"); // erase
+		if ( !dontSaveTitle ) {
+			wpeek = (WindowPeek) tw->wind;
+			rect = (*wpeek->contRgn)->rgnBBox;
+			sprintf( temp2, "{%d,%d,%d,%d}", rect.top, rect.left, rect.bottom, rect.right );
+			CStringItemToFile(fn, 3, temp2);				// size
 		}
-
-		sprintf(temp2, "vtwidth = %d\015", VSmaxwidth(screens[i].vs) + 1);			/* BYU LSC */
-		CStringToFile(fn,(unsigned char *) temp2);						/* BYU LSC */
-
-		if (screens[i].tekclear)
-			CStringToFile(fn,(unsigned char *) "tekclear = yes\015");	/* BYU LSC */
-		else
-			CStringToFile(fn,(unsigned char *) "tekclear = no\015");	/* BYU LSC */
-
-		if (TelInfo->haveColorQuickDraw)
-		{
-			RGBColor theColor;
+		IntItemToFile(fn, 21, VSmaxwidth(tw->vs) + 1);		// vtwidth
+		BoolItemToFile(fn, 20, tw->tekclear);				// tekclear
+		if (TelInfo->haveColorQuickDraw) {
+			RGBColor col;
 			short j;
-			for (j = 0; j < 4; j++)
-			{
-				RSgetcolors( screens[i].vs, j, &theColor);
-				sprintf(temp2, "rgb%d = {%u,%u,%u}\015",
-					j, theColor.red, theColor.green, theColor.blue);
-				CStringToFile(fn,(unsigned char *) temp2);
-			} 
-		} 
-		RSgetfont( screens[i].vs, &fnum, &fsiz);
-		GetFontName( fnum, (StringPtr)temp);									/* BYU LSC */
-#ifndef MPW
-		p2cstr((unsigned char *) temp);								/* BYU LSC */
-#endif
-
-		sprintf( temp2, "font = \"%s\"\015", temp);					/* BYU LSC */
-		CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-		sprintf( temp2, "fsize= %d\015", fsiz);						/* BYU LSC */
-		CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-
-		RSsetwind(screens[i].vs);
+			for (j = 0; j < 4; j++) {
+				RSgetcolors( tw->vs, j, &col);
+				sprintf( temp2, "{%u,%u,%u}", col.red, col.green, col.blue );
+				CStringItemToFile(fn, 22 + j, temp2);		// rgb0..3
+			}
+		}
+		RSgetfont( tw->vs, &fnum, &fsiz );
+		GetFontName( fnum, scratchPstring );
+		PStringItemToFile(fn, 26, scratchPstring);			// font
+		IntItemToFile(fn, 27, fsiz);						// fsize
 		fnum = RScurrent->bfnum;
-		GetFontName( fnum, (StringPtr)temp);									/* BYU LSC */
-#ifndef MPW
-		p2cstr((unsigned char *) temp);								/* BYU LSC */
-#endif
-
-		sprintf( temp2, "boldfont = \"%s\"\015", temp);
-		CStringToFile(fn,(unsigned char *) temp2);
-
-		sprintf( temp2, "nlines= %d\015", VSgetlines(screens[i].vs));/* BYU LSC */
-		CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-		sprintf( temp2, "keystop= %d\015", screens[i].TELstop);		/* BYU LSC */
-		CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-		sprintf( temp2, "keygo= %d\015", screens[i].TELgo);			/* BYU LSC */
-		CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-		sprintf( temp2, "keyip= %d\015", screens[i].TELip);			/* BYU LSC */
-		CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-		sprintf( temp2, "crmap= %d\015", screens[i].crmap);		/* BYU LSC */
-		CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-		sprintf( temp2, "tekem= %d\015", screens[i].tektype);
-		CStringToFile(fn,(unsigned char *) temp2);
+		GetFontName( fnum, scratchPstring );
+		PStringItemToFile(fn, 63, scratchPstring);			// boldfont
+		IntItemToFile(fn, 28, VSgetlines(tw->vs));			// nlines
+		IntItemToFile(fn, 29, tw->TELstop);					// keystop
+		IntItemToFile(fn, 30, tw->TELgo);					// keygo
+		IntItemToFile(fn, 31, tw->TELip);					// keyip
+		IntItemToFile(fn, 32, tw->crmap);					// crmap
+		IntItemToFile(fn, 39, tw->tektype);					// tekem
 
 // All this stuff was added in BetterTelnet 1.0b3... (RAB)
 
-		sprintf( temp2, "vtemulation = %d\015", screens[i].vtemulation);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "forcesave = %d\015", screens[i].forcesave);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "eightbit = %d\015", screens[i].eightbit);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "vtwrap = %d\015", screens[i].wrap);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "xterm = %d\015", screens[i].Xterm);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "remapctrld = %d\015", screens[i].remapCtrlD);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "ansicolor = %d\015", screens[i].ANSIgraphics);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "arrowmap = %d\015", screens[i].arrowmap);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "emacsmeta = %d\015", screens[i].emacsmeta);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "pastemethod = %d\015", screens[i].pastemethod);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "pastesize = %d\015", screens[i].pastesize);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "saveclear = %d\015", screens[i].ESscroll);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "linemode = %d\015", screens[i].lineAllow);
-		CStringToFile(fn,(unsigned char *) temp2);
+		IntItemToFile(fn, 51, tw->vtemulation);				// vtemulation
+		IntItemToFile(fn, 52, tw->forcesave);				// forcesave
+		IntItemToFile(fn, 34, tw->eightbit);				// eightbit
+		IntItemToFile(fn, 53, tw->wrap);					// vtwrap
+		IntItemToFile(fn, 54, tw->Xterm);					// xterm
+		IntItemToFile(fn, 57, tw->remapCtrlD);				// remapctrld
+		IntItemToFile(fn, 45, tw->ANSIgraphics);			// ansicolor
+		IntItemToFile(fn, 46, tw->arrowmap);				// arrowmap
+		IntItemToFile(fn, 47, tw->emacsmeta);				// emacsmeta
+		IntItemToFile(fn, 48, tw->pastemethod);				// pastemethod
+		IntItemToFile(fn, 49, tw->pastesize);				// pastesize
+		IntItemToFile(fn, 50, tw->ESscroll);				// saveclear
+		IntItemToFile(fn, 33, tw->lineAllow);				// linemode
 
 // And all this stuff was added a bit later... (RAB BetterTelnet 1.0 and later)
 
-		sprintf( temp2, "negative = %d\015", screens[i].portNegative);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "allowbold = %d\015", screens[i].allowBold);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "colorbold = %d\015", screens[i].colorBold);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "ignorebeeps = %d\015", screens[i].ignoreBeeps);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "ignoreff = %d\015", screens[i].ignoreff);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "inversebold = %d\015", screens[i].inversebold);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "otpauto = %d\015", screens[i].otpauto);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "otpmulti = %d\015", screens[i].otpmulti);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "otphex = %d\015", screens[i].otphex);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "otpnoprompt = %d\015", screens[i].otpnoprompt);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "realbold = %d\015", screens[i].realbold);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "oldscrollback = %d\015", screens[i].oldScrollback);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "otpsavepass = %d\015", screens[i].otpsavepass);
-		CStringToFile(fn,(unsigned char *) temp2);
+		IntItemToFile(fn, 58, tw->portNegative);			// negative
+		IntItemToFile(fn, 59, tw->allowBold);				// allowbold
+		IntItemToFile(fn, 60, tw->colorBold);				// colorbold
+		IntItemToFile(fn, 61, tw->ignoreBeeps);				// ignorebeeps
+		IntItemToFile(fn, 62, tw->ignoreff);				// ignoreff
+		IntItemToFile(fn, 64, tw->inversebold);				// inversebold
+		IntItemToFile(fn, 65, tw->otpauto);					// otpauto
+		IntItemToFile(fn, 66, tw->otpmulti);				// otpmulti
+		IntItemToFile(fn, 67, tw->otphex);					// otphex
+		IntItemToFile(fn, 68, tw->otpnoprompt);				// otpnoprompt
+		IntItemToFile(fn, 70, tw->realbold);				// realbold
+		IntItemToFile(fn, 72, tw->oldScrollback);			// oldscrollback
+		IntItemToFile(fn, 71, tw->otpsavepass);				// otpsavepass
 
 // end of "all this stuff"
 
-		if (screens[i].otppassword[0]) { // RAB BetterTelnet 1.2
-			pstrcpy(scratchPstring, (unsigned char *)screens[i].otppassword);
-			p2cstr(scratchPstring);
-			sprintf(temp2, "otppassword = \"%s\"\015", scratchPstring);
-			CStringToFile(fn, (unsigned char *)temp2);
-		}
-
-//		if (screens[i].outnational) {						// Don't do this if using default translation table
-// TranslationTable
-			GetMenuItemText(myMenus[National], screens[i].outnational+1, scratchPstring);
-			//pstrcpy(scratchPstring, (unsigned char *)TranslationTable);
-			PtoCstr(scratchPstring);
-			sprintf(temp2, "translation= \"%s\"\015", scratchPstring);
-			CStringToFile(fn, (unsigned char *)temp2);
-//		}
-
-		BlockMoveData(screens[i].answerback, scratchPstring, *(screens[i].answerback)+1);
-		PtoCstr(scratchPstring);
-		sprintf(temp2, "answerback= \"%s\"\015", scratchPstring);
-		CStringToFile(fn, (unsigned char *)temp2);
-
-		if (screens[i].authenticate)
-			CStringToFile(fn,(unsigned char *) "authenticate = yes\015");	//CCP added next four lines for authencrypt
-		else
-			CStringToFile(fn,(unsigned char *) "authenticate = no\015");	
-
-		if (screens[i].encrypt)
-			CStringToFile(fn,(unsigned char *) "encrypt = yes\015");	
-		else
-			CStringToFile(fn,(unsigned char *) "encrypt = no\015");	
-
-		if (screens[i].pgupdwn)
-			CStringToFile(fn,(unsigned char *) "pageup = yes\015");	//CCP 2.7
-		else
-			CStringToFile(fn,(unsigned char *) "pageup = no\015");	
-
-		if (screens[i].keypadmap)
-			CStringToFile(fn,(unsigned char *) "keypad = yes\015");	//CCP 2.7
-		else
-			CStringToFile(fn,(unsigned char *) "keypad = no\015");
-
+		PStringItemToFile(fn, 69, tw->otppassword);			// otppassword
+		GetMenuItemText( myMenus[National], tw->outnational + 1, scratchPstring);
+		PStringItemToFile(fn, 38, scratchPstring );			// translation
+		PStringItemToFile(fn, 40, tw->answerback );			// answerback
+		BoolItemToFile(fn, 41, tw->authenticate);			// authenticate
+		BoolItemToFile(fn, 42, tw->encrypt);				// encrypt
+		BoolItemToFile(fn, 43, tw->pgupdwn);				// pageup
+		BoolItemToFile(fn, 44, tw->keypadmap);				// keypad
 /* NONO */
-		sprintf( temp2, "protocol = %d\015", screens[i].protocol);
-		CStringToFile(fn,(unsigned char *) temp2);
+		BoolItemToFile(fn, 90, tw->jumpScroll);				// jumpscroll
+		BoolItemToFile(fn, 91, tw->realBlink);				// realblink
+		BoolItemToFile(fn, 92, VSisvt7bit(tw->vs));			// vt7bits
 
-		sprintf( temp2, "encryption = %d\015", screens[i].encryption);
-		CStringToFile(fn,(unsigned char *) temp2);
-
-		sprintf( temp2, "authentication = %d\015", screens[i].authentication);
-		CStringToFile(fn,(unsigned char *) temp2);
-
-		sprintf( temp2, "compression = %d\015", screens[i].compression);
-		CStringToFile(fn,(unsigned char *) temp2);
-
-		if (screens[i].verbose)
-			CStringToFile(fn,(unsigned char *) "verbose = yes\015");
-		else
-			CStringToFile(fn,(unsigned char *) "verbose = no\015");
-
-		if (screens[i].trace)
-			CStringToFile(fn,(unsigned char *) "trace = yes\015");
-		else
-			CStringToFile(fn,(unsigned char *) "trace = no\015");
-
-		if (screens[i].debug)
-			CStringToFile(fn,(unsigned char *) "debug = yes\015");
-		else
-			CStringToFile(fn,(unsigned char *) "debug = no\015");
-
-		if (screens[i].restricted)
-			CStringToFile(fn,(unsigned char *) "restricted = yes\015");
-		else
-			CStringToFile(fn,(unsigned char *) "restricted = no\015");
-
-		sprintf( temp2, "ssh2method = %d\015", screens[i].ssh2method);
-		CStringToFile(fn,(unsigned char *) temp2);
-
-		if (screens[i].ssh2guests)
-			CStringToFile(fn,(unsigned char *) "ssh2guests = yes\015");
-		else
-			CStringToFile(fn,(unsigned char *) "ssh2guests = no\015");
-
-		sprintf( temp2,"localport = %d\015",screens[i].localport );
-		CStringToFile(fn,(unsigned char *) temp2);
-
-		sprintf( temp2,"remoteport = %d\015", (unsigned short)screens[i].remoteport );
-		CStringToFile(fn,(unsigned char *) temp2);
-
-		if (screens[i].remotehost[0]) {
-			sprintf( temp2, "remotehost = \"%#s\"\015", screens[i].remotehost );
-			CStringToFile(fn,(unsigned char *) temp2);
-		}
-		if (screens[i].username[0]) {
-			sprintf( temp2, "username = \"%#s\"\015", screens[i].username );
-			CStringToFile(fn,(unsigned char *) temp2);
-		}
-/*
-		if (screens[i].password[0]) {
-			sprintf( temp2, "password = \"%#s\"\015", screens[i].password );
-			CStringToFile(fn,(unsigned char *) temp2);
-		}
-*/
-		if (screens[i].command[0]) {
-			sprintf( temp2, "command = \"%#s\"\015", screens[i].command );
-			CStringToFile(fn,(unsigned char *) temp2);
-		}
+		IntItemToFile(fn, 73, tw->protocol);				// protocol
+		IntItemToFile(fn, 74, tw->encryption);				// encryption
+		IntItemToFile(fn, 75, tw->authentication);			// authentication
+		IntItemToFile(fn, 76, tw->compression);				// compression
+		BoolItemToFile(fn, 77, tw->verbose);				// verbose
+		BoolItemToFile(fn, 78, tw->trace);					// trace
+		BoolItemToFile(fn, 79, tw->debug);					// debug
+		BoolItemToFile(fn, 80, tw->restricted);				// restricted
+		IntItemToFile(fn, 81, tw->ssh2method);				// ssh2method
+		BoolItemToFile(fn, 82, tw->ssh2guests);				// ssh2guests
+		IntItemToFile(fn, 83, tw->localport);				// localport
+		IntItemToFile(fn, 84, tw->remoteport);				// remoteport
+		PStringItemToFile(fn, 85, tw->remotehost );			// remotehost
+		PStringItemToFile(fn, 86, tw->username );			// username
+		//PStringItemToFile(fn, 87, tw->password );			// password
+		PStringItemToFile(fn, 88, tw->command );			// command
 /* NONO */
 
 	} /* for i */
 
-	FSClose(fn);						/* BYU LSC */
+	FSClose(fn);
 }
 
 // This is new for BetterTelnet 1.0b4. It saves sessions directly from the Favorites. (RAB)
-void SaveSetFromSession(SessionPrefs* setSession, TerminalPrefs* setTerminal, short doWeAppend, short doSaveMacros) {
+void SaveSetFromSession(SessionPrefs* setSession, TerminalPrefs* setTerminal, short doWeAppend, short doSaveMacros)
+{
+	Point		where;
+	Str255		scratchPstring;
+	Str255		scratchPstring2;
+	SFTypeList	typesok = {'CONF'};
 	SFReply		sfr;
-	short		fn, truncate;
+	FSSpec		set;
+	short		fn;
+	short		truncate;
+	OSErr		err;
 	WindowPeek	wpeek;
 	Rect		rect;
-	Point		where;
 	long		junk;
-	char		temp[256], temp2[300];			/* BYU LSC */
-	short			fnum,fsiz, i;
-	FSSpec		set;
-	OSErr		err;
-	Str255		scratchPstring,scratchPstring2;
-	SFTypeList	typesok = {'CONF'};
+	char		temp[256];
+	char		temp2[300];
+	short		fnum,fsiz;
+	short		i;
 
 	where.h = 100; where.v = 100;
 	if (doWeAppend) {
-		GetIndString(scratchPstring,MISC_STRINGS,SAVE_SET_STRING);
+		GetIndString( scratchPstring, MISC_STRINGS, SAVE_SET_STRING );
 		SFGetFile( where,scratchPstring, 0L, 1, typesok, 0L, &sfr);
 	} else {
-		GetIndString(scratchPstring,MISC_STRINGS,SAVE_SET_STRING);
-		GetIndString(scratchPstring2,MISC_STRINGS,DEFAULT_SAVE_SET_NAME);
-		SFPutFile(where,scratchPstring,scratchPstring2, 0L, &sfr);	/* BYU LSC */
+		GetIndString( scratchPstring, MISC_STRINGS, SAVE_SET_STRING );
+		GetIndString( scratchPstring2, MISC_STRINGS, DEFAULT_SAVE_SET_NAME);
+		SFPutFile( where,scratchPstring, scratchPstring2, 0L, &sfr );
 	}
 
 	if (!sfr.good)
 		return;
 
-	BlockMoveData(&sfr.fName, set.name, (*sfr.fName)+1); // pstring copy sfr.fName -> set.name
+	BlockMoveData(&sfr.fName, set.name, *sfr.fName + 1);
 	GetWDInfo(sfr.vRefNum, &set.vRefNum, &set.parID, &junk);
 
 	if (!doWeAppend)
 		if ((err = HCreate(set.vRefNum, set.parID, set.name, kNCSACreatorSignature, kNCSASetFileType)) == dupFNErr)
 			truncate = 1;
-		
-	err = HOpenDF(set.vRefNum, set.parID, set.name, fsWrPerm, &fn);
 
-	if ((!doWeAppend) && truncate) 
+	err = HOpenDF(set.vRefNum, set.parID, set.name, fsWrPerm, &fn);
+	if ( err ) {
+		// FIXME: add error message
+		return;
+	}
+
+	if (!doWeAppend && truncate) 
 		SetEOF(fn, 0L);
 
 	if (doWeAppend)
 		SetFPos(fn, 2, 0L);
 
-	if (doSaveMacros)
-/* NONO: save all macros */
-		for (i = 0; i < 110; i++)
-		  {
-			getmacro(&TelInfo->newMacros,i, temp, sizeof(temp));			/* BYU LSC */
-			if (*temp) {									/* BYU LSC */
-				sprintf(temp2, "macro= \"%d ", i);			/* BYU 2.4.16 */
-				CStringToFile(fn,(unsigned char *) temp2);	/* BYU LSC */
-				CStringToFile(fn,(unsigned char *) temp);	/* BYU LSC */
-				strcpy(temp2,"\"\015");						/* BYU LSC */
-				CStringToFile(fn,(unsigned char *) temp2);	/* BYU LSC */
-			}												/* BYU LSC */
-		  } /* for */
-/* NONO */
-
-	sprintf(temp2, "name= \" \"\015");
-	CStringToFile(fn,(unsigned char *) temp2);				/* BYU LSC */
-
-	BlockMoveData(setSession->hostname, (Ptr)scratchPstring, StrLength(setSession->hostname)+1);
-	PtoCstr(scratchPstring);
-	sprintf(temp2, "host= \"%s\"\015", scratchPstring);
-	CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-
-	sprintf (temp2,"port= %d\015",setSession->port);	/* NCSA: save port # */
-	CStringToFile(fn,(unsigned char *) temp2);						/* BYU LSC */
-
-	sprintf(temp2, "scrollback= %d\015", setTerminal->numbkscroll);	/* BYU LSC */
-	CStringToFile(fn,(unsigned char *) temp2);						/* BYU LSC */
-
-	if (setSession->bksp)
-		CStringToFile(fn,(unsigned char *)  "erase = delete\015");		/* BYU LSC */
-	else
-		CStringToFile(fn,(unsigned char *)  "erase = backspace\015");	/* BYU LSC */
-
-	sprintf(temp2, "vtwidth = %d\015", setTerminal->vtwidth);			/* BYU LSC */
-	CStringToFile(fn,(unsigned char *) temp2);						/* BYU LSC */
-
-	if (setSession->tekclear)
-		CStringToFile(fn,(unsigned char *) "tekclear = yes\015");	/* BYU LSC */
-	else
-		CStringToFile(fn,(unsigned char *) "tekclear = no\015");	/* BYU LSC */
-
-	if (TelInfo->haveColorQuickDraw)
-	{
-		sprintf(temp2, "rgb%d = {%u,%u,%u}\015",
-			0, setTerminal->nfcolor.red, setTerminal->nfcolor.green, setTerminal->nfcolor.blue);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf(temp2, "rgb%d = {%u,%u,%u}\015",
-			1, setTerminal->nbcolor.red, setTerminal->nbcolor.green, setTerminal->nbcolor.blue);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf(temp2, "rgb%d = {%u,%u,%u}\015",
-			2, setTerminal->bfcolor.red, setTerminal->bfcolor.green, setTerminal->bfcolor.blue);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf(temp2, "rgb%d = {%u,%u,%u}\015",
-			3, setTerminal->bbcolor.red, setTerminal->bbcolor.green, setTerminal->bbcolor.blue);
-		CStringToFile(fn,(unsigned char *) temp2);
+	if (doSaveMacros) {
+		// save all macros
+		for (i = 0; i < 110; i++) {
+			getmacro(&TelInfo->newMacros, i, temp, sizeof(temp));
+			if (*temp) {
+				sprintf(temp2, "%d %s", i, temp);
+				CStringItemToFile(fn, 89, temp2);			// macro
+			}
+		}
 	}
 
-	BlockMoveData(setTerminal->DisplayFont, temp, StrLength(setTerminal->DisplayFont) + 1);
-#ifndef MPW
-	p2cstr((unsigned char *) temp);								/* BYU LSC */
-#endif
+	PStringItemToFile(fn, 1, "\p ");						// name
+	PStringItemToFile(fn, 2, setSession->hostname);			// host
+	IntItemToFile(fn, 37, setSession->port);				// port
+	IntItemToFile(fn, 4, setTerminal->numbkscroll);			// scrollback
+	CStringItemToFile(fn, 18, (setSession->bksp) ? "delete" : "backspace"); // erase
+	IntItemToFile(fn, 21, setTerminal->vtwidth);			// vtwidth
+	BoolItemToFile(fn, 20, setSession->tekclear);			// tekclear
+	if ( TelInfo->haveColorQuickDraw ) {
+		sprintf(temp2, "{%u,%u,%u}", setTerminal->nfcolor.red,
+			setTerminal->nfcolor.green, setTerminal->nfcolor.blue);
+		CStringItemToFile(fn, 22, temp2);					// rgb0
+		sprintf(temp2, "{%u,%u,%u}", setTerminal->nbcolor.red,
+			setTerminal->nbcolor.green, setTerminal->nbcolor.blue);
+		CStringItemToFile(fn, 23, temp2);					// rgb1
+		sprintf(temp2, "{%u,%u,%u}", setTerminal->bfcolor.red,
+			setTerminal->bfcolor.green, setTerminal->bfcolor.blue);
+		CStringItemToFile(fn, 24, temp2);					// rgb2
+		sprintf(temp2, "{%u,%u,%u}", setTerminal->bbcolor.red,
+			setTerminal->bbcolor.green, setTerminal->bbcolor.blue);
+		CStringItemToFile(fn, 25, temp2);					// rgb3
+	}
 
-	sprintf( temp2, "font = \"%s\"\015", temp);					/* BYU LSC */
-	CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-	sprintf( temp2, "fsize= %d\015", setTerminal->fontsize);						/* BYU LSC */
-	CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-
-	BlockMoveData(setTerminal->BoldFont, temp, StrLength(setTerminal->BoldFont) + 1);
-#ifndef MPW
-	p2cstr((unsigned char *) temp);
-#endif
-	sprintf( temp2, "boldfont = \"%s\"\015", temp);
-	CStringToFile(fn,(unsigned char *) temp2);
-
-	sprintf( temp2, "nlines= %d\015", setTerminal->vtheight);/* BYU LSC */
-	CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-	sprintf( temp2, "keystop= %d\015", setSession->skey);		/* BYU LSC */
-	CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-	sprintf( temp2, "keygo= %d\015", setSession->qkey);			/* BYU LSC */
-	CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-	sprintf( temp2, "keyip= %d\015", setSession->ckey);			/* BYU LSC */
-	CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-	sprintf( temp2, "crmap= %d\015", setSession->crmap);		/* BYU LSC */
-	CStringToFile(fn,(unsigned char *) temp2);					/* BYU LSC */
-	sprintf( temp2, "tekem= %d\015", setSession->tektype);
-	CStringToFile(fn,(unsigned char *) temp2);
+	PStringItemToFile(fn, 26, setTerminal->DisplayFont);	// font
+	IntItemToFile(fn, 27, setTerminal->fontsize);			// fsize
+	PStringItemToFile(fn, 63, setTerminal->BoldFont);		// boldfont
+	IntItemToFile(fn, 28, setTerminal->vtheight);		// nlines
+	IntItemToFile(fn, 29, setSession->skey);				// keystop
+	IntItemToFile(fn, 30, setSession->qkey);				// keygo
+	IntItemToFile(fn, 31, setSession->ckey);				// keyip
+	IntItemToFile(fn, 32, setSession->crmap);				// crmap
+	IntItemToFile(fn, 39, setSession->tektype);				// tekem
 
 // All this stuff was added in BetterTelnet 1.0b3... (RAB)
 
-	sprintf( temp2, "vtemulation = %d\015", setTerminal->vtemulation);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "forcesave = %d\015", setSession->forcesave);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "eightbit = %d\015", setTerminal->eightbit);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "vtwrap = %d\015", setTerminal->vtwrap);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "xterm = %d\015", setTerminal->Xtermsequences);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "remapctrld = %d\015", setTerminal->remapCtrlD);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "ansicolor = %d\015", setTerminal->ANSIgraphics);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "arrowmap = %d\015", setTerminal->emacsarrows);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "emacsmeta = %d\015", setTerminal->emacsmetakey);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "pastemethod = %d\015", setSession->pastemethod);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "pastesize = %d\015", setSession->pasteblocksize);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "saveclear = %d\015", setTerminal->clearsave);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "linemode = %d\015", setSession->linemode);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "negative = %d\015", setSession->portNegative);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "allowbold = %d\015", setTerminal->allowBold);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "colorbold = %d\015", setTerminal->colorBold);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "ignorebeeps = %d\015", setSession->ignoreBeeps);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "ignoreff = %d\015", setSession->ignoreff);
-	CStringToFile(fn,(unsigned char *) temp2);
+	IntItemToFile(fn, 51, setTerminal->vtemulation);		// vtemulation
+	IntItemToFile(fn, 52, setSession->forcesave);			// forcesave
+	IntItemToFile(fn, 34, setTerminal->eightbit);			// eightbit
+	IntItemToFile(fn, 53, setTerminal->vtwrap);				// vtwrap
+	IntItemToFile(fn, 54, setTerminal->Xtermsequences);		// xterm
+	IntItemToFile(fn, 57, setTerminal->remapCtrlD);			// remapctrld
+	IntItemToFile(fn, 45, setTerminal->ANSIgraphics);		// ansicolor
+	IntItemToFile(fn, 46, setTerminal->emacsarrows);		// arrowmap
+	IntItemToFile(fn, 47, setTerminal->emacsmetakey);		// emacsmeta
+	IntItemToFile(fn, 48, setSession->pastemethod);			// pastemethod
+	IntItemToFile(fn, 49, setSession->pasteblocksize);		// pastesize
+	IntItemToFile(fn, 50, setTerminal->clearsave);			// saveclear
+	IntItemToFile(fn, 33, setSession->linemode);			// linemode
+	IntItemToFile(fn, 58, setSession->portNegative);		// negative
+	IntItemToFile(fn, 59, setTerminal->allowBold);			// allowbold
+	IntItemToFile(fn, 60, setTerminal->colorBold);			// colorbold
+	IntItemToFile(fn, 61, setSession->ignoreBeeps);			// ignorebeeps
+	IntItemToFile(fn, 62, setSession->ignoreff);			// ignoreff
+	IntItemToFile(fn, 64, setTerminal->boldFontStyle);		// inversebold
 
 // And all this stuff was added in 1.0b5... (RAB)
-
-	sprintf( temp2, "localecho = %d\015", setSession->localecho);
-	CStringToFile(fn,(unsigned char *) temp2);
-	sprintf( temp2, "halfdup = %d\015", setSession->halfdup);
-	CStringToFile(fn,(unsigned char *) temp2);
+	IntItemToFile(fn, 55, setSession->localecho);			// localecho
+	IntItemToFile(fn, 56, setSession->halfdup);				// halfdup
 
 // end of "all this stuff" (RAB)
 
-		sprintf( temp2, "otpauto = %d\015", setSession->otpauto);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "otpmulti = %d\015", setSession->otpmulti);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "otphex = %d\015", setSession->otphex);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "otpnoprompt = %d\015", setSession->otpnoprompt);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "realbold = %d\015", setTerminal->realbold);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "oldscrollback = %d\015", setTerminal->oldScrollback);
-		CStringToFile(fn,(unsigned char *) temp2);
-		sprintf( temp2, "otpsavepass = %d\015", setSession->otpsavepass);
-		CStringToFile(fn,(unsigned char *) temp2);
-
-		/* NONO bug fix : screens[i] was used instead of setSession */
-		if (setSession->otppassword[0]) { // RAB BetterTelnet 1.2
-			pstrcpy(scratchPstring, (unsigned char *)setSession->otppassword);
-			p2cstr(scratchPstring);
-			sprintf(temp2, "otppassword = \"%s\"\015", scratchPstring);
-			CStringToFile(fn, (unsigned char *)temp2);
-		}
-
-
-	BlockMoveData(setSession->TranslationTable, scratchPstring, StrLength(setSession->TranslationTable) + 1);
-	PtoCstr(scratchPstring);
-	sprintf(temp2, "translation= \"%s\"\015", scratchPstring);
-	CStringToFile(fn, (unsigned char *)temp2);
-
-	BlockMoveData(setTerminal->AnswerBackMessage, scratchPstring, *(setTerminal->AnswerBackMessage)+1);
-	PtoCstr(scratchPstring);
-	sprintf(temp2, "answerback= \"%s\"\015", scratchPstring);
-	CStringToFile(fn, (unsigned char *)temp2);
-
-	if (setSession->authenticate)
-		CStringToFile(fn,(unsigned char *) "authenticate = yes\015");	//CCP added next four lines for authencrypt
-	else
-		CStringToFile(fn,(unsigned char *) "authenticate = no\015");	
-
-	if (setSession->encrypt)
-		CStringToFile(fn,(unsigned char *) "encrypt = yes\015");	
-	else
-		CStringToFile(fn,(unsigned char *) "encrypt = no\015");	
-
-	if (setTerminal->MATmappings)
-		CStringToFile(fn,(unsigned char *) "pageup = yes\015");	//CCP 2.7
-	else
-		CStringToFile(fn,(unsigned char *) "pageup = no\015");	
-
-	if (setTerminal->remapKeypad)
-		CStringToFile(fn,(unsigned char *) "keypad = yes\015");	//CCP 2.7
-	else
-		CStringToFile(fn,(unsigned char *) "keypad = no\015");
-
+	IntItemToFile(fn, 65, setSession->otpauto);				// otpauto
+	IntItemToFile(fn, 66, setSession->otpmulti);			// otpmulti
+	IntItemToFile(fn, 67, setSession->otphex);				// otphex
+	IntItemToFile(fn, 68, setSession->otpnoprompt);			// otpnoprompt
+	IntItemToFile(fn, 70, setTerminal->realbold);			// realbold
+	IntItemToFile(fn, 72, setTerminal->oldScrollback);		// oldscrollback
+	IntItemToFile(fn, 71, setSession->otpsavepass);			// otpsavepass
+	if ( setSession->otppassword[0] ) {
+		PStringItemToFile(fn, 69, setSession->otppassword);	// otppassword
+	}
+	PStringItemToFile(fn, 38, setSession->TranslationTable ); // translation
+	PStringItemToFile(fn, 40, setTerminal->AnswerBackMessage ); // answerback
+	BoolItemToFile(fn, 41, setSession->authenticate);		// authenticate
+	BoolItemToFile(fn, 42, setSession->encrypt);			// encrypt
+	BoolItemToFile(fn, 43, setTerminal->MATmappings);		// pageup
+	BoolItemToFile(fn, 44, setTerminal->remapKeypad);		// keypad
 /* NONO */
-	sprintf( temp2, "protocol = %d\015", setSession->protocol);
-	CStringToFile(fn,(unsigned char *) temp2);
+	BoolItemToFile(fn, 90, setTerminal->jumpScroll);		// jumpscroll
+	BoolItemToFile(fn, 91, setTerminal->realBlink);			// realblink
+	BoolItemToFile(fn, 92, setTerminal->vt7bits);			// vt7bits
 
-	sprintf( temp2, "encryption = %d\015", setSession->encryption);
-	CStringToFile(fn,(unsigned char *) temp2);
-
-	sprintf( temp2, "authentication = %d\015", setSession->authentication);
-	CStringToFile(fn,(unsigned char *) temp2);
-
-	sprintf( temp2, "compression = %d\015", setSession->compression);
-	CStringToFile(fn,(unsigned char *) temp2);
-
-	if (setSession->verbose)
-		CStringToFile(fn,(unsigned char *) "verbose = yes\015");
-	else
-		CStringToFile(fn,(unsigned char *) "verbose = no\015");
-
-	if (setSession->trace)
-		CStringToFile(fn,(unsigned char *) "trace = yes\015");
-	else
-		CStringToFile(fn,(unsigned char *) "trace = no\015");
-
-	if (setSession->debug)
-		CStringToFile(fn,(unsigned char *) "debug = yes\015");
-	else
-		CStringToFile(fn,(unsigned char *) "debug = no\015");
-
-	if (setSession->restricted)
-		CStringToFile(fn,(unsigned char *) "restricted = yes\015");
-	else
-		CStringToFile(fn,(unsigned char *) "restricted = no\015");
-
-	sprintf( temp2, "ssh2method = %d\015", setSession->ssh2method);
-	CStringToFile(fn,(unsigned char *) temp2);
-
-	if (setSession->ssh2guests)
-		CStringToFile(fn,(unsigned char *) "ssh2guests = yes\015");
-	else
-		CStringToFile(fn,(unsigned char *) "ssh2guests = no\015");
-
-	sprintf( temp2,"localport = %d\015",setSession->localport );
-	CStringToFile(fn,(unsigned char *) temp2);
-
-	sprintf( temp2,"remoteport = %d\015", (unsigned short)setSession->remoteport );
-	CStringToFile(fn,(unsigned char *) temp2);
-
-	if (setSession->remotehost[0]) {
-		sprintf( temp2, "remotehost = \"%#s\"\015", setSession->remotehost );
-		CStringToFile(fn,(unsigned char *) temp2);
-	}
-	if (setSession->username[0]) {
-		sprintf( temp2, "username = \"%#s\"\015", setSession->username );
-		CStringToFile(fn,(unsigned char *) temp2);
-	}
-/*
-	if (setSession->password[0]) {
-		sprintf( temp2, "password = \"%#s\"\015", setSession->password );
-		CStringToFile(fn,(unsigned char *) temp2);
-	}
-*/
-	if (setSession->command[0]) {
-		sprintf( temp2, "command = \"%#s\"\015", setSession->command );
-		CStringToFile(fn,(unsigned char *) temp2);
-	}
+	IntItemToFile(fn, 73, setSession->protocol);			// protocol
+	IntItemToFile(fn, 74, setSession->encryption);			// encryption
+	IntItemToFile(fn, 75, setSession->authentication);		// authentication
+	IntItemToFile(fn, 76, setSession->compression);			// compression
+	BoolItemToFile(fn, 77, setSession->verbose);			// verbose
+	BoolItemToFile(fn, 78, setSession->trace);				// trace
+	BoolItemToFile(fn, 79, setSession->debug);				// debug
+	BoolItemToFile(fn, 80, setSession->restricted);			// restricted
+	IntItemToFile(fn, 81, setSession->ssh2method);			// ssh2method
+	BoolItemToFile(fn, 82, setSession->ssh2guests);			// ssh2guests
+	IntItemToFile(fn, 83, setSession->localport);			// localport
+	IntItemToFile(fn, 84, setSession->remoteport);			// remoteport
+	PStringItemToFile(fn, 85, setSession->remotehost );		// remotehost
+	PStringItemToFile(fn, 86, setSession->username );		// username
+	//PStringItemToFile(fn, 87, setSession->password );		// password
+	PStringItemToFile(fn, 88, setSession->command );		// command
 /* NONO */
 
-  	FSClose(fn);						/* BYU LSC */
+  	FSClose(fn);
 }

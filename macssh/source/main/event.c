@@ -63,6 +63,8 @@ extern WindRec		*screens,
 extern Cursor		*theCursors[];
 extern Boolean 		gHaveDragMgr;
 
+extern void VSprintf(char *fmt, ...);
+extern void VSdump(char *p, int len);
 
 static gHaveInstalledNotification = 0;
 NMRec *nRecPtr;
@@ -574,6 +576,9 @@ emacsHack:
 		}
 	}
 
+//	VSprintf("trin: ");
+//	VSdump(&ascii, 1);
+
 	//	Handle whatever mapping is needed.
 //	mac_nat(tw, &ascii); // LU/PM: Convert char from mac to nat
 	if ( GetTranslationIndex(tw->outnational) != kTRJIS ) {
@@ -603,7 +608,7 @@ emacsHack:
 			// translation ok, or no data yet
 			if ( inlen ) {
 				// keep a few chars
-				for (i = inlen; i <= tw->troutcount; i++) {
+				for (i = inlen; i < tw->troutcount; i++) {
 					pbuf[i - inlen] = pbuf[i];
 				}
 				tw->troutcount -= inlen;
@@ -638,6 +643,9 @@ emacsHack:
 			tw->troutcount = 0;
 		}
 	}
+
+//	VSprintf("trout: ");
+//	VSdump(pbuf, trlen);
 
 	if ( (tw->clientflags & PASTE_IN_PROGRESS) && tw->pastemethod ) {
 		// queue this

@@ -5,6 +5,7 @@
 short VSIclip(short *x1, short *y1, short *x2, short *y2, short *n, short *offset);
 short VSIcdellines(short w, short top, short bottom, short n, short scrolled);
 short VSIcinslines(short w, short top, short bottom, short n, short scrolled);
+void VScursset( short w, short x, short y );
 void VSIcurson(short w, short x, short y, short ForceMove);
 void VSIcuroff(short w);
 short VSIcursorenabled( void );
