@@ -146,7 +146,7 @@ int main(void)
 	printf("argstr : %s\n", argstr);
 	fflush(stdout);
 
-	lsh_ctx = lsh_new(argstr, my_hdlevt, my_log, my_getpass, my_yes_or_no, (long)&my_ctx);
+	lsh_ctx = lsh_new(argstr, my_hdlevt, my_log, my_getpass, my_yes_or_no, 0L, (long)&my_ctx);
 
 	if ( lsh_ctx != NULL ) {
 

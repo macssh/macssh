@@ -78,18 +78,24 @@ typedef char *(*getpassfunc)( long userData, const char *prompt);
 typedef int (*yesornofunc)( long userData, const char *prompt, int def);
 
 typedef struct lshctx {
-	pthread_t	pthread;
-	lshcontext	*context;
-	char		*argstr;
-	hdlevtfunc	hdlevt;
-	getpassfunc	getpass;
-	logfunc		log;
-	yesornofunc	yes_or_no;
-	long		userData;
+	pthread_t		pthread;
+	lshcontext		*context;
+	char			*argstr;
+	unsigned long	flags;
+	hdlevtfunc		hdlevt;
+	getpassfunc		getpass;
+	logfunc			log;
+	yesornofunc		yes_or_no;
+	long			userData;
 } lshctx;
 
+enum {
+	kLSHConvertLFs = 0x1,
+	kLSHStripCRs   = 0x2
+};
 
-lshctx *lsh_new(char *argstr, hdlevtfunc hdlevt, logfunc log, getpassfunc getpass, yesornofunc yes_or_no, long userData);
+lshctx *lsh_new(char *argstr, hdlevtfunc hdlevt, logfunc log, getpassfunc getpass,
+				yesornofunc yes_or_no, unsigned long flags, long userData);
 void lsh_delete(lshctx *ctx);
 void lsh_yield();
 int lsh_read(lshctx *ctx, void *buffer, long inbytes);
@@ -655,7 +661,19 @@ int WriteCharsToTTY(int id, void *ctx, char *buffer, int n)
 					if ( len > context->_gConsoleOutBufMax - context->_gConsoleOutBufLen ) {
 						len = context->_gConsoleOutBufMax - context->_gConsoleOutBufLen;
 					}
-		        	if ( context->_convertLFs ) {
+		        	if ( context->_stripCRs ) {
+						long inlen = 0;
+						long outlen = context->_gConsoleOutBufLen;
+						while (inlen < len && outlen < context->_gConsoleOutBufMax - 1) {
+							c = buf[inlen++];
+							if ( c != 0x0d )
+								context->_gConsoleOutBuf[outlen++] = c;
+						}
+						context->_gConsoleOutBufLen = outlen;
+						buf += inlen;
+						written += inlen;
+						n -= inlen;
+		        	} else if ( context->_convertLFs ) {
 						long inlen = 0;
 						long outlen = context->_gConsoleOutBufLen;
 /*
@@ -841,7 +859,6 @@ int yes_or_no(struct lsh_string *s, int def, int free)
 		const char *prompt = lsh_get_cstring(s);
 		if ( prompt ) {
 			def = (*ctx->yes_or_no)( ctx->userData, prompt, def );
-			lsh_string_free(prompt);
 		}
 	}
 	if ( free ) {
@@ -1032,7 +1049,8 @@ void *lsh_thread(lshctx *ctx)
 	memset(context->_filesTable, 0xff, sizeof(context->_filesTable));
 	memcpy(&context->_mactermios, &defaulttermios, sizeof(struct termios));
 	context->_gConsoleInEOF = 0;
-	context->_convertLFs = 0;
+	context->_convertLFs = (ctx->flags & kLSHConvertLFs) != 0;
+	context->_stripCRs = (ctx->flags & kLSHStripCRs) != 0;
 	context->_lastCR = 0;
 	context->_insock = NULL;
 	context->_gConsoleInBufLen = 0;
@@ -1194,7 +1212,8 @@ void *lsh_thread(lshctx *ctx)
  *      are passed as a command to launch on the server.
  */
 
-lshctx *lsh_new(char *argstr, hdlevtfunc hdlevt, logfunc log, getpassfunc getpass, yesornofunc yes_or_no, long userData)
+lshctx *lsh_new(char *argstr, hdlevtfunc hdlevt, logfunc log, getpassfunc getpass,
+				yesornofunc yes_or_no, unsigned long flags, long userData)
 {
 	pthread_attr_t	attr = NULL;
 	lshctx			*ctx = NULL;
@@ -1209,6 +1228,7 @@ lshctx *lsh_new(char *argstr, hdlevtfunc hdlevt, logfunc log, getpassfunc getpas
 
 	ctx->pthread = NULL;
 	ctx->context = NULL;
+	ctx->flags = flags;
 	ctx->userData = userData;
 
 	/* save argument string */

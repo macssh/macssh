@@ -676,28 +676,23 @@ char *getpass( const char *prompt )
 
 int yes_or_no(const struct lsh_string *s, int def, int free)
 {
-  struct lsh_string *prompt;
-
-  prompt = make_string(s);
-  if (prompt) {
-    if (!quiet_flag) {
-      Str255 pprompt;
-      int i;
-	  pprompt[0] = strlen((const char *)prompt->data);
-	  memcpy(pprompt + 1, (const char *)prompt->data, pprompt[0]);
-	  for (i = 1; i <= pprompt[0]; i++) {
-		  if (pprompt[i] == 0x0a) {
-			  pprompt[i] = 0x0d;
-		  }
-	  }
-	  def = YesNoDialog( pprompt );
-    }
-    lsh_string_free(prompt);
-  }
-  return def;
+	if (!quiet_flag) {
+		const char *prompt = lsh_get_cstring(s);
+		if (prompt) {
+			Str255 pprompt;
+			int i;
+			pprompt[0] = strlen(prompt);
+			memcpy(pprompt + 1, prompt, pprompt[0]);
+			for (i = 1; i <= pprompt[0]; i++) {
+				if (pprompt[i] == 0x0a) {
+					pprompt[i] = 0x0d;
+				}
+			}
+			def = YesNoDialog( pprompt );
+	    }
+	}
+	return def;
 }
-
-
 
 #pragma mark -
 
@@ -798,6 +793,7 @@ static void run_app()
 	memcpy(&context->_mactermios, &defaulttermios, sizeof(struct termios));
 	context->_gConsoleInEOF = 0;
 	context->_convertLFs = 0;
+	context->_stripCRs = 0;
 	context->_lastCR = 0;
 	context->_insock = NULL;
 	context->_gConsoleInBufLen = 0;

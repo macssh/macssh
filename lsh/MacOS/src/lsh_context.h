@@ -32,6 +32,7 @@ typedef struct lshcontext {
 
 	Boolean 		_gConsoleInEOF;
 	Boolean			_convertLFs;
+	Boolean			_stripCRs;
 	char			_lastCR;
 
 	void			*_insock;
@@ -98,6 +99,8 @@ extern pthread_key_t ssh2threadkey;
 #define verbosing (((lshcontext *)pthread_getspecific(ssh2threadkey))->_verbosing)
 #define debugging (((lshcontext *)pthread_getspecific(ssh2threadkey))->_debugging)
 #define convertLFs (((lshcontext *)pthread_getspecific(ssh2threadkey))->_convertLFs)
+#define stripCRs (((lshcontext *)pthread_getspecific(ssh2threadkey))->_stripCRs)
+
 
 #define window_changed (((lshcontext *)pthread_getspecific(ssh2threadkey))->_window_changed)
 

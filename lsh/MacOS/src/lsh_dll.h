@@ -28,6 +28,11 @@ typedef void (*logfunc)(long userData, const char *message);
 typedef char *(*getpassfunc)(long userData, const char *prompt);
 typedef int (*yesornofunc)(long userData, const char *prompt, int def);
 
+enum {
+	kLSHConvertLFs = 0x1,
+	kLSHStripCRs   = 0x2
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -136,7 +141,8 @@ extern "C" {
  *      are passed as a command to launch on the server.
  */
 
-lshctx *lsh_new(char *argstr, hdlevtfunc hdlevt, logfunc log, getpassfunc getpass, yesornofunc yes_or_no, long userData);
+lshctx *lsh_new(char *argstr, hdlevtfunc hdlevt, logfunc log, getpassfunc getpass,
+				yesornofunc yes_or_no, unsigned long flags, long userData);
 
 void lsh_delete(lshctx *ctx);
 
