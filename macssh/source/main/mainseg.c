@@ -107,7 +107,7 @@ void	main(void)
 
 	do {						/* BYU - Do this forever */
 		UnloadSegments();
-		DoEvents();
+		DoEvents(NULL);
 		ssh2_sched();
 		if (!TelInfo->done) {
 			DoNetEvents();

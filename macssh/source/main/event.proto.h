@@ -11,7 +11,7 @@ void NoWindow(void);
 Boolean CheckPageKeys(short code);
 void SendOneChar(unsigned char sendch);
 void HandleKeyDown(EventRecord theEvent,struct WindRec *tw);
-void DoEvents(void);
+void DoEvents(EventRecord*);
 void	CloseAWindow(WindowPtr	theWindow);
 void HandleRemapping(unsigned char *ascii, Boolean *commanddown,
 		Boolean *controldown,Boolean *optiondown, unsigned char *code);//BUGG make it static
