@@ -570,7 +570,12 @@ void RSdraw
 
 	MoveTo(x * RScurrent->fwidth, ys + RScurrent->fascent);
 
-	DrawText(ptr, 0, len);
+	if ( rect.bottom < RScurrent->height || !VSisundl(a) ) {
+   		DrawText(ptr, 0, len);
+   	} else {
+		rect.right += 1;
+		TETextBox(ptr, len, &rect, teJustLeft);
+	}
 
 	if (RScurrent->selected)
 		RSinvText(w, *(Point *) &RScurrent->anchor,
@@ -777,7 +782,7 @@ void RSerase
 		rect.left = CHO;
 	if (rect.right >= RScurrent->width - 1)
 		rect.right = RScurrent->rwidth - 2;	/* clear to edge of window, including edge strip */
-	if (rect.bottom >= RScurrent->height - 2)
+	if (rect.bottom >= RScurrent->height)
 		rect.bottom = RScurrent->rheight + 1;	/* clear to bottom edge also */
     EraseRect(&rect);
 	if (RScurrent->selected)
@@ -900,7 +905,12 @@ void RSinsstring
 		rect.top + RScurrent->fascent
 	  );
 	RSsetattr(a);
-    DrawText(ptr, 0, len);
+	if ( rect.bottom < RScurrent->height || !VSisundl(a) ) {
+   		DrawText(ptr, 0, len);
+   	} else {
+		rect.right += 1;
+		TETextBox(ptr, len, &rect, teJustLeft);
+	}
 	if (RScurrent->selected)
 		/* highlight any part of selection covering the newly-inserted text */
 		RSinvText(w, *(Point *) &RScurrent->anchor,
