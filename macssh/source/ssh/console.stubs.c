@@ -31,11 +31,14 @@
 #include "Connections.proto.h"
 
 #include "ssh2.h"
+#include "GUSITTY.h"
+
 
 extern void syslog( int priority, const char *format, ...);
 
 static void accept_call();
 static void check_listener();
+
 
 /*
  *	The following four functions provide the UI for the console package.
@@ -72,6 +75,117 @@ short InstallConsole(short fd)
 void RemoveConsole(void)
 {
 }
+
+
+/*
+ *	extern long WriteCharsToConsole(char *buffer, long n);
+ *
+ *	Writes a stream of output to the Console window.  This function is
+ *	called by write.
+ *
+ *	char *buffer:	Pointer to the buffer to be written.
+ *	long n:			The length of the buffer to be written.
+ *	returns short:	Actual number of characters written to the stream,
+ *					-1 if an error occurred.
+ */
+
+long WriteCharsToConsole(char *buffer, long n)
+{
+	/* since we redirect stdin/out/err to our 'sockets'
+	 * this shouldn't occur ! (or lsh calls printf ? (; )
+	 */
+	DebugStr("\pWriteCharsToConsole");
+	return n;
+}
+
+/*
+ *	extern long ReadCharsFromConsole(char *buffer, long n);
+ *
+ *	Reads from the Console into a buffer.  This function is called by
+ *	read.
+ *
+ *	char *buffer:	Pointer to the buffer which will recieve the input.
+ *	long n:			The maximum amount of characters to be read (size of
+ *					buffer).
+ *	returns short:	Actual number of characters read from the stream,
+ *					-1 if an error occurred.
+ */
+
+long ReadCharsFromConsole(char *buffer, long n)
+{
+	/* since we redirect stdin/out/err to our 'sockets'
+	 * this shouldn't occur ! (or lsh calls printf ? (; )
+	 */
+	DebugStr("\pReadCharsFromConsole");
+	return 0;
+}
+
+/*
+ *	extern char *__ttyname(long fildes);
+ *
+ *	Return the name of the current terminal (only valid terminals are
+ *	the standard stream (ie stdin, stdout, stderr).
+ *
+ *	long fildes:	The stream to query.
+ *
+ *	returns char*:	A pointer to static global data which contains a C string
+ *					or NULL if the stream is not valid.
+ */
+
+extern char *__ttyname(long fildes)
+{
+#pragma unused (fildes)
+	/* all streams have the same name */
+	static char *__devicename = "null device";
+
+	if (fildes >= 0 && fildes <= 2)
+		return (__devicename);
+
+	return (0L);
+}
+
+/* Begin mm 981218 */
+/*
+*
+*    int kbhit()
+*
+*    returns true if any keyboard key is pressed without retrieving the key
+*    used for stopping a loop by pressing any key
+*/
+int kbhit(void)
+{
+      return 0; 
+}
+
+/*
+*
+*    int getch()
+*
+*    returns the keyboard character pressed when an ascii key is pressed  
+*    used for console style menu selections for immediate actions.
+*/
+int getch(void)
+{
+      return 0; 
+}
+
+/*
+*     void clrscr()
+*
+*     clears screen
+*/
+void clrscr()
+{
+	return;
+}
+/* End mm 981218 */
+
+/*     Change record
+ *  mm 981218	Added stubs for kbhit(), getch(), and clrscr()
+*/
+
+
+#pragma mark -
 
 /*
  * accept_call
@@ -173,61 +287,29 @@ static long read_local_socket(lshcontext *context, char *buffer, long n)
 }
 
 
+#pragma mark -
+
 /*
- * can_read
+ * InstallTTY
  */
-
-Boolean can_read()
+int InstallTTY(int fd, int flags)
 {
-	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-
-	if ( !context ) {
-		return 0;
-	}
-	if ( context->_listener != -1 ) {
-		struct fd_set rfds;
-		struct fd_set efds;
-		struct timeval timeout;
-		FD_ZERO( &rfds );
-		FD_ZERO( &efds );
-		FD_SET( context->_listener, &rfds );
-		if ( context->_socket != -1 ) {
-			FD_SET( context->_socket, &rfds );
-			FD_SET( context->_socket, &efds );
-		}
-		timeout.tv_sec = 0;
-		timeout.tv_usec = 0;
-		if ( select( 32, &rfds, NULL, &efds, &timeout ) ) {
-			if ( context->_socket == -1 ) {
-				if ( FD_ISSET( context->_listener, &rfds ) ) {
-					accept_call();
-				}
-			} else {
-				if ( FD_ISSET( context->_socket, &efds ) ) {
-					close( context->_socket );
-					context->_socket = -1;
-				} else if ( FD_ISSET( context->_socket, &rfds ) ) {
-					return 1;
-				}
-			}
-		}
-	}
-	return context->_gConsoleInBufLen || context->_gConsoleInEOF;
+#pragma unused (fd)
+	return 0;
 }
 
 /*
- *	extern long WriteCharsToConsole(char *buffer, long n);
- *
- *	Writes a stream of output to the Console window.  This function is
- *	called by write.
- *
- *	char *buffer:	Pointer to the buffer to be written.
- *	long n:			The length of the buffer to be written.
- *	returns short:	Actual number of characters written to the stream,
- *					-1 if an error occurred.
+ * RemoveTTY
  */
+void RemoveTTY(int fd, int flags)
+{
+#pragma unused (fd)
+}
 
-long WriteCharsToConsole(char *buffer, long n)
+/*
+ * WriteCharsToTTY
+ */
+int WriteCharsToTTY(int fd, int flags, char *buffer, int n)
 {
 	long			written = 0;
 	lshcontext		*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
@@ -236,6 +318,12 @@ long WriteCharsToConsole(char *buffer, long n)
 
 	if ( !context ) {
 		return 0;
+	}
+
+	if ( fd == 2 ) {
+		// log stderr to console
+		putlln( buffer, n );
+		return n;							
 	}
 
 	if ( context->_listener != -1 ) {
@@ -321,19 +409,9 @@ long WriteCharsToConsole(char *buffer, long n)
 }
 
 /*
- *	extern long ReadCharsFromConsole(char *buffer, long n);
- *
- *	Reads from the Console into a buffer.  This function is called by
- *	read.
- *
- *	char *buffer:	Pointer to the buffer which will recieve the input.
- *	long n:			The maximum amount of characters to be read (size of
- *					buffer).
- *	returns short:	Actual number of characters read from the stream,
- *					-1 if an error occurred.
+ * ReadCharsFromTTY
  */
-
-long ReadCharsFromConsole(char *buffer, long n)
+int ReadCharsFromTTY(int fd, int flags, char *buffer, int n)
 {
 	long			len = 0;
 	lshcontext		*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
@@ -383,65 +461,43 @@ long ReadCharsFromConsole(char *buffer, long n)
 }
 
 /*
- *	extern char *__ttyname(long fildes);
- *
- *	Return the name of the current terminal (only valid terminals are
- *	the standard stream (ie stdin, stdout, stderr).
- *
- *	long fildes:	The stream to query.
- *
- *	returns char*:	A pointer to static global data which contains a C string
- *					or NULL if the stream is not valid.
+ * AvailableFromTTY
  */
-
-extern char *__ttyname(long fildes)
+int AvailableFromTTY(int id, int flags)
 {
-#pragma unused (fildes)
-	/* all streams have the same name */
-	static char *__devicename = "null device";
+	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
 
-	if (fildes >= 0 && fildes <= 2)
-		return (__devicename);
-
-	return (0L);
+	if ( !context ) {
+		return 0;
+	}
+	if ( context->_listener != -1 ) {
+		struct fd_set rfds;
+		struct fd_set efds;
+		struct timeval timeout;
+		FD_ZERO( &rfds );
+		FD_ZERO( &efds );
+		FD_SET( context->_listener, &rfds );
+		if ( context->_socket != -1 ) {
+			FD_SET( context->_socket, &rfds );
+			FD_SET( context->_socket, &efds );
+		}
+		timeout.tv_sec = 0;
+		timeout.tv_usec = 0;
+		if ( select( 32, &rfds, NULL, &efds, &timeout ) ) {
+			if ( context->_socket == -1 ) {
+				if ( FD_ISSET( context->_listener, &rfds ) ) {
+					accept_call();
+				}
+			} else {
+				if ( FD_ISSET( context->_socket, &efds ) ) {
+					close( context->_socket );
+					context->_socket = -1;
+				} else if ( FD_ISSET( context->_socket, &rfds ) ) {
+					return 1;
+				}
+			}
+		}
+	}
+	return context->_gConsoleInBufLen || context->_gConsoleInEOF;
 }
 
-/* Begin mm 981218 */
-/*
-*
-*    int kbhit()
-*
-*    returns true if any keyboard key is pressed without retrieving the key
-*    used for stopping a loop by pressing any key
-*/
-int kbhit(void)
-{
-      return 0; 
-}
-
-/*
-*
-*    int getch()
-*
-*    returns the keyboard character pressed when an ascii key is pressed  
-*    used for console style menu selections for immediate actions.
-*/
-int getch(void)
-{
-      return 0; 
-}
-
-/*
-*     void clrscr()
-*
-*     clears screen
-*/
-void clrscr()
-{
-	return;
-}
-/* End mm 981218 */
-
-/*     Change record
- *  mm 981218	Added stubs for kbhit(), getch(), and clrscr()
-*/
