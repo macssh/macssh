@@ -15,6 +15,14 @@
 #ifndef _KrbDriver_	
 #define	_KrbDriver_
 
+#ifndef __CONDITIONALMACROS__	
+#include <ConditionalMacros.h>
+#endif
+
+#if PRAGMA_ALIGN_SUPPORTED
+#pragma options align=mac68k
+#endif
+
 /* csCodes for Control Calls */
 enum {
 	cKrbKillIO = 1,
@@ -162,7 +170,7 @@ enum {
 	
 	cKrbKerberosErrBlock = -20000	/* start of block of 256 kerberos errors */
 	};
-	
+
 // Parameter block for high level calls
 struct krbHiParmBlock	{
 			char 			*service;		/* full name -- combined service, instance, realm */
@@ -255,6 +263,10 @@ struct krbParmBlock	{
 			void *cred;
 };
 typedef struct krbParmBlock krbParmBlock;
+
+#if PRAGMA_ALIGN_SUPPORTED
+#pragma options align=reset
+#endif
 
 #endif
 

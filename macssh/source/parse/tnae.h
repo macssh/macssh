@@ -1,4 +1,16 @@
+#ifndef _TNAE_H_
+#define _TNAE_H_
+
+#ifndef __CONDITIONALMACROS__	
+#include <ConditionalMacros.h>
+#endif
+
+#if PRAGMA_ALIGN_SUPPORTED
+#pragma options align=mac68k
+#endif
+
 static OSType authTypes[] = { 'tnAE', 'TNae', 0 };
+
 #define moduleType 'TNae'				/* auth/encrypt module file type */
 
 #define NTMPAIRS	10					/* max type/modifier pairs */
@@ -106,7 +118,6 @@ enum {
 	TNREP_NOMEM							/* no memory */
 };
 
-
 /*
  * Parameters
  */
@@ -137,5 +148,8 @@ typedef struct tnParams_ {
 	unsigned short	port;				/* for authentication forwarding in kerberos5 */
 } tnParams;
 
+#if PRAGMA_ALIGN_SUPPORTED
+#pragma options align=reset
+#endif
 
-
+#endif
