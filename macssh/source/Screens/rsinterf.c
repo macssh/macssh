@@ -31,9 +31,15 @@
 #include "errors.proto.h"
 #include "SmartTrackControl.h"
 #include "sshglue.proto.h"
+#include "general_resrcdefs.h"
+
 
 static void calculateWindowPosition(WindRec *theScreen,Rect *whereAt, short colsHigh, short colsWide);
- 
+
+/* wdefpatch.c */
+extern void drawicon (short id, Rect *dest);
+
+
 extern WindRec *screens;
 
 extern short MaxRS;
@@ -224,7 +230,7 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 	h = window->portRect.right - window->portRect.left;
 	v = window->portRect.bottom - window->portRect.top;
 
-	RSsetsize(w, v, h); /* save new size settings and update scroll bars */
+	RSsetsize(w, v, h, -1); /* save new size settings and update scroll bars */
   /* update the visible region of the virtual screen */
 	VSgetrgn(w, &x1, &y1, &x2, &y2);
 	VSsetrgn(w, x1, y1, (x1 + (h - 16 + CHO) / FWidth -1),
@@ -244,7 +250,27 @@ Boolean RSisInFront(short w)
 		return FALSE;
 }
 
-  short RSupdate
+
+void RSdrawlocker(short w, RgnHandle visRgn)
+{
+	/* draw locker icon */
+	if ( RSlocal[w].left ) {
+		short screenIndex = findbyVS(w);
+		if ( screenIndex >= 0 && screens[screenIndex].protocol == 4 ) {
+			Rect iconRect = (**RSlocal[w].left).contrlRect;
+			iconRect.top += 1;
+			iconRect.right = iconRect.left;
+			iconRect.left = RSlocal[w].window->portRect.left;
+			iconRect.bottom = iconRect.top + LOCKWIDTH;
+			if ( !visRgn || RectInRgn(&iconRect, visRgn) ) {
+				PlotIconID(&iconRect, kAlignNone, kTransformNone, sshicon);
+			}
+		}
+	}
+}
+
+
+short RSupdate
   (
 	GrafPtr wind
   )
@@ -293,13 +319,14 @@ Boolean RSisInFront(short w)
 		DrawGrowIcon(wind);
 		PenMode(patCopy);
 		//DrawControls(wind);
-		UpdateControls(wind, wind->visRgn);
 	}
+	UpdateControls(wind, wind->visRgn);
+	RSdrawlocker(w, wind->visRgn);
     EndUpdate(wind);
 	return(0);
   } /* RSupdate */
   
-  short RSTextSelected(short w) {		/* BYU 2.4.11 */
+short RSTextSelected(short w) {		/* BYU 2.4.11 */
   return(RSlocal[w].selected);	/* BYU 2.4.11 */
 }								/* BYU 2.4.11 */
 
@@ -404,7 +431,7 @@ short RSsize (GrafPtr window, long *where, long modifiers)
 		SizeWindow(window, h, v, FALSE);					/* change it */
 		} 	
 
-	RSsetsize(w, v, h); /* save new size settings and update scroll bars */
+	RSsetsize(w, v, h, screenIndex); /* save new size settings and update scroll bars */
 
   /* update the visible region of the virtual screen */
 
@@ -556,6 +583,8 @@ short RSnewwindow
 	WStateData	*wstate;
 	WindowPeek	wpeek;
 	CTabHandle	ourColorTableHdl;
+	int			i;
+
   /* create the virtual screen */
 	w = VSnewscreen(scrollback, (scrollback != 0), /* NCSA 2.5 */
 		lines, width, forcesave, ignoreBeeps, oldScrollback, jump, realBlink);	/* NCSA 2.5 */
@@ -604,7 +633,6 @@ short RSnewwindow
 		}
 	else
 	  {
-		short i;
 		RGBColor scratchRGB;
 		
 		RScurrent->window = NewCWindow(0L, wDims, name, showit, (short)8,kInFront, goaway, (long)w);
@@ -670,7 +698,8 @@ short RSnewwindow
 		pRect.right = TelInfo->screenRect.right;
 
 	pRect.bottom = pRect.top + RMAXWINDOWHEIGHT;
-	BlockMoveData(&wstate->stdState, &pRect, 8);
+
+/*	BlockMoveData(&wstate->stdState, &pRect, 8); uh ? */
 
   /* create scroll bars for window */
 	pRect.top = -1 + CVO;
@@ -682,10 +711,15 @@ short RSnewwindow
 
 	if (RScurrent->scroll == 0L) return(-3);
 
+	if ( screens[screenNumber].protocol == 4 ) {
+		i = LOCKWIDTH + 1;
+	} else {
+		i = 0;
+	}
 	pRect.top = wheight - 15 + CVO;
 	pRect.bottom = wheight + CVO;
-	pRect.left = -1 + CHO + LOCKWIDTH;
-	pRect.right = wwidth - 14 + CHO;
+	pRect.left = -1 + CHO + i;
+	pRect.right = wwidth - 14 - i + CHO;
 	RScurrent->left = NewControl(RScurrent->window, &pRect, "\p", FALSE,		/* BYU LSC */
 		0, 0, 0, 16, 1L);
 
@@ -701,7 +735,7 @@ short RSnewwindow
 	RScurrent->selected = 0;	/* no selection initially */
 	RScurrent->cursorstate = 0;	/* BYU 2.4.11 - cursor off initially */
 	RScurrent->flipped = 0;		/* Initially, the color entries are not flipped */
-	RSsetsize(w, wheight, wwidth);
+	RSsetsize(w, wheight, wwidth, screenNumber);
 
 	RSTextFont(RScurrent->fnum,RScurrent->fsiz,0);	/* BYU LSC */
 	TextSize(RScurrent->fsiz);				/* 9 point*/
@@ -959,14 +993,20 @@ void RSdeactivate
 	SetPort(RSlocal[w].window);
 
 	RSsetConst(w);
+
+  /* deactivate the scroll bars */
+	BackColor(whiteColor);
+
+	if (RSlocal[w].scroll != 0L) {
+		HideControl(RSlocal[w].scroll);
+	}
+	if (RSlocal[w].left != 0L) {
+		HideControl(RSlocal[w].left);
+	}
+
   /* update the appearance of the grow icon */
 	DrawGrowIcon(RSlocal[w].window); 
-  /* and deactivate the scroll bars */
-	BackColor(whiteColor);
-	if (RSlocal[w].scroll != 0L)
-		HideControl(RSlocal[w].scroll);
-	if (RSlocal[w].left != 0L)
-		HideControl(RSlocal[w].left);
+
 	if (TelInfo->haveColorQuickDraw)
 		PmBackColor(1);
 	else
@@ -1135,7 +1175,7 @@ void RScalcwsize(short w, short width)
 		RScurrent->rwidth + 16, RScurrent->rheight+16,
 		FALSE
 	  ); 
-	RSsetsize(w, RScurrent->rheight + 16, RScurrent->rwidth + 16);
+	RSsetsize(w, RScurrent->rheight + 16, RScurrent->rwidth + 16, -1);
 	VSgetrgn(w, &x1, &y1, &x2, &y2);
 	VSsetrgn(w, x1, y1,
 		(short) (x1 + (RScurrent->rwidth ) / RScurrent->fwidth - 1),
@@ -1143,6 +1183,7 @@ void RScalcwsize(short w, short width)
 	VSgetrgn(w, &x1, &y1, &x2, &y2);		/* Get new region */
 	
 	DrawGrowIcon(RScurrent->window);
+	RSdrawlocker(w, RScurrent->window->visRgn);
 	VSredraw(w, 0, 0, x2 - x1 + 1, y2 - y1 + 1); /* redraw newly-revealed area, if any */
 	ValidRect(&RScurrent->window->portRect); /* no need to do it again */
 	DrawControls(RScurrent->window);
@@ -1241,10 +1282,12 @@ void RSactivate
   /* display the grow icon */
 	DrawGrowIcon(RSlocal[w].window);
   /* and activate the scroll bars */
-	if (RSlocal[w].scroll != 0L)
+	if (RSlocal[w].scroll != 0L) {
 		ShowControl(RSlocal[w].scroll);
-	if (RSlocal[w].left != 0L)
+	}
+	if (RSlocal[w].left != 0L) {
 		ShowControl(RSlocal[w].left);
+	}
   } /* RSactivate */
 
 /*--------------------------------------------------------------------------*/
@@ -1451,7 +1494,7 @@ void RSchangefont(short w, short fnum,long fsiz)
 		RScurrent->rwidth + 16, RScurrent->rheight+16,
 		FALSE
 	  ); /*  TRUE if done right */
-	RSsetsize(w, RScurrent->rheight + 16, RScurrent->rwidth + 16);
+	RSsetsize(w, RScurrent->rheight + 16, RScurrent->rwidth + 16, -1);
 
 	wpeek = (WindowPeek) RScurrent->window;
 
@@ -1472,6 +1515,7 @@ void RSchangefont(short w, short fnum,long fsiz)
 	VSgetrgn(w, &x1, &y1, &x2, &y2);		/* Get new region */
 	
 	DrawGrowIcon(RScurrent->window);
+	RSdrawlocker(w, RScurrent->window->visRgn);
 	VSredraw(w, 0, 0, x2 - x1 + 1, y2 - y1 + 1); /* redraw newly-revealed area, if any */
 	ValidRect(&RScurrent->window->portRect); /* no need to do it again */
 	DrawControls(RScurrent->window);
