@@ -157,6 +157,13 @@ static Boolean LaunchURL(Handle urlH, short w)
 						kCoreEventClass, kAEOpenApplication,
 						keyDirectObject, "\p", 0, launchControlFlags);
 			}
+			if ( err != noErr ) {
+				/* try using IC */
+				fakeSelBegin = 0;
+				fakeSelEnd = returnedSize;
+				ICFindConfigFile(inst, 0, 0);
+				err = ICLaunchURL(inst, aligned_pstring("\p"), *urlH, returnedSize, &fakeSelBegin, &fakeSelEnd);
+			}
 		}
 		return err == noErr;
 	}
