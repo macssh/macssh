@@ -49,10 +49,11 @@
 #define FLlog		11		/* File Menu: ftp log on */
 #define FLotp		12		// RAB BetterTelnet 1.2 - OTP
 #define FLprint		14		/* File Menu: Print Selection */
-#define FLpset		15		/* File Menu: Page Setup */
-#define FLselect	16		// RAB BetterTelnet 1.0fc9 - Save Selection to File
-#define FLupload	17		// RAB BetterTelnet 1.0fc9 - Upload File
-#define FLquit		19		/* File Menu: Quit */
+#define FLprintScrn	15		/* File Menu: Print Selection */
+#define FLpset		16		/* File Menu: Page Setup */
+#define FLselect	17		// RAB BetterTelnet 1.0fc9 - Save Selection to File
+#define FLupload	18		// RAB BetterTelnet 1.0fc9 - Upload File
+#define FLquit		20		/* File Menu: Quit */
 
 /* ----------------- The Edit Menu ---------------------- */
 #define	EDundo		1
@@ -123,7 +124,9 @@
 /* ----------------- The Connection Menu ---------------------- */
 #define COnext			1	/* Connection Menu: Next Session... */
 #define	COtitle			2	/* Change window title */
-#define	FIRST_CNXN_ITEM	4	/* The first slot for connections in the menu */
+#define	COshowlog		3	/* Show/Hide Log window */
+
+#define	FIRST_CNXN_ITEM	5	/* The first slot for connections in the menu */
 
 /* ----------------- The Preferences Menu --------------------- */
 #define	prfGlobal	1
