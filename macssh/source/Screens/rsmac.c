@@ -865,9 +865,11 @@ void RSdellines
 
 	if (scrolled)
 	  {
-		if (RScurrent->selected && scrolled < 0)
+// attempt to keep current selection
+#if 0
+		if (RScurrent->selected /*&& scrolled < 0*/)
 		  {
-		  /* unhighlight and cancel current selection */
+			/* unhighlight and cancel current selection */
 	  		UnHiliteSelection(w);
 		  }
 		else
@@ -875,6 +877,20 @@ void RSdellines
 			RScurrent->last.v -= 1;		/* Subtract one from each of the */
 			RScurrent->anchor.v -= 1;	/* vertical Selection components */
 		  } /* if */
+#endif
+		if ( RScurrent->selected ) {
+			RScurrent->anchor.v += scrolled;
+			RScurrent->last.v += scrolled;
+			if ( RScurrent->anchor.v < -VSIw->numlines ) {
+				RScurrent->anchor.v = -VSIw->numlines;
+				RScurrent->anchor.h = -1;
+			}
+			if ( RScurrent->last.v < -VSIw->numlines ) {
+				RScurrent->last.v = -VSIw->numlines;
+				RScurrent->selected = FALSE;
+			}
+		}
+//
 	  } /* if */
 
 	MYSETRECT
@@ -955,11 +971,13 @@ void RSinslines
 
 	RSsetattr(0, 0);
 
-	if (RScurrent->selected && (scrolled < 0))
+#if 0
+	if (RScurrent->selected != 0 && (scrolled < 0))
 	  {
 	  /* unhighlight and cancel selection */
 	  	UnHiliteSelection(w);
 	  } /* if */
+#endif
 
     MYSETRECT
 	  (
@@ -971,6 +989,21 @@ void RSinslines
 	  );
 
 	ScrollRectInRgn(RScurrent->window, &rect, 0, RScurrent->fheight * n);
+
+// attempt to keep current selection
+	if ( RScurrent->selected && scrolled ) {
+		RScurrent->anchor.v += scrolled;
+		RScurrent->last.v += scrolled;
+		if ( RScurrent->anchor.v < -VSIw->numlines ) {
+			RScurrent->anchor.v = -VSIw->numlines;
+			RScurrent->anchor.h = -1;
+		}
+		if ( RScurrent->last.v < -VSIw->numlines ) {
+			RScurrent->last.v = -VSIw->numlines;
+			RScurrent->selected = FALSE;
+		}
+	}
+//
 
     RSsetattr(VSIw->lattrib, VSIw->attrib); /* restore mode for text drawing */
 } /* RSinslines */

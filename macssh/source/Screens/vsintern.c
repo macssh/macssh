@@ -1492,7 +1492,7 @@ void VSIflush(void)
 {
 	if (!VSIw->linesjumped) return; // nothing to flush
 	RSlocal[VSIwn].skip = 0;
-	VSIcdellines(VSIwn, VSIw->top, VSIw->bottom, VSIw->linesjumped, -1);
+	VSIcdellines(VSIwn, VSIw->top, VSIw->bottom, VSIw->linesjumped, -VSIw->linesjumped);
 
 	if (VSIw->linesjumped > (VSIw->bottom - VSIw->top))
 		VSredraw(VSIwn, 0, VSIw->top - VSIw->Rtop, VSIw->maxwidth,
