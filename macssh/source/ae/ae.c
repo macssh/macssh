@@ -572,7 +572,9 @@ goodUrl:
 	if ( gApplicationPrefs->parseAliases ) {
 		BlockMoveData(host, favorite+1, favorite[0] = strlen(host));
 		if ( (theParams = NameToConnInitParams(favorite, false, "\p", &wasAlias)) != NULL ) {
-			SessionPrefs *SessPtr = *((**theParams).session);
+			SessionPrefs *SessPtr;
+			HLock((Handle)(**theParams).session);
+			SessPtr = *((**theParams).session);
 			if ( user != NULL ) {
 				BlockMoveData(user, (unsigned char *)SessPtr->username + 1, ((unsigned char *)SessPtr->username)[0] = strlen(user));
 				if ( password != NULL ) {
@@ -584,12 +586,9 @@ goodUrl:
 				StringToNum(favorite, &port);
 				SessPtr->port = port;
 			}
+			HUnlock((Handle)(**theParams).session);
 		}
 	}
-	if ( user == NULL )
-		user = "";
-	if ( password == NULL )
-		password = "";
 	if ( theParams && CreateConnectionFromParams(theParams) ) {
 		TelInfo->gotDocument = 1;
 		err = noErr;
