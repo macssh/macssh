@@ -29,6 +29,44 @@ static void ProcessURLEscapeCodes (char *url, char **end);
 
 void AEunload(void) { }
 
+static OSErr GetAEStringParam(AppleEvent *theAppleEvent, AEKeyword theKeyword, Str255 theString)
+{
+	OSErr		err;
+	DescType	returnedType;
+	Size		actualSize;
+
+	err = AEGetParamPtr(theAppleEvent, theKeyword, typeChar, &returnedType, theString + 1,
+						sizeof(Str255) - 1, &actualSize);
+	theString[0] = (err == noErr) ? actualSize : 0;
+	return err;
+}
+
+static OSErr GetAEBoolParam(AppleEvent *theAppleEvent, AEKeyword theKeyword, Boolean *theBoolean)
+{
+	OSErr		err;
+	Str255		theString;
+	DescType	returnedType;
+	Size		actualSize;
+
+	err = AEGetParamPtr(theAppleEvent, theKeyword, typeChar, &returnedType, theString + 1,
+						sizeof(Str255) - 1, &actualSize);
+	*theBoolean = (err == noErr);
+	return err;
+}
+
+static OSErr GetAEEnumParam(AppleEvent *theAppleEvent, AEKeyword theKeyword, DescType *enumID)
+{
+	OSErr		err;
+	DescType	returnedType;
+	Size		actualSize;
+
+	err = AEGetParamPtr(theAppleEvent, theKeyword, typeEnumerated, &returnedType, enumID,
+						sizeof(DescType), &actualSize);
+	if (err)
+		*enumID = 0;
+	return err;
+}
+
 SIMPLE_UPP(MyHandleODoc, AEEventHandler);
 pascal OSErr  MyHandleODoc (AppleEvent *theAppleEvent, AppleEvent* reply, long
 														handlerRefCon)
@@ -116,29 +154,20 @@ pascal OSErr  MyHandleSendData (AppleEvent *theAppleEvent, AppleEvent* reply, lo
 														handlerRefCon)
 {
 	OSErr		err;
-	DescType	returnedType;
-	Size		actualSize;
-	char		DataString[255];
+	Str255		DataString;
 
-	if ((err = AEGetParamPtr(theAppleEvent, keyDirectObject, typeChar, &returnedType,
-								DataString, sizeof(DataString)-1, &actualSize)) != noErr)
+	if ((err = GetAEStringParam(theAppleEvent, keyDirectObject, DataString)) != noErr)
 		return err;
 
 	// check for missing parameters
 	if ((err = MyGotRequiredParams(theAppleEvent)) != noErr)
 		return err;
-
-	DataString[actualSize] = 0;		// Terminate the C string
-
-	if (actualSize == 0) return noErr;
-	if (TelInfo->numwindows < 1) return noErr;
-
-	SendStringAsIfTyped(&screens[scrn], DataString, strlen(DataString));
-
-goodexit:
-	err = noErr;
-badexit:
-	return err;
+	if (DataString[0] == 0)
+		return noErr;
+	if (TelInfo->numwindows < 1)
+		return noErr;
+	SendStringAsIfTyped(&screens[scrn], DataString+1, DataString[0]);
+	return noErr;
 }
 
 SIMPLE_UPP(MyHandleSendCR, AEEventHandler);
@@ -160,11 +189,7 @@ pascal OSErr  MyHandleSendCR (AppleEvent *theAppleEvent, AppleEvent* reply, long
 		SendStringAsIfTyped(&screens[scrn],"\015\012",2); */
 
 	SendCRAsIfTyped(&screens[scrn]);
-
-goodexit:
-	err = noErr;
-badexit:
-	return err;
+	return noErr;
 }
 
 SIMPLE_UPP(MyHandleSuspend, AEEventHandler);
@@ -195,92 +220,71 @@ pascal OSErr  MyHandleUnSuspend (AppleEvent *theAppleEvent, AppleEvent* reply, l
 	return noErr;
 }
 
+
 SIMPLE_UPP(MyHandleConnect, AEEventHandler);
-pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply, long
-														handlerRefCon)
+pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply,
+								long handlerRefCon)
 {
 	OSErr		err;
-	DescType	returnedType;
-	Size		actualSize;
-	char		NameString[255];
-	char		HostString[255];
-	char		LoginString[255];
-	char		PasswordString[255];
-	char		TitleString[255];
-	short		mystrpos, doWait, isSuspended;
+	Str255		nameString;
+	Str255		hostString;
+	Str255		loginString;
+	Str255		passwordString;
+	DescType	protoID;
+	Str255		commandString;
+	Str255		titleString;
+	Boolean		doWait;
+	Boolean		isSuspended;
+	short		mystrpos;
 	ConnInitParams **theParams;
 	SessionPrefs	*SessPtr;
 	Boolean		wasAlias;
 
-	if (handlerRefCon == 1) return noErr;
-	if (handlerRefCon == 2) return paramErr;
-
-	if ((err = AEGetParamPtr(theAppleEvent, keyDirectObject, typeChar, &returnedType,
-								NameString, sizeof(NameString)-1, &actualSize)) != noErr)
-		return err;
-
-	NameString[actualSize] = 0;
-	if (actualSize == 0) return paramErr;
-
-	if (AEGetParamPtr(theAppleEvent, 'host', typeChar, &returnedType, HostString,
-								sizeof(HostString)-1, &actualSize))
-		HostString[0] = 0; // nope
-	else HostString[actualSize] = 0; // yup
-
-	if (AEGetParamPtr(theAppleEvent, 'logi', typeChar, &returnedType, LoginString,
-								sizeof(LoginString)-1, &actualSize))
-		LoginString[0] = 0; // nope
-	else LoginString[actualSize] = 0; // yup
-
-	if (AEGetParamPtr(theAppleEvent, 'pass', typeChar, &returnedType, PasswordString,
-								sizeof(PasswordString)-1, &actualSize))
-		PasswordString[0] = 0; // nope
-	else PasswordString[actualSize] = 0; // yup
-
-	if (AEGetParamPtr(theAppleEvent, 'wait', typeChar, &returnedType, TitleString,
-								sizeof(TitleString)-1, &actualSize))
-		doWait = 0;
-	else doWait = 1;
-
-	if (AEGetParamPtr(theAppleEvent, 'susp', typeChar, &returnedType, TitleString,
-								sizeof(TitleString)-1, &actualSize))
-		isSuspended = 0;
-	else isSuspended = 1;
-
-	if (AEGetParamPtr(theAppleEvent, 'titl', typeChar, &returnedType, TitleString,
-								sizeof(TitleString)-1, &actualSize))
-		TitleString[0] = 0; // nope
-	else TitleString[actualSize] = 0; // yup
-
+	if (handlerRefCon == 1)
+		return noErr;
+	if (handlerRefCon == 2)
+		return paramErr;
+	GetAEStringParam(theAppleEvent, keyDirectObject, nameString);
+	if ( !*nameString )
+		pstrcpy(nameString, "\p<Default>");
+	GetAEStringParam(theAppleEvent, 'host', hostString);
+	GetAEStringParam(theAppleEvent, 'logi', loginString);
+	GetAEStringParam(theAppleEvent, 'pass', passwordString);
+	GetAEStringParam(theAppleEvent, 'cmnd', commandString);
+	GetAEBoolParam(theAppleEvent, 'wait', &doWait);
+	GetAEBoolParam(theAppleEvent, 'susp', &isSuspended);
+	GetAEStringParam(theAppleEvent, 'titl', titleString);
+	GetAEEnumParam(theAppleEvent, 'prot', &protoID);
 
 	// check for missing parameters
 	if ((err = MyGotRequiredParams(theAppleEvent)) != noErr)
 		return err;
-
-	c2pstr(NameString);
-	c2pstr(HostString);
-	c2pstr(LoginString);
-	c2pstr(PasswordString);
-
-	if (HostString[0]) {
-		for (mystrpos = 0; mystrpos < StrLength(HostString); mystrpos++)
-			if (HostString[mystrpos + 1] == ':')
-				HostString[mystrpos + 1] = ' ';
-		theParams = NameToConnInitParams((unsigned char *)HostString,
-			FALSE, (unsigned char *)NameString, &wasAlias);
+	if ( *hostString ) {
+		for ( mystrpos = 0; mystrpos < *hostString; mystrpos++ )
+			if ( hostString[mystrpos + 1] == ':' )
+				hostString[mystrpos + 1] = ' ';
+		theParams = NameToConnInitParams( hostString, FALSE, nameString, &wasAlias );
+	} else {
+		theParams = NameToConnInitParams( nameString, TRUE, 0, &wasAlias );
 	}
-	else
-		theParams = NameToConnInitParams((unsigned char *)NameString, TRUE, 0, &wasAlias);
 	if (theParams == NULL)
 		return paramErr;
-
 	SessPtr = *((**theParams).session);
-	if ( LoginString[0] ) {
-		pstrcpy((unsigned char *)SessPtr->username, (unsigned char *)LoginString);
+	if ( *loginString )
+		pstrcpy((unsigned char *)SessPtr->username, loginString);
+	if ( *passwordString )
+		pstrcpy((unsigned char *)SessPtr->password, passwordString);
+	switch ( protoID ) {
+		case 'Tlnt': SessPtr->protocol = 0; break;
+		case 'Rlog': SessPtr->protocol = 1; break;
+		case 'Rsh ': SessPtr->protocol = 2; break;
+		case 'Rexe': SessPtr->protocol = 3; break;
+		case 'Ssh ': SessPtr->protocol = 4; break;
 	}
-	if ( PasswordString[0] ) {
-		pstrcpy((unsigned char *)SessPtr->password, (unsigned char *)PasswordString);
-	}
+	if ( *commandString )
+		pstrcpy((unsigned char *)SessPtr->command, commandString);
+	if ( *titleString )
+		pstrcpy((**theParams).WindowName, titleString);
 	if (CreateConnectionFromParams(theParams)) {
 		if (doWait) {
 			err = AESuspendTheCurrentEvent(theAppleEvent);
@@ -292,12 +296,7 @@ pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply, lon
 			screens[TelInfo->numwindows - 1].enabled = 0;
 		return noErr;
 	}
-	err = paramErr;
-
-goodexit:
-	err = noErr;
-badexit:
-	return err;
+	return paramErr;
 }
 
 SIMPLE_UPP(MyHandleWait, AEEventHandler);
@@ -305,28 +304,27 @@ pascal OSErr  MyHandleWait (AppleEvent *theAppleEvent, AppleEvent* reply, long
 														handlerRefCon)
 {
 	OSErr		err;
-	DescType	returnedType;
-	Size		actualSize;
-	char		DataString[255];
+	Str255		dataString;
 	short		i, k;
 
 	if (handlerRefCon == 1) return noErr;
 	if (handlerRefCon == 2) return paramErr;
 
-	if (TelInfo->numwindows < 1) return noErr; // RAB BetterTelnet 2.0b2 (oops)
+	if (TelInfo->numwindows < 1)
+		return noErr; // RAB BetterTelnet 2.0b2 (oops)
 
-	if ((err = AEGetParamPtr(theAppleEvent, keyDirectObject, typeChar, &returnedType,
-								DataString, sizeof(DataString)-1, &actualSize)) != noErr)
+	if ((err = GetAEStringParam(theAppleEvent, keyDirectObject, dataString)) != noErr)
 		return err;
 
-	DataString[actualSize] = 0;
-	if (actualSize == 0) return paramErr;
+	if (dataString[0] == 0)
+		return paramErr;
 
 	// check for missing parameters
 	if ((err = MyGotRequiredParams(theAppleEvent)) != noErr)
 		return err;
 
-	if (err = AESuspendTheCurrentEvent(theAppleEvent)) return err;
+	if (err = AESuspendTheCurrentEvent(theAppleEvent))
+		return err;
 
 	screens[scrn].waWeHaveAppleEvent = 1;
 	screens[scrn].waAppleEvent = *theAppleEvent;
@@ -335,8 +333,8 @@ pascal OSErr  MyHandleWait (AppleEvent *theAppleEvent, AppleEvent* reply, long
 	screens[scrn].enabled = 1;
 	screens[scrn].waWaitPos = 0;
 	screens[scrn].waWaiting = 1;
-	screens[scrn].waWaitLength = strlen(DataString);
-	strcpy(screens[scrn].waWaitString, DataString);
+	screens[scrn].waWaitLength = dataString[0];
+	BlockMoveData(dataString + 1, screens[scrn].waWaitString, dataString[0]);
 
 // RAB BetterTelnet 2.0b2
 // This next code computes the Knuth-Morris-Platt prefix function for the string
