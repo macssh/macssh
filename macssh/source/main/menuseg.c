@@ -2283,8 +2283,8 @@ void	ChangeWindowName(WindowPtr	theWindow)
 			GetTEText(dptr, kWinNameTE, theName);
 			set_new_window_name(theName, theWindow);
 			}
-		ResetMenus();
 		DisposeDialog(dptr);
+		ResetMenus();
 		}
 }
 
