@@ -763,7 +763,21 @@ InternalBufferFilter(DialogPtr dlog,EventRecord *event,short *itemHit)
 		case '.':			// Cmd-.
 			if (!(event->modifiers & cmdKey))
 				break;
+			return CallStdFilterProc(dlog, event, itemHit);
 		case '\r':			// Return
+			if ( ((DialogPeek)dlog)->editField != 2 ) {
+				SInt16 itemType;
+				Handle itemHandle;
+				Rect itemRect;
+				Str255 temp;
+				GetDialogItem(dlog, 3, &itemType, &itemHandle, &itemRect);
+				GetDialogItemText(dlog, temp);
+				if (!*temp) {
+					SelectDialogItemText(dlog, 3, 0, 255);
+					event->what = nullEvent;
+					return false;
+				}
+			}
 		case '\003':		// Enter
 		case '\033':			// Esc
 		case '\t':			// Tab
