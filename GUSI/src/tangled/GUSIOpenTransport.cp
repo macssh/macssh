@@ -823,7 +823,7 @@ ssize_t GUSIOTStreamSocket::recvfrom(
  //                                                                         
  // <Keep [[T_EXDATA]] flag set until we finish reading expedited data>=    
  if (exp && (otflags & (T_EXPEDITED|T_MORE)) != T_EXPEDITED) 
-		fEvent |= exp;
+ 	fEvent |= exp;
 	return res;
 }
 // <Member functions for class [[GUSIOTStreamSocket]]>=                    

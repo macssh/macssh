@@ -4,7 +4,10 @@
 // % Author	:	Matthias Neeracher                                           
 // % Language	:	C++                                                        
 // %                                                                       
-// % $Log$                                        
+// % $Log$
+// % Revision 1.2  2001/03/28 14:04:32  chombier
+// % GUSI 2.1.6b2 update
+// %                                        
 // % Revision 1.21  2001/03/20 08:12:55  neeri                             
 // % Further select repairs                                                
 // %                                                                       
@@ -98,6 +101,26 @@
 #undef TCP_KEEPALIVE
 #undef TCP_NODELAY
 #undef TCP_MAXSEG
+
+#if UNIVERSAL_INTERFACES_VERSION >= 0x0340
+#undef IP_OPTIONS
+#undef IP_TOS
+#undef IP_TTL
+#undef IP_REUSEADDR
+#undef IP_DONTROUTE
+#undef IP_BROADCAST
+#undef IP_HDRINCL
+#undef IP_RCVOPTS
+#undef IP_RCVDSTADDR
+#undef IP_MULTICAST_IF
+#undef IP_MULTICAST_TTL
+#undef IP_MULTICAST_LOOP
+#undef IP_ADD_MEMBERSHIP
+#undef IP_DROP_MEMBERSHIP
+#undef IP_RCVIFADDR
+
+#undef SIGURG
+#endif
 
 #include <OpenTransport.h>
 #include <OpenTptInternet.h>

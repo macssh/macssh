@@ -4,13 +4,19 @@
 // % Author	:	Matthias Neeracher                                           
 // % Language	:	C++                                                        
 // %                                                                       
-// % $Log$
-// % Revision 1.1.1.1  2001/03/07 09:50:44  chombier
-// % First Imported.
-// %
-// % Revision 1.1.1.1  2001/03/03 21:50:11  chombier
-// % Initial import
-// %                                             
+// % $Log$                                             
+// % Revision 1.19  2001/04/16 01:50:02  neeri                             
+// % Fix GUSIFSpGetCatInfo (MacPerl bug #232702); Fix parsing of absolute paths with embedded aliases.
+// %                                                                       
+// % Revision 1.18  2001/04/01 07:40:15  neeri                             
+// % Fix :::paths (MacPerl Bug #409940)                                    
+// %                                                                       
+// % Revision 1.17  2001/03/20 02:34:22  neeri                             
+// % Commented out false friends                                           
+// %                                                                       
+// % Revision 1.16  2001/03/09 09:20:53  neeri                             
+// % Fixed major bugs in relative path generation                          
+// %                                                                       
 // % Revision 1.15  2001/01/17 08:46:45  neeri                             
 // % Get rid of excess directory seperators when name is empty             
 // %                                                                       
@@ -125,8 +131,8 @@ OSErr GUSIFSpResolve(FSSpec * spec);
 /* Touch folder containing the object */
 OSErr GUSIFSpTouchFolder(const FSSpec * spec);
 
-/* Get catalog information */
-OSErr GUSIFSpGetCatInfo(const FSSpec * spec, CInfoPBRec * info);
+/* Get catalog information (after resolving leaf aliases) */
+OSErr GUSIFSpGetCatInfo(FSSpec * spec, CInfoPBRec * info);
 __END_DECLS
 
 #ifdef GUSI_SOURCE

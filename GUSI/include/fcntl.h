@@ -122,7 +122,7 @@ int	fcntl __P((int, int, ...));
 /* This properly belongs into stdio.h, but that header is outside of
    GUSI's control
 */
-#if defined(__MWERKS__) && !defined(_SFSTDIO_H)
+#if defined(__MWERKS__) && __MWERKS__ < 0x2401 && !defined(_SFSTDIO_H)
 FILE * fdopen(int fildes, char *type);
 #else
 FILE * fdopen(int fildes, const char *type);

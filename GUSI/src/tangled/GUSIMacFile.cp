@@ -583,17 +583,17 @@ int GUSIMacFileDevice::stat(GUSIFileToken & file, struct stat * buf)
 		return GUSISetPosixError(ENOENT);
 		
 	const GUSICatInfo & 			cb = *file.CatInfo();
-	GUSIIOPBWrapper<ParamBlockRec>	pb;
+	GUSIIOPBWrapper<XVolumeParam>	pb;
 	Str63							vName;
 	
-	pb->volumeParam.ioNamePtr	=	vName;
-	pb->volumeParam.ioVRefNum	=	file->vRefNum;
-	pb->volumeParam.ioVolIndex	=	0;
+	pb->ioNamePtr	=	vName;
+	pb->ioVRefNum	=	file->vRefNum;
+	pb->ioVolIndex	=	0;
 
-	if (GUSIFSGetVInfo(&pb))
+	if (GUSIFSXGetVolInfo(&pb))
 		return GUSISetPosixError(ENOENT);
 		
-	buf->st_dev		=	pb->ioParam.ioVRefNum;
+	buf->st_dev		=	pb->ioVRefNum;
 	buf->st_ino		=	cb.DirInfo().ioDrDirID;
 	buf->st_nlink	=	1;
 	buf->st_uid		=	0;
@@ -602,7 +602,7 @@ int GUSIMacFileDevice::stat(GUSIFileToken & file, struct stat * buf)
 	buf->st_atime	=	cb.FileInfo().ioFlMdDat;
 	buf->st_mtime	=	cb.FileInfo().ioFlMdDat;
 	buf->st_ctime	=	cb.FileInfo().ioFlCrDat;
-	buf->st_blksize	=	pb->volumeParam.ioVAlBlkSiz;
+	buf->st_blksize	=	pb->ioVAlBlkSiz;
 
 	if (!cb.IsFile())	{
 		// Depending on our preference settings, we employ a faster or a slower method
@@ -615,7 +615,7 @@ int GUSIMacFileDevice::stat(GUSIFileToken & file, struct stat * buf)
   if (GUSIConfiguration::Instance()->fAccurateStat) {
   	GUSIFileSpec	spec;
 
-  	spec.SetVRef(pb->ioParam.ioVRefNum);
+  	spec.SetVRef(pb->ioVRefNum);
   	spec.SetParID(cb.DirInfo().ioDrDirID);
   	for (int i = 0; i++ < cb.DirInfo().ioDrNmFls;) {
   		spec	=	spec[i];
@@ -654,7 +654,7 @@ int GUSIMacFileDevice::stat(GUSIFileToken & file, struct stat * buf)
 		buf->st_size	=	cb.FileInfo().ioFlLgLen;		/* Resource fork is ignored	*/
 	}
 
-	buf->st_blocks	=	(buf->st_size + 511) >> 9;
+	buf->st_blocks	=	(buf->st_size + buf->st_blksize - 1) / buf->st_blksize;
 	
 	return 0;
 }
@@ -771,7 +771,15 @@ int GUSIMacFileDevice::rmdir(GUSIFileToken & file)
 // <Member functions for class [[GUSIMacFileDevice]]>=                     
 GUSIDirectory * GUSIMacFileDevice::opendir(GUSIFileToken & file)
 {
-	return new GUSIMacDirectory(++file);
+	GUSIDirectory * dir = 0;
+	
+	++file;
+	if (!file.Error()) 
+		dir = new GUSIMacDirectory(file);
+	else
+		GUSISetPosixError(ENOTDIR);
+		
+	return dir;
 }
 // [[VRef2Icon]] finds the driver icon for a volume.                       
 //                                                                         
@@ -1110,21 +1118,21 @@ GUSIMacFileSocket::GUSIMacFileSocket(short fileRef, bool append, int mode)
  fcb->ioRefNum	= fFileRef;
  fcb->ioFCBIndx	= 0;
  if (!GUSIFSGetFCBInfo(&fcb)) {
- 	GUSIIOPBWrapper<ParamBlockRec>	info;
- 	info->volumeParam.ioNamePtr	=	name;
- 	info->volumeParam.ioVRefNum	=	fcb->ioVRefNum;
- 	info->volumeParam.ioVolIndex=	0;
+ 	GUSIIOPBWrapper<XVolumeParam>	info;
+ 	info->ioNamePtr	=	name;
+ 	info->ioVRefNum	=	fcb->ioVRefNum;
+ 	info->ioVolIndex=	0;
  	
- 	if (!GUSIFSGetVInfo(&info))
- 		fBlockSize = info->volumeParam.ioVAlBlkSiz;
+ 	if (!GUSIFSXGetVolInfo(&info))
+ 		fBlockSize = info->ioVAlBlkSiz;
  }
  // <Initialize fields of [[GUSIMacFileSocket]]>=                           
  if (!fReadShutdown && !sReadProc)
- 	sReadProc = NewIOCompletionProc(GUSIMFReadDoneEntry);
+ 	sReadProc = NewIOCompletionProc(reinterpret_cast<IOCompletionProcPtr>(GUSIMFReadDoneEntry));
  if (!fWriteShutdown && !sWriteProc)
- 	sWriteProc = NewIOCompletionProc(GUSIMFWriteDoneEntry);
+ 	sWriteProc = NewIOCompletionProc(reinterpret_cast<IOCompletionProcPtr>(GUSIMFWriteDoneEntry));
  if (!sWakeupProc)
- 	sWakeupProc = NewIOCompletionProc(GUSIMFWakeupEntry);
+ 	sWakeupProc = NewIOCompletionProc(reinterpret_cast<IOCompletionProcPtr>(GUSIMFWakeupEntry));
  // The write and read parameter blocks are highly specialized and never really
  // change during the existence of a socket.                                
  //                                                                         

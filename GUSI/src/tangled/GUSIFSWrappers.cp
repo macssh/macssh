@@ -7,6 +7,9 @@
 #include <Devices.h>
 #include <Script.h>
 #include <StringCompare.h>
+#include <Traps.h>
+#include <FSM.h>
+#include <Gestalt.h>
 
 // <Implementation of [[GUSIFSWrappers]]>=                                 
 OSErr GUSIFSGetCatInfo(GUSIIOPBWrapper<GUSICatInfo> * info)
@@ -369,4 +372,101 @@ OSErr GUSIFSMoveRename(const FSSpec * spec, const FSSpec * dest)
  	err = GUSIFSMoveRename1(spec, dest);
 	
 	return err;
+}
+// [[PBXGetVolInfoSync]] was a late addition to InterfaceLib, so we avoid linking to it
+// and instead employ the method demonstrated in MoreFiles, calling the routine via its
+// trap or via a dynamic lookup.                                           
+//                                                                         
+// <Implementation of [[GUSIFSWrappers]]>=                                 
+#if TARGET_API_MAC_CARBON || !TARGET_RT_MAC_CFM
+	// Carbon builds and 68K builds don't need this glue
+	#define CallPBXGetVolInfoAsync PBXGetVolInfoAsync
+#else	//	TARGET_API_MAC_CARBON || !TARGET_RT_MAC_CFM
+	/* This is exactly like the simple mixed mode glue in InterfaceLib in Mac OS 8.5 and 8.6 */
+	static pascal OSErr PBXGetVolInfoAsyncGlue(XVolumeParamPtr paramBlock)
+	{
+		enum
+		{
+			uppFSDispatchProcInfo = kRegisterBased
+				 | REGISTER_RESULT_LOCATION(kRegisterD0)
+				 | RESULT_SIZE(SIZE_CODE(sizeof(OSErr)))
+				 | REGISTER_ROUTINE_PARAMETER(1, kRegisterD0, SIZE_CODE(sizeof(long)))	/* selector */
+				 | REGISTER_ROUTINE_PARAMETER(2, kRegisterD1, SIZE_CODE(sizeof(long)))	/* trap word */
+				 | REGISTER_ROUTINE_PARAMETER(3, kRegisterA0, SIZE_CODE(sizeof(XVolumeParamPtr)))
+		};
+
+		static UniversalProcPtr	fsDispatchTrapAddress = NULL;
+		
+		/* Is this the first time we've been called? */
+		if ( fsDispatchTrapAddress == NULL )
+		{
+			/* Yes - Get the trap address of _FSDispatch */
+			fsDispatchTrapAddress = NGetTrapAddress(_FSDispatch, OSTrap);
+		}
+		return ( CallOSTrapUniversalProc(fsDispatchTrapAddress,
+											uppFSDispatchProcInfo,
+											kFSMXGetVolInfo,
+											_FSDispatch | kAsyncMask,
+											paramBlock) );
+	}
+	
+	/*
+	** PBXGetVolInfoSync was added to the File Manager in System software 7.5.2.
+	** However, PBXGetVolInfoSync wasn't added to InterfaceLib until Mac OS 8.5.
+	** This wrapper calls PBXGetVolInfoSync if it is found in InterfaceLib;
+	** otherwise, it calls PBXGetVolInfoSyncGlue. This ensures that your program
+	** is calling the latest implementation of PBXGetVolInfoSync.
+	*/
+	static pascal OSErr CallPBXGetVolInfoAsync(XVolumeParamPtr paramBlock)
+	{
+		typedef pascal OSErr (*PBXGetVolInfoProcPtr) (XVolumeParamPtr paramBlock);
+		
+		OSErr						result;
+		CFragConnectionID			connID;
+		static PBXGetVolInfoProcPtr	PBXGetVolInfoAsyncPtr = NULL;
+		
+		//* Is this the first time we've been called? */
+		if ( PBXGetVolInfoAsyncPtr == NULL )
+		{
+			/* Yes - Get our connection ID to InterfaceLib */
+			result = GetSharedLibrary("\pInterfaceLib", kPowerPCCFragArch, kLoadCFrag, &connID, NULL, NULL);
+			if ( result == noErr )
+			{
+				/* See if PBXGetVolInfoSync is in InterfaceLib */
+				if ( FindSymbol(connID, "\pPBXGetVolInfoAsync", &(Ptr)PBXGetVolInfoAsyncPtr, NULL) != noErr )
+				{
+					/* Use glue code if symbol isn't found */
+					PBXGetVolInfoAsyncPtr = PBXGetVolInfoAsyncGlue;
+				}
+			}
+		}
+		/* Call PBXGetVolInfoAsync if present; otherwise, call PBXGetVolInfoAsyncGlue */
+		return ( (*PBXGetVolInfoAsyncPtr)(paramBlock) );
+	}
+#endif	//	TARGET_API_MAC_CARBON || !TARGET_RT_MAC_CFM
+// <Implementation of [[GUSIFSWrappers]]>=                                 
+OSErr GUSIFSXGetVolInfo(GUSIIOPBWrapper<XVolumeParam> * pb)
+{
+#if !TARGET_API_MAC_CARBON
+	/* See if large volume support is available */
+	long response;
+	if (!Gestalt(gestaltFSAttr, &response) && (response & (1L << gestaltFSSupports2TBVols))) {
+#endif	//	!TARGET_API_MAC_CARBON
+		pb->StartIO();
+		CallPBXGetVolInfoAsync(&pb->fPB);
+		return pb->FinishIO();
+#if !TARGET_API_MAC_CARBON
+	} else {
+		OSErr result = GUSIFSHGetVInfo(reinterpret_cast<GUSIIOPBWrapper<HParamBlockRec> *>(pb));
+		
+		if (!result)
+			for (VCB * vcb = (VCB *)(GetVCBQHdr()->qHead); vcb; vcb = (VCB *)(vcb->qLink))
+				if (vcb->vcbVRefNum == pb->fPB.ioVRefNum) {
+					pb->fPB.ioVAlBlkSiz = vcb->vcbAlBlkSiz;
+					
+					return noErr;
+				}
+		return result;
+	}
+#endif
 }

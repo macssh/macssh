@@ -46,6 +46,12 @@ DECL_stdlib(MPW_getenv, "\pgetenv", char *, (const char *env))
 #pragma pointers_in_A0
 #endif
 static bool ConnectToMPWLibrary()   { return true; }
+#ifdef __MWERKS__
+extern int _mpwerrno;
+static void UpdateMPWErrno()   		{ errno = _mpwerrno; }
+#else
+static void UpdateMPWErrno()   		{  }
+#endif
 #else
 #define DECL_stdlib(name, pname, ret, args) ret (*name) args;
 // Now we only have to declare the list once, and can reuse it numerous times.
@@ -60,6 +66,8 @@ DECL_stdlib(MPW_ioctl, "\pioctl", int, (int d, unsigned int request, long *argp)
 DECL_stdlib(MPW_lseek, "\plseek", long, (int fd, long offset, int whence))
 DECL_stdlib(MPW_faccess, "\pfaccess", int, (char *fileName, unsigned int cmd, long * arg))
 DECL_stdlib(MPW_getenv, "\pgetenv", char *, (const char *env))
+int *	MPW_errno;
+static void UpdateMPWErrno()   		{ errno = *MPW_errno; }
 // On PowerPC, we have to connect to the dynamic library (which, in principle,
 // can fail).                                                              
 //                                                                         
@@ -78,6 +86,8 @@ static void DoConnectToMPWLibrary()
 	)
 		return;
 
+	if (FindSymbol(StdCLib, "\perrno", (Ptr *) &MPW_errno, &symClass))
+		goto failed;
 #undef DECL_stdlib
 #define DECL_stdlib(name, pname, ret, args) \
 	if (FindSymbol(StdCLib, pname, (Ptr *) &name, &symClass)) \
@@ -210,39 +220,58 @@ GUSIMPWSocket::GUSIMPWSocket(int fd)
 GUSIMPWSocket::~GUSIMPWSocket()
 {
 	MPW_close(fFD);
+	UpdateMPWErrno();
 }
 // <Member functions for class [[GUSIMPWSocket]]>=                         
 ssize_t GUSIMPWSocket::read(const GUSIScatterer & buffer)
 {
 	GUSIStdioFlush();
 	GUSIConfiguration::Instance()->AutoSpin();
-	return buffer.SetLength(MPW_read(fFD, (char *) buffer.Buffer(), (unsigned)buffer.Length()));
+	int res = MPW_read(fFD, (char *) buffer.Buffer(), (unsigned)buffer.Length());
+	if (res < 0)
+		UpdateMPWErrno();
+	return buffer.SetLength(res);
 }
 // <Member functions for class [[GUSIMPWSocket]]>=                         
 ssize_t GUSIMPWSocket::write(const GUSIGatherer & buffer)
 {
 	GUSIConfiguration::Instance()->AutoSpin();
-	return MPW_write(fFD, (char *) buffer.Buffer(), (unsigned)buffer.Length());
+	int res = MPW_write(fFD, (char *) buffer.Buffer(), (unsigned)buffer.Length());
+	if (res < 0)
+		UpdateMPWErrno();
+	return res;
 }
 // <Member functions for class [[GUSIMPWSocket]]>=                         
 off_t GUSIMPWSocket::lseek(off_t offset, int whence)
 {
-	return MPW_lseek(fFD, offset, (long)whence);
+	off_t res = MPW_lseek(fFD, offset, (long)whence);
+	if (res < 0)
+		UpdateMPWErrno();
+	return res;
 }
 // <Member functions for class [[GUSIMPWSocket]]>=                         
 int GUSIMPWSocket::fcntl(int cmd, va_list arg)
 {
-	return MPW_fcntl(fFD, cmd, va_arg(arg, int));
+	int res = MPW_fcntl(fFD, cmd, va_arg(arg, int));
+	if (res < 0)
+		UpdateMPWErrno();
+	return res;
 }
 // <Member functions for class [[GUSIMPWSocket]]>=                         
 int GUSIMPWSocket::ioctl(unsigned int request, va_list arg)
 {
-	return MPW_ioctl(fFD, request, va_arg(arg, long *));
+	int res = MPW_ioctl(fFD, request, va_arg(arg, long *));
+	if (res < 0)
+		UpdateMPWErrno();
+	return res;
 }
 // <Member functions for class [[GUSIMPWSocket]]>=                         
 int GUSIMPWSocket::ftruncate(off_t offset)
 {
-	return MPW_ioctl(fFD, FIOSETEOF, (long *) offset);
+	int res = MPW_ioctl(fFD, FIOSETEOF, (long *) offset);
+	if (res < 0)
+		UpdateMPWErrno();
+	return res;
 }
 // <Member functions for class [[GUSIMPWSocket]]>=                         
 int	GUSIMPWSocket::fstat(struct stat * buf)
@@ -357,10 +386,11 @@ GUSISocket * GUSIMPWDevice::open(GUSIFileToken & file, int flags)
 	int fd 	= MPW_open(path, TranslateOpenFlags(flags));
 	
 	if (fd == -1) {
+		UpdateMPWErrno();
 		return static_cast<GUSISocket *>(nil);
 	} else if (!file.IsDevice() && !StandAlone && MPW_ioctl(fd, FIOINTERACTIVE, nil) == -1) {
 		MPW_close(fd);
-		return GUSIMacFileDevice::Instance()->open(file, flags);
+		return GUSIMacFileDevice::Instance()->open(file, flags & ~(O_CREAT | O_EXCL));
 	} else
 		return stdopen(fd, flags);
 }
@@ -385,8 +415,18 @@ GUSISocket * GUSIMPWDevice::stdopen(int fd, int flags)
   && MPW_ioctl(fd, FIOINTERACTIVE, nil) == -1
   && MPW_ioctl(fd, FIOREFNUM, (long *) &fRef) != -1
  ) {
- 	MPW_close(fd);
- 	return GUSIMacFileDevice::Instance()->open(fRef, flags);
+ 	static short 		sOutFRef = 0;
+ 	static GUSISocket *	sOutSocket;
+ 	
+ 	MPW_close(fd); 
+ 	if (fd == 1) {
+ 		sOutFRef 	= fRef;
+ 		return sOutSocket = GUSIMacFileDevice::Instance()->open(fRef, flags);	
+ 	} else if (fd == 2 && fRef == sOutFRef) {
+ 		// Standard output and error redirected to same file
+ 		return sOutSocket;
+ 	} else
+ 		return GUSIMacFileDevice::Instance()->open(fRef, flags);
  }
 	
 	GUSISocket * sock = new GUSIMPWSocket(fd);

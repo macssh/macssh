@@ -112,7 +112,7 @@ GUSIDescriptorTable * GUSIDescriptorTable::Instance()
 		GUSISetupDescriptorTable();
 		
 		if (!sGUSIDescriptorTable)
-			sGUSIDescriptorTable = new GUSIDescriptorTable();
+			sGUSIDescriptorTable = new GUSIDescriptorTable();			
 	}
 	if (sNeedConsoleSetup) {
 		sNeedConsoleSetup = false;

@@ -908,7 +908,7 @@ int select(int width, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, stru
  // save the actual error code and restore it (this is harmless if no error 
  // occurred).                                                              
  //                                                                         
-	// <Call [[post_select]] for all file descriptors>=                        
+ // <Call [[post_select]] for all file descriptors>=                        
  int saveErrno = errno;
  for (int s = 0; s < width ; ++s)
  	if (GUSISocket * sock = GUSIDescriptorTable::LookupSocket(s)) {
@@ -920,13 +920,19 @@ int select(int width, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, stru
  			sock->post_select(r, w, e);
  	}
  errno = saveErrno;
-	// <Copy internal descriptor sets to parameters>=                          
+	// When copying back descriptor sets, we have to be careful not to copy more
+ // words than covered by [[width]], because Perl depends on that by allocating
+ // fake [[fd_sets]]. I personally think that is a bad idea, but staying    
+ // compatible doesn't cost too much.                                       
+ //                                                                         
+ // <Copy internal descriptor sets to parameters>=                          
+ int nwords = ((width+31) >> 3) & ~3;
  if (readfds)
- 	*readfds = readres;
+ 	memcpy(readfds, &readres, nwords);
  if (writefds)
- 	*writefds = writeres;
+ 	memcpy(writefds, &writeres, nwords);
  if (exceptfds)
- 	*exceptfds = exceptres;	
+ 	memcpy(exceptfds, &exceptres, nwords);	
 
 	return count;
 }
@@ -1040,7 +1046,7 @@ int ftruncate(int s, off_t offset)
 // <Socket function wrappers>=                                             
 int truncate(const char * path, off_t offset)
 {
-	int fd = open(path, O_RDONLY);
+	int fd = open(path, O_RDWR);
 	if (fd < 0)
 		return fd;
 		

@@ -8,7 +8,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#if UNIVERSAL_INTERFACES_VERSION < 0x0340
 #undef AF_INET
+#endif
 #undef IP_OPTIONS
 #undef IP_TOS
 #undef IP_TTL
@@ -196,6 +198,12 @@ hostent * GUSIOTNetDB::gethostbyaddr(const void * addrP, size_t len, int)
 
 	memset(otHost.fInfo.addrs, 0, kMaxHostAddrs*4);
 	otHost.fInfo.addrs[0] = addr;
+	// Apparently, Open Transport likes appaending an extra [['.']] to the domain name.
+ //                                                                         
+ // <Strip extra period from name>=                                         
+ len = strlen(otHost.fInfo.name);
+ if (otHost.fInfo.name[len-1] == '.')
+ 	otHost.fInfo.name[len-1] = 0;
 	CopyHost(otHost.fInfo, unixHost);
 	
 	return &unixHost;

@@ -701,7 +701,7 @@ void GUSIStartIO(IOParam * pb)
 	static IOCompletionUPP sIODone = 0;
 	
 	if (!sIODone)
-		sIODone = NewIOCompletionProc(GUSIIODoneEntry);
+		sIODone = NewIOCompletionProc(reinterpret_cast<IOCompletionProcPtr>(GUSIIODoneEntry));
 	Context(pb) 		= nil;
 	pb->ioCompletion 	= sIODone;
 }

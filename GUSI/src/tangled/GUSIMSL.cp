@@ -224,10 +224,14 @@ int __close_console(__file_handle handle)
 	return __close_file(handle);
 }
 // <Implementation of ANSI library specific public GUSI functions>=        
-#if __MSL__ >= 0x6000
+#if __MSL__ >= 0x6000 && __MSL__ < 0x7001
 #define fdopen _fdopen
 #endif
+#if defined(__MWERKS__) && __MWERKS__ < 0x2401 && !defined(_SFSTDIO_H)
 FILE * fdopen(int fildes, char *type)
+#else
+FILE * fdopen(int fildes, const char *type)
+#endif
 {
 	FILE			*str;
 

@@ -285,7 +285,7 @@ GUSITimer::GUSITimer(bool wakeup, GUSIContext * context)
 		context 	= GUSIContext::CreateCurrent();
 	if (wakeup) {
 		if (!sTimerProc)
-			sTimerProc 	= NewTimerProc(GUSITimerProcEntry);
+			sTimerProc 	= NewTimerProc(reinterpret_cast<TimerProcPtr>(GUSITimerProcEntry));
 		tmAddr 			= sTimerProc;
 	} else
 		tmAddr  		= 0;

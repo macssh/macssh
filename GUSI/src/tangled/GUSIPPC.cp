@@ -185,9 +185,9 @@ GUSIPPCSocket::GUSIPPCSocket()
 {
 	// <Initialize fields of [[GUSIPPCSocket]]>=                               
  if (!sSendProc)
- 	sSendProc = NewPPCCompProc(GUSIPPCSendDone);
+ 	sSendProc = NewPPCCompProc(reinterpret_cast<PPCCompProcPtr>(GUSIPPCSendDone));
  if (!sRecvProc)
- 	sRecvProc = NewPPCCompProc(GUSIPPCRecvDone);
+ 	sRecvProc = NewPPCCompProc(reinterpret_cast<PPCCompProcPtr>(GUSIPPCRecvDone));
  // <Initialize fields of [[GUSIPPCSocket]]>=                               
  fListeners 		=	nil;
  fRestartListen	=	true;
@@ -195,10 +195,10 @@ GUSIPPCSocket::GUSIPPCSocket()
  fCurListener	=	0;
  fNextListener   = 	0;
  if (!sListenProc)
- 	sListenProc = NewPPCCompProc(GUSIPPCListenDone);
+ 	sListenProc = NewPPCCompProc(reinterpret_cast<PPCCompProcPtr>(GUSIPPCListenDone));
  // <Initialize fields of [[GUSIPPCSocket]]>=                               
  if (!sDoneProc)
- 	sDoneProc = NewPPCCompProc(GUSIPPCDone);
+ 	sDoneProc = NewPPCCompProc(reinterpret_cast<PPCCompProcPtr>(GUSIPPCDone));
 }
 // <Member functions for class [[GUSIPPCSocket]]>=                         
 int GUSIPPCSocket::bind(void * addr, socklen_t namelen)
@@ -390,9 +390,9 @@ GUSIPPCSocket::GUSIPPCSocket(GUSIPPCSocket * orig, Listener & listener)
 {
 	// <Initialize fields of [[GUSIPPCSocket]]>=                               
  if (!sSendProc)
- 	sSendProc = NewPPCCompProc(GUSIPPCSendDone);
+ 	sSendProc = NewPPCCompProc(reinterpret_cast<PPCCompProcPtr>(GUSIPPCSendDone));
  if (!sRecvProc)
- 	sRecvProc = NewPPCCompProc(GUSIPPCRecvDone);
+ 	sRecvProc = NewPPCCompProc(reinterpret_cast<PPCCompProcPtr>(GUSIPPCRecvDone));
  // <Initialize fields of [[GUSIPPCSocket]]>=                               
  fListeners 		=	nil;
  fRestartListen	=	true;
@@ -400,10 +400,10 @@ GUSIPPCSocket::GUSIPPCSocket(GUSIPPCSocket * orig, Listener & listener)
  fCurListener	=	0;
  fNextListener   = 	0;
  if (!sListenProc)
- 	sListenProc = NewPPCCompProc(GUSIPPCListenDone);
+ 	sListenProc = NewPPCCompProc(reinterpret_cast<PPCCompProcPtr>(GUSIPPCListenDone));
  // <Initialize fields of [[GUSIPPCSocket]]>=                               
  if (!sDoneProc)
- 	sDoneProc = NewPPCCompProc(GUSIPPCDone);
+ 	sDoneProc = NewPPCCompProc(reinterpret_cast<PPCCompProcPtr>(GUSIPPCDone));
 	fLocation			= orig->fLocation;
 	fPort				= orig->fPort;
 	fPeerLoc			= listener.fLocation;

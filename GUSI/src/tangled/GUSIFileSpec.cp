@@ -179,7 +179,8 @@ GUSIFileSpec::GUSIFileSpec(const char * path, bool useAlias)
  	}
  }
 	// For relative paths, we now skip a leading colon. For absolute paths, we get 
- // the volume information.                                                 
+ // the volume information. [[fullSpec]] is true for absolute paths, but not for 
+ // relative paths.                                                         
  //                                                                         
  // <Determine the starting directory of the path>=                         
  if (path[0] == ':') {
@@ -196,7 +197,8 @@ GUSIFileSpec::GUSIFileSpec(const char * path, bool useAlias)
  	if (GetVolume())
  		return;
  	
- 	path = nextPath + 1;
+ 	path 		= nextPath + 1;
+ 	fullSpec	= true;
  }
 
 	fError = noErr;
@@ -827,13 +829,16 @@ OSErr GUSIFSpTouchFolder(const FSSpec * desc)
 	return spec.TouchFolder();
 }
 
-OSErr GUSIFSpGetCatInfo(const FSSpec * desc, CInfoPBRec * info)
+OSErr GUSIFSpGetCatInfo(FSSpec * desc, CInfoPBRec * info)
 {
 	GUSIFileSpec 		spec(*desc);
 	const GUSICatInfo *	gci = spec.CatInfo();
 	
-	if (gci)
-		*info = gci->Info();
+	if (gci) {
+		*info						= gci->Info();
+		*desc 						= spec;
+		info->hFileInfo.ioNamePtr 	= desc->name;
+	}
 		
 	return spec.Error();
 }

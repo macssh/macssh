@@ -88,8 +88,9 @@ int GUSINetDB::gethostname(char *machname, int buflen)
    HSetState(hostString, hsState);
 		} else {
 			// <Translate host IP number to host name>=                                
-   char * name = inet_ntoa(ipaddr);
-   sHostName   = new char[strlen(name)+1];
+   hostent * ent	= gethostbyaddr((char *) &ipaddr, 0, 0);
+   char * name 	= ent ? ent->h_name : inet_ntoa(ipaddr);
+   sHostName   	= new char[strlen(name)+1];
    strcpy(sHostName, name);
 		}
 	}

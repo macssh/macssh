@@ -4,10 +4,10 @@
 // % Author	:	Matthias Neeracher                                           
 // % Language	:	C++                                                        
 // %                                                                       
-// % $Log$
-// % Revision 1.1.1.1  2001/03/03 21:50:11  chombier
-// % Initial import
-// %                                           
+// % $Log$                                           
+// % Revision 1.8  2001/07/23 06:31:37  neeri                              
+// % Use PBXGetVolInfoSync to get correct block size for stat() (MacPerl Bug #424874)
+// %                                                                       
 // % Revision 1.7  2001/01/17 08:45:49  neeri                              
 // % Make open calls synchronous                                           
 // %                                                                       
@@ -100,6 +100,12 @@ OSErr GUSIFSHGetVolParms(GUSIIOPBWrapper<HParamBlockRec> * pb);
 OSErr GUSIFSCreate(const FSSpec * spec);
 // <Declarations of C++ [[GUSIFSWrappers]]>=                               
 OSErr GUSIFSCatMove(const FSSpec * spec, long dest);
+// Getting the correct allocation block size can be sort of tricky. [[PBHGetVInfoAsync]] returns
+// a value tweaked to allow free space calculations on large volumes, so we have to walk the
+// fcb queue to get a legitimate value.                                    
+//                                                                         
+// <Declarations of C++ [[GUSIFSWrappers]]>=                               
+OSErr GUSIFSXGetVolInfo(GUSIIOPBWrapper<XVolumeParam> * pb);
 #endif
 
 #endif /* GUSI_SOURCE */
