@@ -60,6 +60,8 @@ extern WindRec *screens;
 extern VSscrndata *VSscreens;
 #endif
 
+void syslog( int priority, const char *format, ...);
+
 void	VSunload(void) {}
 
 /* LU - this is the start of the main LU changes for doing printer redirection 	*/
@@ -254,9 +256,6 @@ void VSpr(unsigned char **pc, short *pctr)
 /* LU - that is the end of the new routines needed for printer redirection 	*/
 /* LU - now we just patch up VSem() to use this code, and were done! 		*/
 
-extern void RSdefaultForeColor(short w);
-extern void RSdefaultBackColor(short w);
-
 void VSem
   (
 	unsigned char *c, /* pointer to character string */
@@ -269,25 +268,33 @@ void VSem
 {
     register short sx;
     register short escflg; /* state of escape sequence interpretation */
-    unsigned short attrib;
-    short insert, extra, offend, notyet;
+    VSAttrib attrib;
+    short insert, extra, offend;
     char  *current, *start;
-	unsigned short *acurrent;
+	VSAttrib *acurrent;
+	WindRec *screen;
+	Boolean tryit;
+	short savedX;
+	short savedY;
+
     escflg = VSIw->escflg;
 
 #ifdef DEBUG_CAPTURE
 	if (TelInfo->debug)
 	if (VSscreens[VSIwn].captureRN) {
-		while (ctr != 0) {
-			VScapture(c, (ctr > 255) ? 255 : ctr);
-			c += ((ctr > 255) ? 255 : ctr);
-			ctr -= ((ctr > 255) ? 255 : ctr);
+		unsigned char *tc = c;
+		short tctr = ctr;
+		while (tctr != 0) {
+			VScapture(tc, (tctr > 255) ? 255 : tctr);
+			tc += ((tctr > 255) ? 255 : tctr);
+			tctr -= ((tctr > 255) ? 255 : tctr);
 		}
 		// if debug capturing, capture and DON'T DISPLAY afterwards
 		// in case the control codes being captured crash the emulator
-		return;
+//		return;
 	}
 #endif
+	screen = &screens[findbyVS(VSIwn)];
 
     while (ctr > 0)
 	  {
@@ -295,7 +302,8 @@ void VSem
 		VSpr(&c,&ctr);			/* PR -if yes, call VSpr */
 								/* PR - when we return from VSpr there may (ctr!=0) É */
 								/* PR - É or may not (ctr==0) be chars left in *c to print */
-		while ((escflg == 0) && (ctr > 0) && (*c < 32))
+		tryit = 0;
+		while (escflg == 0 && ctr > 0 && *c < 32 && !tryit)
 		  {
 			switch (*c)
 			  {
@@ -343,12 +351,19 @@ void VSem
 				case 0x0b: /* vt */
 					VSIindex();
 					break;
+				default:
+					if ( *c >= 0x18 && screen->vtemulation == 2 ) {
+						tryit = 1;
+						c--;
+						ctr++;
+					}
+					break;
 			  } 
 			c++;
 			ctr--;
 		  } 
-		if ((escflg == 0) && (ctr > 0) && (*c & 0x80) && (*c < 0xA0)
-			&& (screens[findbyVS(VSIwn)].vtemulation == 1))	// VT220 eightbit starts here
+		if (escflg == 0 && ctr > 0 && (*c & 0x80) && *c < 0xA0
+			&& screen->vtemulation != 0)	// VT220 eightbit starts here
 		{											
 			switch (*c)								
 			{									
@@ -371,23 +386,23 @@ void VSem
 					c++;			//CCP			
 					ctr--;					
 					break;						
-				case 0x86: /* ssa */			// - same as ESC F */
-				case 0x87: /* esa */			// - same as ESC G */
-				case 0x8e: /* ss2 */			// - same as ESC N */
-				case 0x8f: /* ss3 */			// - same as ESC O */
-				case 0x90: /* dcs */			// - same as ESC P */
-				case 0x93: /* sts */			// - same as ESC S */
-				case 0x96: /* spa */			// - same as ESC V */
-				case 0x97: /* epa */			// - same as ESC W */
-				case 0x9d: /* osc */			// - same as ESC ] */
-				case 0x9e: /* pm */				// - same as ESC ^ */
-				case 0x9f: /* apc */			// - same as ESC _ */
+				case 0x86: /* ssa */			// - same as ESC F
+				case 0x87: /* esa */			// - same as ESC G
+				case 0x8e: /* ss2 */			// - same as ESC N
+				case 0x8f: /* ss3 */			// - same as ESC O
+				case 0x90: /* dcs */			// - same as ESC P
+				case 0x93: /* sts */			// - same as ESC S
+				case 0x96: /* spa */			// - same as ESC V
+				case 0x97: /* epa */			// - same as ESC W
+				case 0x9d: /* osc */			// - same as ESC ]
+				case 0x9e: /* pm */				// - same as ESC ^
+				case 0x9f: /* apc */			// - same as ESC _
 				default:
 					goto ShortCut;				
 			} 					
 		}//end if vt220
-		while ((ctr > 0) && (escflg == 0) && (*c >= 32) &&!((*c & 0x80) && (*c < 0xA0)
-			&& (screens[findbyVS(VSIwn)].vtemulation == 1)))
+		while (ctr > 0 && escflg == 0 && (*c >= 32 || tryit) && !((*c & 0x80) && (*c < 0xA0)
+			&& screen->vtemulation != 0))
 		{ //loop around, printing lines of text one at a time
 			start = &VSIw->linest[VSIw->y]->text[VSIw->x]; /* start of area needing redrawing */
 			current = start; /* where to put next char */
@@ -418,12 +433,13 @@ void VSem
 			  } /* if */
 
 
-			while ((ctr > 0) && (*c >= 32) && (offend == 0) && !((*c & 0x80) && (*c < 0xA0)
-			&& (screens[findbyVS(VSIwn)].vtemulation == 1)))
+			while (ctr > 0 && (*c >= 32 || tryit) && offend == 0 && !((*c & 0x80) && *c < 0xA0
+				&& screen->vtemulation != 0))
 			{//Write characters on a single line
 
+				VSIw->lastchar = *c;
 
-				trbuf_nat_mac(c,1, screens[findbyVS(VSIwn)].national);	//translate to national chars 
+				trbuf_nat_mac(c,1, screen->national);	//translate to national chars 
 				if (insert) //make room for the char 
 					VSIinschar(1);
 				*current = *c;
@@ -475,7 +491,6 @@ void VSem
 				case '[': /* csi */
 					VSIapclear();
 					escflg++;
-					notyet = 1;
 					break;
 				case '7':
 					VSIsave();
@@ -525,7 +540,7 @@ void VSem
 					break;
 #endif CISB
 				case ']':								// WNR - XTerm
-					if (screens[findbyVS(VSIwn)].Xterm)	// WNR - XTerm
+					if (screen->Xterm)	// WNR - XTerm
 						escflg = 6;						// WNR - XTerm
 					break;								// WNR - XTerm
 					
@@ -557,7 +572,6 @@ void VSem
 				  /* parse numeric parameter */
 					if (VSIw->parms[VSIw->parmptr] < 0)
 						VSIw->parms[VSIw->parmptr] = 0;
-						
 					VSIw->parms[VSIw->parmptr] = VSIw->parms[VSIw->parmptr] * 10;
 					VSIw->parms[VSIw->parmptr] += *c - '0';
 					break;
@@ -570,63 +584,19 @@ void VSem
 					VSIw->parmptr++;
 					break;
 				case 'A': /* cursor up */
-#if 1														/* BYU */
 					if (VSIw->parms[0]<1) VSIw->y--;		/* BYU */
 					else VSIw->y-=VSIw->parms[0];			/* BYU */
 					if ( VSIw->y < 0 ) VSIw->y=0;			/* BYU */
 					if (VSIw->y < VSIw->top)				/* NCSA: SB */
 						VSIw->y = VSIw->top;				/* NCSA: SB */
-						
-#else														/* BYU */
-					if (VSIw->y < VSIw->top)
-					  {
-					  /* outside scrolling region */
-						if (VSIw->parms[0] < 1)
-							VSIw->y--;
-						else
-							VSIw->y -= VSIw->parms[0];
-					  }
-					else
-					  {
-					  /* don't leave scrolling region */
-						if (VSIw->parms[0] < 1)
-							VSIw->y--;
-						else
-							VSIw->y -= VSIw->parms[0];
-						if (VSIw->y < VSIw->top)
-							VSIw->y = VSIw->top;
-					  }
-#endif														/* BYU */
 					VSIrange();
 					VSIflush(); // RAB BetterTelnet 2.0b3
 					goto ShortCut;				/* BYU 2.4.12 */
 				case 'B': /* cursor down */
-#if 1														/* BYU */
 					if (VSIw->parms[0]<1) VSIw->y++;		/* BYU */
 					else VSIw->y+=VSIw->parms[0];			/* BYU */
 					if (VSIw->y > VSIw->bottom)				/* NCSA: SB */
 						VSIw->y = VSIw->bottom;				/* NCSA: SB */
-						
-#else														/* BYU */
-					if (VSIw->y > VSIw->bottom)
-					  {
-					  /* outside scrolling region */
-						if (VSIw->parms[0] < 1)
-							VSIw->y++;
-						else
-							VSIw->y += VSIw->parms[0];
-					  }
-					else
-					  {
-					  /* don't leave scrolling region */
-						if (VSIw->parms[0] < 1)
-							VSIw->y++;
-						else
-							VSIw->y += VSIw->parms[0];
-						if (VSIw->y > VSIw->bottom)
-							VSIw->y = VSIw->bottom;
-					  }
-#endif														/* BYU */
 					VSIrange();
 					VSIflush(); // RAB BetterTelnet 2.0b3
 					goto ShortCut;				/* BYU 2.4.12 */
@@ -659,7 +629,7 @@ void VSem
 						we are past screen edge.  This causes "resize" to break */
 					if (VSIw->x < 0)						/* JMB 2.6 */
 						VSIw->x = 0;						/* JMB 2.6 */
-					if (VSIw->x > (VSIw->maxwidth))			/* JMB 2.6 */
+					if (VSIw->x > VSIw->maxwidth)			/* JMB 2.6 */
 						VSIw->x = VSIw->maxwidth;			/* JMB 2.6 */
 					if (VSIw->y < 0)						/* JMB 2.6 */
 						VSIw->y = 0;						/* JMB 2.6 */
@@ -727,36 +697,74 @@ void VSem
 					  {
 						short p = VSIw->parms[temp];
       					if (p == 0) {
-      						VSIw->attrib &= 0x80; //all off
+      						VSIw->attrib &= 0x80; // all off
       					} else if (p > 0 && p < 8 ) {
-      						if (notyet) {
-      							notyet = 0;
-      							//VSIw->attrib &= 0x80;
-      						}
-      						VSIw->attrib |= VSa(p);//set an attribute
+      						VSIw->attrib |= VSa(p); // set an attribute
+      					} else if (p >= 10 && p < 20 ) {
+							/* 10 : Primary (default) font */
+							/* 11..19 : alternate fonts */
       					} else if (p > 20 && p < 28) {
-							VSIw->attrib &= ~VSa(p-20); //clear an attribute
-              			} else if (screens[findbyVS(VSIwn)].ANSIgraphics) {
+							VSIw->attrib &= ~VSa(p - 20); // clear an attribute
+              			} else if (screen->ANSIgraphics) {
  							if (p >= 30 && p < 38) {
 								VSIw->attrib = (VSIw->attrib & 0xf8ff) | ((p-30)<<8) | 0x0800;
-							} else if (p == 39) {
-								/* 1rst half op: Set default pair to its original value */
-								// should we clear ANSI foreground ?
+							} else if (p >= 38 && p <= 39) {
+								/* Turn off foreground color */
 								VSIw->attrib &= 0xf0ff;
-								RSdefaultForeColor(VSIwn);
 							} else if (p >= 40 && p < 48) {
 								VSIw->attrib = (VSIw->attrib & 0x8fff) | ((p-40)<<12) | 0x8000;
-							} else if (p == 49) {
-								/* 2nd half op: Set default pair to its original value */
-								// should we clear ANSI background ?
+							} else if (p >= 48 && p <= 49) {
+								/* Turn off background color */
 								VSIw->attrib &= 0x0fff;
-								RSdefaultBackColor(VSIwn);
 							}
 						}
 						temp++;
 					  } /* while */
 				  }
 				  goto ShortCut;				/* BYU 2.4.12 */
+
+/* NONO: 'ansi' Term undocumented sequences */
+				case 'X':	/* repeat last char n times without moving cursor ? */
+					savedX = VSIw->x;
+					savedY = VSIw->y;
+				case 'b':	/* repeat last char n times ? */
+					while ( VSIw->parms[0] > 0 ) {
+						int i;
+						int len = VSIw->parms[0];
+						unsigned char repeatbuf[256];
+						if ( len > sizeof(repeatbuf) )
+							len = sizeof(repeatbuf);
+						VSIw->parms[0] -= len;
+						for (i = 0; i < len; ++i)
+							repeatbuf[i] = VSIw->lastchar;
+						VSIw->escflg = 0;
+						VSem(repeatbuf, len);
+					}
+					if (*c == 'X') {
+						VSIw->x = savedX;
+						VSIw->y = savedY;
+					}
+					goto ShortCut;
+				case 'G':	/* X cursor position ? */
+					VSIw->x = VSIw->parms[0] - 1;
+					if (VSIw->x < 0)
+						VSIw->x = 0;
+					if (VSIw->x > VSIw->maxwidth)
+						VSIw->x = VSIw->maxwidth;
+					goto ShortCut;
+				case 'd':	/* Y cursor position ? */
+					VSIw->y = VSIw->parms[0] - 1;
+					if (VSIw->DECAWM && VSIw->x > VSIw->maxwidth)
+						VSIw->x = 0;
+					if (VSIw->y < 0)
+						VSIw->y = 0;
+					if (VSIw->y > VSIw->lines)
+						VSIw->y = VSIw->lines;
+					goto ShortCut;
+				case 'S':	/* what is this one ? */
+					goto ShortCut;
+/* NONO: 'ansi' Term undocumented sequences */
+
 				case 'q':
 				  /* flash dem LEDs. What LEDs? */
 					goto ShortCut;				/* BYU 2.4.12 */
