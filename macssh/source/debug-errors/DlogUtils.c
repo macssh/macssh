@@ -316,13 +316,13 @@ pascal short MyDLOGfilterWPopupFilter( DialogPtr dptr, EventRecord *evt, short *
 #define LMSetCurDirStore(CurDirStoreValue) ((* (long *) 0x0398) = (CurDirStoreValue))
 #endif
 
-void	SelectDirectory(short *VRefNum, long *DirID)
+Boolean	SelectDirectory(short *VRefNum, long *DirID)
 {
 	Point		where;
 	SFReply		sfr;
 	
-	LMSetSFSaveDisk( - (*VRefNum));
-	LMSetCurDirStore(*DirID);
+	LMSetSFSaveDisk( - *VRefNum);
+	LMSetCurDirStore( *DirID );
 	
 	StandardFileCenter(&where, WDSET_DLOG);
 	
@@ -336,7 +336,9 @@ void	SelectDirectory(short *VRefNum, long *DirID)
 	{
 		*VRefNum = - LMGetSFSaveDisk();
 		*DirID = LMGetCurDirStore();
-	}	
+		return true;
+	}
+	return false;
 }
 
 SIMPLE_UPP(FileHook, DlgHook);

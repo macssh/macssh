@@ -12,7 +12,7 @@ void SetCntrl(DialogPtr dptr, short item, short value);
 short GetCntlVal(DialogPtr dptr, short item);
 void FlashButton(DialogPtr theDialog, short item);
 short findPopupMenuItem(MenuHandle theHandle, Str255 name);
-void SelectDirectory(short *VRefNum, long *DirID);
+Boolean SelectDirectory(short *VRefNum, long *DirID);
 OSErr SetIndString(StringPtr theStr, short resID, short strIndex);
 WindowPtr GetNewMyDialog(short template, Ptr wStorage, WindowPtr behind, void (*centerFunction )(short));
 WindowPtr GetNewMySmallDialog(short template, Ptr wStorage, WindowPtr behind, void (*centerFunction )(short));
