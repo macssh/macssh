@@ -559,7 +559,7 @@ emacsHack:		//if the option key KCHR is installled, we will get the right ascii 
 		ascii = ESC;
 
 	// map Del to ^D if the user wants it
-	if ((code == 0x75) && tw->remapCtrlD) {
+	if ( code == 0x75 && tw->remapCtrlD ) {
 		code = 0x34;
 		ascii = 4;
 	}
@@ -567,12 +567,12 @@ emacsHack:		//if the option key KCHR is installled, we will get the right ascii 
 	if (code == BScode) //handle mapping BS to DEL, flipping on option
 	{
 		if (tw->bsdel)
-			if ((optiondown)||(commanddown))
+			if ((optiondown && tw->emacsmeta != 2)||(commanddown))
 				ascii = BS;
 			else
 				ascii = DEL;
 		else
-			if ((optiondown)||(commanddown))
+			if ((optiondown && tw->emacsmeta != 2)||(commanddown))
 				ascii = DEL;
 			else
 				ascii = BS;
