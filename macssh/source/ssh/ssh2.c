@@ -153,6 +153,8 @@ const struct termios defaulttermios = {
 /* true if we log werror/trace... to stdio, false => log to syslog */
 Boolean	gLogStdIO = 0;
 
+int g_error_fd = -1;
+
 pthread_key_t ssh2threadkey = NULL;
 
 char homepath[256];
@@ -1095,7 +1097,10 @@ void init_context(lshcontext *context, short port)
 	context->_verbose_flag = 0;
 	context->_trace_flag = 0;
 	context->_debug_flag = 0;
-	context->_error_fd = STDERR_FILENO;
+
+	/*context->_error_fd = STDERR_FILENO;*/
+	context->_error_fd = g_error_fd;
+
 	context->_error_pos = 0;
 	context->_error_write = write_raw;
 	context->_tracing = 0;
@@ -1267,6 +1272,8 @@ static int build_cmdline(WindRec*w, char *argstr)
 	strcat(argstr, getenv("HOME"));	/* 256 */
 	strcat(argstr, "known_hosts\"");
 
+	strcat(argstr, " --stdin dev:ttyin --stdout dev:ttyout --stderr dev:ttyerr");
+ 
 	if (!w->restricted)
 		strcat(argstr, " --sloppy-host-authentication");
 

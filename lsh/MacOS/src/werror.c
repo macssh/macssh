@@ -568,7 +568,7 @@ werror(const char *format, ...)
       if (gLogStdIO || (!context->_tracing && !context->_verbosing && !context->_debugging)) {
       	if (!gLogStdIO) {
           werror_flush();
-      	  set_error_stream(STDOUT_FILENO, 0);
+      	  set_error_stream(STDERR_FILENO, 0);
       	}
       }
       va_start(args, format);
@@ -651,7 +651,7 @@ fatal(const char *format, ...)
   if (context)
     {
       werror_flush();
-      set_error_stream(STDOUT_FILENO, 0);
+      set_error_stream(STDERR_FILENO, 0);
       va_start(args, format);
       werror_vformat(format, args);
       va_end(args);

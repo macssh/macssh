@@ -11,6 +11,7 @@
 #include "werror.h"
 
 #include <assert.h>
+#include <console.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -21,7 +22,10 @@
 #include <setjmp.h>
 #include <termios.h>
 
+#include <Events.h>
 #include <Fonts.h>
+#include <LowMem.h>
+#include <OSUtils.h>
 
 #include "PasswordDialog.h"
 #include "MemPool.h"
@@ -483,6 +487,63 @@ pascal Ptr PLstrrchr(ConstStr255Param s, short c)
 	return NULL;
 }
 
+#pragma mark -
+
+/*
+ * InstallTTY
+ */
+int InstallTTY(int id, int flags)
+{
+#pragma unused (id, flags)
+	return 0;
+}
+
+/*
+ * RemoveTTY
+ */
+void RemoveTTY(int id, int flags)
+{
+#pragma unused (id, flags)
+}
+
+/*
+ * WriteCharsToTTY
+ */
+int WriteCharsToTTY(int id, int flags, char *buffer, int n)
+{
+#pragma unused (id, flags)
+	return WriteCharsToConsole(buffer, n);
+}
+
+/*
+ * ReadCharsFromTTY
+ */
+int ReadCharsFromTTY(int id, int flags, char *buffer, int n)
+{
+#pragma unused (id, flags)
+	return ReadCharsFromConsole(buffer, n);
+}
+
+/*
+ * AvailableFromTTY
+ */
+int AvailableFromTTY(int id, int flags)
+{
+#pragma unused (id, flags)
+	extern short gSIOUXBufSize;
+	if ( !gSIOUXBufSize ) {
+		QHdrPtr eventQueue = LMGetEventQueue();
+		EvQElPtr element = (EvQElPtr)eventQueue->qHead;
+		// now, count the number of pending keyDown events.
+		while (element != nil) {
+			if (element->evtQWhat == keyDown || element->evtQWhat == autoKey)
+				return true;
+			element = (EvQElPtr)element->qLink;
+		}
+		return false;
+	}
+	return true;
+}
 
 #pragma mark -
 

@@ -385,7 +385,11 @@ make_unix_interact(struct io_backend *backend)
   if (isatty(STDTTY_FILENO))
     self->tty_fd = STDTTY_FILENO;
 #else /* ! HAVE_STDTTY_FILENO */
+#if MACOS
+  self->tty_fd = open("dev:tty", O_RDWR);
+#else
   self->tty_fd = open("/dev/tty", O_RDWR);
+#endif
 #endif
 
   if (backend && (self->tty_fd >= 0))

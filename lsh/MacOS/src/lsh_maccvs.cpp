@@ -6,6 +6,7 @@
 #include "lsh_context.h"
 
 #include <pthread.h>
+#include <console.h>
 #include <sched.h>
 
 #include "GUSIMSLSetup.h"
@@ -13,6 +14,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+void GUSIwithTTYSockets();
 
 void ssh2_init();
 
@@ -22,6 +25,11 @@ void remove_one_file(struct lshcontext *context, int fd);
 #ifdef __cplusplus
 }
 #endif
+
+/*
+GusiMSLWriteConsole sWriteConsole = 0L;
+GusiMSLWriteConsole sInConsole = 0L;
+*/
 
 static void myGusiMSLAddFile(int fd)
 {
@@ -48,8 +56,18 @@ void ssh2_init()
 	static Boolean		sGUSISetup = false;
 
 	if ( !sGUSISetup ) {
+
+		GUSIwithTTYSockets();
+
 		GusiMSLSetAddFile(myGusiMSLAddFile);
 		GusiMSLSetRemoveFile(myGusiMSLRemoveFile);
+/*
+		sWriteConsole = GusiMSLGetWriteConsole();
+		sInConsole = GusiMSLGetInConsole();
+
+		GusiMSLSetWriteConsole(WriteCharsToConsole);
+		GusiMSLSetInConsole(ReadCharsFromConsole);
+*/
 	}
 }
 

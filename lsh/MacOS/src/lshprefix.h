@@ -306,8 +306,8 @@
 
 #define MACOS 1
 #define LSH 1
-#define HAVE_STDTTY_FILENO 1
-#define STDTTY_FILENO 0
+/*#define HAVE_STDTTY_FILENO 1*/
+/*#define STDTTY_FILENO 0*/
 #define SIOUX_USE_WASTE 1
 
 #define exit macosexit

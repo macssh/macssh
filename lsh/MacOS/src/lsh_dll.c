@@ -26,6 +26,7 @@
 #include "werror.h"
 
 #include <assert.h>
+/*#include <console.h>*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -36,8 +37,11 @@
 #include <setjmp.h>
 #include <termios.h>
 
+
 #include <CodeFragments.h>
 #include <TextUtils.h>
+
+
 
 #include "MemPool.h"
 
@@ -47,8 +51,6 @@ extern pascal void __terminate(void);
 
 pascal OSErr __lsh_initialize(const CFragInitBlock * theInitBlock);
 pascal void __lsh_terminate(void);
-
-
 
 FSSpec gDLLFileSpec;
 
@@ -540,6 +542,152 @@ pascal Ptr PLstrrchr(ConstStr255Param s, short c)
 #pragma mark -
 
 /*
+ * InstallTTY
+ */
+int InstallTTY(int fd, int flags)
+{
+#pragma unused (fd)
+	return 0;
+}
+
+/*
+ * RemoveTTY
+ */
+void RemoveTTY(int fd, int flags)
+{
+#pragma unused (fd)
+}
+
+/*
+ * WriteCharsToTTY
+ */
+int WriteCharsToTTY(int fd, int flags, char *buffer, int n)
+{
+	long			written = 0;
+	lshcontext		*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+	char			*buf = buffer;
+	char			c;
+
+	if ( !context ) {
+		return 0;
+	}
+
+	if ( context->_gConsoleOutBufMax ) {
+		if ( context->_socket == -1 ) {
+			while (n > 0) {
+				if ( context->_gConsoleOutBufLen < context->_gConsoleOutBufMax ) {
+					long len = n;
+					if ( len > context->_gConsoleOutBufMax - context->_gConsoleOutBufLen ) {
+						len = context->_gConsoleOutBufMax - context->_gConsoleOutBufLen;
+					}
+		        	if ( context->_convertLFs ) {
+						long inlen = 0;
+						long outlen = context->_gConsoleOutBufLen;
+/*
+						while (inlen < len && outlen < context->_gConsoleOutBufMax - 1) {
+							c = buf[inlen++];
+							if ( c == 0x0a ) {
+								context->_gConsoleOutBuf[outlen++] = 0x0d;
+							}
+							context->_gConsoleOutBuf[outlen++] = c;
+						}
+*/
+						while (inlen < len && outlen < context->_gConsoleOutBufMax - 1) {
+							c = buf[inlen++];
+							if ( context->_lastCR ) {
+								if ( c != 0x0a && c != 0x1b )
+									context->_gConsoleOutBuf[outlen++] = 0x0a;
+							} else {
+								if ( c == 0x0a )
+									context->_gConsoleOutBuf[outlen++] = 0x0d;
+							}
+							context->_gConsoleOutBuf[outlen++] = c;
+							context->_lastCR = (c == 0x0d);
+						}
+
+						context->_gConsoleOutBufLen = outlen;
+						buf += inlen;
+						written += inlen;
+						n -= inlen;
+		        	} else {
+						BlockMoveData( buf, context->_gConsoleOutBuf + context->_gConsoleOutBufLen, len);
+						/*context->_lastCR = (buf[len-1] == 0x0d);*/
+						context->_gConsoleOutBufLen += len;
+						buf += len;
+						written += len;
+						n -= len;
+					}
+				}
+				ssh2_sched();
+			}
+		}
+	} else {
+		written = n;
+	}
+/*
+	syslog( 0, "write\n");
+	dumpln(0, 0, buffer, written);
+*/
+	return written;
+}
+
+/*
+ * ReadCharsFromTTY
+ */
+int ReadCharsFromTTY(int fd, int flags, char *buffer, int n)
+{
+	long			len = 0;
+	lshcontext		*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+
+	if ( !context ) {
+		return 0;
+	}
+
+	if ( context->_gConsoleInBufMax ) {
+		while (!len && n > 0) {
+			if (context->_gConsoleInEOF) {
+				buffer[0] = EOF;
+				return 0;
+			}
+			if (context->_gConsoleInBufLen && context->_socket == -1 ) {
+				len = context->_gConsoleInBufLen;
+				if ( len > n ) {
+					len = n;
+				}
+				BlockMoveData( context->_gConsoleInBuf, buffer, len );
+				context->_gConsoleInBufLen -= len;
+				if ( context->_gConsoleInBufLen ) {
+					BlockMoveData( context->_gConsoleInBuf + len, context->_gConsoleInBuf, context->_gConsoleInBufLen );
+				}
+			}
+			ssh2_sched();
+		}
+	} else {
+		buffer[0] = EOF;
+	}
+/*
+	syslog( 0, "read\n");
+	dumpln(0, 0, buffer, len);
+*/
+	return len;
+}
+
+/*
+ * AvailableFromTTY
+ */
+int AvailableFromTTY(int id, int flags)
+{
+	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+
+	if ( !context ) {
+		return 0;
+	}
+	return context->_gConsoleInBufLen || context->_gConsoleInEOF;
+}
+
+#pragma mark -
+
+/*
  * tty_getwinsize : replaces tty_getwinsize from liblsh
  */
 int
@@ -633,7 +781,6 @@ void ssh2_doevent(long sleepTime)
 		(*ctx->hdlevt)( ctx->userData, sleepTime );
 	}
 }
-
 
 #pragma mark -
 
@@ -1183,7 +1330,7 @@ pascal void __lsh_terminate(void)
 {
 	__terminate();
 
-	/* kill pending threads in local thread poll */
+	/* kill pending threads in local thread pool */
 	/* TODO */
 }
 

@@ -38,7 +38,6 @@ int dup(int s);
 int socket(int domain, int type, int protocol);
 int close(int s);
 
-Boolean can_read();
 void ssh2_doevent(long sleepTime);
 void add_one_file(struct lshcontext *context, int fd);
 void remove_one_file(struct lshcontext *context, int fd);
@@ -341,7 +340,7 @@ void ssh2_init()
 
 	if ( !sGUSISetup ) {
 		GUSIContext::Setup(true);
-		GUSISetupConsole();
+		/*GUSISetupConsole();*/
 		sGUSISetup = true;
 	}
 }

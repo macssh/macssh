@@ -64,7 +64,6 @@ int socket(int domain, int type, int protocol);
 int accept(int s, struct sockaddr *addr, socklen_t *addrlen);
 int close(int s);
 
-Boolean can_read();
 void ssh2_doevent(long sleepTime);
 void add_one_file(struct lshcontext *context, int fd);
 void remove_one_file(struct lshcontext *context, int fd);
@@ -74,6 +73,7 @@ void remove_one_file(struct lshcontext *context, int fd);
 #endif
 
 extern pthread_key_t ssh2threadkey;
+extern int g_error_fd;
 
 /*
  * ssh2_init
@@ -89,10 +89,11 @@ void ssh2_init()
 		/* this call initializes the resolver with current context */
 		gethostid();
 
-		GUSISetupConsole();
+		/*GUSISetupConsole();*/
 		sGUSISetup = true;
-	}
 
+		g_error_fd = open("dev:ttyerr", O_WRONLY );
+	}
 }
 
 /*
@@ -162,49 +163,13 @@ void GUSIHandleNextEvent(long sleepTime)
 }
 
 
-/*
- * default GUSISIOUXSocket::select checks for keyDown or
- * autoKey events from MacOS's EventQueue.
- * we use an internal buffer.
- */
-
-class GUSISIOUXSocket : public GUSISocket {
-public:
-	~GUSISIOUXSocket();
-	
-	ssize_t	read(const GUSIScatterer & buffer);
-	ssize_t write(const GUSIGatherer & buffer);
-	virtual int	ioctl(unsigned int request, va_list arg);
-	virtual int	fstat(struct stat * buf);
-	virtual int	isatty();
-	bool select(bool * canRead, bool * canWrite, bool *);
-
-	static GUSISIOUXSocket *	Instance();
-private:
-	static GUSISIOUXSocket *	sInstance;
-	
-	GUSISIOUXSocket();
-};
-
-bool GUSISIOUXSocket::select(bool * canRead, bool * canWrite, bool *)
-{
-	bool cond = false;
-
-	if (canRead) {
-		if (*canRead = can_read())
-			cond = true;
-	}
-	if (canWrite)
-		cond = *canWrite = true;
-	return cond;
-}
-
 /* we don't use SIOUX event handler */
+/*
 GUSISIOUXSocket::GUSISIOUXSocket() 
 {
 	InstallConsole(0);
 }
-
+*/
 
 /*
  * default GUSIProcess::Yield has 20 ticks to remain in same state
