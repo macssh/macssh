@@ -65,6 +65,8 @@ extern Boolean 		gHaveDragMgr;
 static gHaveInstalledNotification = 0;
 NMRec *nRecPtr;
 
+extern int gMovableModal;
+
 #include "event.proto.h"
 
 // BetterTelnet 2.0fc1 - integrated DJ's changes for real blink (if you want it :-)
@@ -327,10 +329,14 @@ short updateCursor(short force)
 
 void NoWindow( void)
 {
-		TelInfo->myfrontwindow=0L;
-		TelInfo->myfronttype=NO_WINDOW;
-		TelInfo->myfrontRgn=0L;
-		updateCursor(1);
+	if (gMovableModal) {
+		return;
+	}
+
+	TelInfo->myfrontwindow=0L;
+	TelInfo->myfronttype=NO_WINDOW;
+	TelInfo->myfrontRgn=0L;
+	updateCursor(1);
 }
 
 /* 	The following code was graciously donated by Marc Tamsky.  When are YOU going to donate
@@ -366,6 +372,7 @@ Boolean CheckPageKeys(short code)											/* NCSA: SB */
 		case VSHOME:														/* NCSA: SB */
 			RScursblinkoff(ourW);
 			VSscroltop(ourW);												/* JMB 2.6 -- Created VSscroltop just for this purpose */
+			RScursblinkon(ourW);
 			return TRUE;													/* NCSA: SB */
 			break;                                                     		// MAT--
 		                                                               		// MAT--
@@ -863,6 +870,7 @@ void	HandleMouseDown(EventRecord myEvent)
 	}
 }
 
+
 #pragma profile off
 void	DoEvents( EventRecord* theEvent)
 {
@@ -871,8 +879,7 @@ void	DoEvents( EventRecord* theEvent)
 	EventRecord	myEvent;
 	short		scratchshort;
 	DialogPtr	dlogp;
-
-	static	long	blinkTicks = 0; /* DJ: The last time we toggled.  Static in case of long delays when we aren't called. */
+	static unsigned long blinkTicks = 0;
 
 	if ( theEvent == NULL ) {
 		theEvent = &myEvent;
@@ -911,11 +918,11 @@ void	DoEvents( EventRecord* theEvent)
 
 	if (FrontWindow() != TelInfo->macrosModeless) // RAB BetterTelnet 1.2
 		updateCursor(0);
+
 /* DJ: Welcome to blink-land */
-	if(TickCount() - blinkTicks >= BLINK_PERIOD) {
-		blinkTicks = TickCount();
-//		gBlink = 1 - gBlink;
-		gBlink = !gBlink; // RAB - (1-x) isn't how we NOT stuff around here!
+	if ( LMGetTicks() - blinkTicks >= BLINK_PERIOD ) {
+		blinkTicks = LMGetTicks();
+		gBlink ^= 1;
 		VSPulseAll();
 	}
 }						
