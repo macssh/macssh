@@ -1688,7 +1688,8 @@ char *VSIstrcopy(char *src, short len, char *dest, short table, short noClip)
 } /* VSIstrcopy */
 
 
-long VSOgettext(short w, short x1, short y1, short x2, short y2, char *charp, long max, char *EOLS, short table)
+long VSOgettext(short w, short x1, short y1, short x2, short y2, char *charp, long max,
+	char *EOLS, short table, short clipspaces)
   /* copies a portion of text from the specified virtual screen into
 	the *charp buffer. table, if nonzero, is the minimum length of
 	runs of spaces to be replaced with single tabs. Returns the
@@ -1743,10 +1744,12 @@ long VSOgettext(short w, short x1, short y1, short x2, short y2, char *charp, lo
 	  /* copying no more than a single line */
 		t = VSIGetLineStart(w, uy);
 
+		clipspaces = clipspaces && gApplicationPrefs->clipTrailingSpaces;
+
 		if ((long)(lx-ux) < max)
-			charp=VSIstrcopy(&t->text[ux+1], lx-ux, charp, table, 1);
+			charp=VSIstrcopy(&t->text[ux+1], lx-ux, charp, table, !clipspaces);
 		else
-			charp=VSIstrcopy(&t->text[ux+1], (short)(max - (long)(charp-origcp)), charp, table, 1);
+			charp=VSIstrcopy(&t->text[ux+1], (short)(max - (long)(charp-origcp)), charp, table, !clipspaces);
 		if (lx == maxwid)
 			*charp++ = *EOLS; /* assumes it's only one character! */
 	  }
@@ -1755,18 +1758,18 @@ long VSOgettext(short w, short x1, short y1, short x2, short y2, char *charp, lo
 	  /* copying more than one line */
 		t = VSIGetLineStart(w, uy);
 		if (((long) (maxwid-ux) < max))
-			charp=VSIstrcopy(&t->text[ux+1],maxwid-ux,charp,table, 0);
+			charp=VSIstrcopy(&t->text[ux+1],maxwid-ux,charp,table, !clipspaces);
 		else
-			charp=VSIstrcopy(&t->text[ux+1],(short) (max-(long)(charp-origcp)),charp,table, 0);
+			charp=VSIstrcopy(&t->text[ux+1],(short) (max-(long)(charp-origcp)),charp,table, !clipspaces);
 		*charp++ = *EOLS; /* assumes it's only one character! */
 		uy++;
 		if (t->next) t = t->next; // RAB BetterTelnet 2.0b1 - sanity checking
 		while (uy < ly && uy < VSIw->lines)
 		  {
 			if ((long)(maxwid+1) < max)
-				charp=VSIstrcopy(t->text,maxwid+1,charp, table, 0);
+				charp=VSIstrcopy(t->text,maxwid+1,charp, table, !clipspaces);
 			else
-				 charp=VSIstrcopy(t->text,(short)(max - (long) (charp-origcp)),charp, table, 0);
+				 charp=VSIstrcopy(t->text,(short)(max - (long) (charp-origcp)),charp, table, !clipspaces);
 			*charp++=*EOLS;
 			if (t->next) t=t->next; 
 			uy++;
@@ -1775,9 +1778,9 @@ long VSOgettext(short w, short x1, short y1, short x2, short y2, char *charp, lo
 			lx = maxwid;
 
 		if ((long) (lx+1) < max)
-			charp=VSIstrcopy(t->text,lx+1,charp,table, 0);
+			charp=VSIstrcopy(t->text,lx+1,charp,table, !clipspaces);
 		else
-			charp=VSIstrcopy(t->text,(short)(max - (long)(charp-origcp)),charp,table, 0);
+			charp=VSIstrcopy(t->text,(short)(max - (long)(charp-origcp)),charp,table, !clipspaces);
 
 		if (lx >= maxwid)
 			*charp++ = *EOLS; /* assumes it's only one character! */
@@ -1812,7 +1815,7 @@ long VSgettext(short w, short x1, short y1, short x2, short y2,
 		return(-3);
 
 	if (VSIw->oldScrollback)
-		return VSOgettext(w, x1, y1, x2, y2, charp, max, EOLS, table);
+		return VSOgettext(w, x1, y1, x2, y2, charp, max, EOLS, table, clipspaces);
 	
 	mw = VSIw->maxwidth;
 
