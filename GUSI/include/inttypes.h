@@ -7,7 +7,9 @@
  * Regrettably, this is needed for *int64_t
  */
 #include <MacTypes.h>
+#include <ansi_parms.h>
 
+#if __MSL__ < 0x7001
 typedef char				int8_t;
 typedef short				int16_t;
 typedef long				int32_t;
@@ -18,5 +20,8 @@ typedef unsigned long		uint32_t;
 typedef UInt64				uint64_t;
 typedef long				intptr_t;
 typedef unsigned long		uintptr_t;
+#else
+#include <stdint.h>
+#endif
 
 #endif /* _INTTYPES_H_ */
