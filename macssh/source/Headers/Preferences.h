@@ -218,7 +218,7 @@ typedef	struct {
 	Boolean
 		autoreconnect;
 	Boolean
-		unused1;
+		keepselection;
 	short
 		padding[99];			// Disk space is cheap.... (used to be [98])
 /* NONO */
@@ -273,7 +273,7 @@ typedef	struct	{
 		cachePassphrase,		// 
 		useKeyChain,			// 
 		dontWarnOnClose,
-		unused3;				// free
+		unused1;
 	long
 		cacheDelay;				// delay in seconds before passphrase expires
 /* NONO */
