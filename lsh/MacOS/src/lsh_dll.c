@@ -459,6 +459,17 @@ void add_one_file(struct lshcontext *context, int fd)
 {
 	int i;
 	
+	/*
+	 * GUSI problem : the sockets when closed are instead pushed in a
+	 * queue for later removal (GUSIProcess::Instance()->QueueForClose).
+	 * However a linger value tends to correct this behavior and wait for
+	 * the socket to die for a maximum of 2 seconds) (alexp)
+	 */
+    {
+    	struct linger ling = {1, 2};
+		setsockopt(fd, SOL_SOCKET, SO_LINGER, &ling, sizeof(ling));
+	}
+
 	if ( fd != -1 ) {
 		for (i = 0; i < MAXFILESCOUNT; i++) {
 			if (context->_filesTable[i] == -1) {
