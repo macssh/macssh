@@ -9,21 +9,36 @@
 	<body bgcolor="#ffffff">
 		<p></p>
 		<p>- <a href="#CONFIG"><b>How do I configure SSH2 in MacSSH ?</b></a><br>
+			- <b><a href="#SCRIPTING">How do I setup Applescript for MacSSH</a> ?</b><br>
+			
 			- <a href="#PUBK"><b>How do I use my Public Key with OpenSSH ?</b></a><br>
+			
 			- <a href="#CVS"><b>How do I setup CVS in MacSSH ?</b></a><br>
+			
 			- <a href="#ZLIB"><b>The connection fails with message &quot;do_zlib: inflate() failed: unknown compression method&quot;</b></a><br>
+			
 			- <a href="#NOMSG"><b>The connection dies without any error message</b></a><br>
+			
 			- <a href="#EINVAL"><b>When I open a second forwarded session on the same local port, MacSSH displays &quot;lsh: Invalid argument, (errno = 22)&quot;</b></a><br>
+			
 			- <a href="#SLOW"><b>It is sloooow, can't you do anything to make it faster ?</b></a><br>
+			
 			- <a href="#BOLDBLACK"><b>I've changed the Terminal colors to white on black, but the bold text is still displayed in black.</b></a><br>
+			
 			- <a href="#KEYPAIRS"><b>How can I use different key-pairs for different hosts ?</b></a><br>
+			
 			- <a href="#FWDMANY"><b>I need to forward many different ports from the same SSH2 server. Is there an easier way than using many favorites ?</b></a><br>
+			
 			- <a href="#FWDX11"><b>How do I forward X11 sessions with MacSSH ?</b></a><br>
+			
 			- <a href="#SSH1"><b>Will you add SSH1 support ?</b></a><br>
+			
 			
 			- <a href="#SFTP"><b>Will you add SFTP (SCP) support ?</b></a><br>
 			
+			
 			- <a href="#OSX"><b>Will you make a MacOSX version ?</b></a><br>
+			
 			
 			- <a href="#SOURCES"><b>Where can I get the sources of MacSSH ?</b></a><br>
 		</p>
@@ -53,10 +68,27 @@
 			<br>
 			If you have problems to connect to a host, you can activate the verbose/debug/trace modes from the SSH2 tab, leave the terminal window opened, by checking the &quot;Windows don't go away&quot; box in the Preferences dialog, and type Cmd-' (single quote) to open the console window. The connection traces will be displayed in this window.<br>
 		</p>
+		<p><a name="SCRIPTING"></a><br>
+			<b>How do I setup Applescript for MacSSH ?</b></p>
+		<p>Setup your &lt;Default&gt; favorite to use SSH2 so that connections automatically use SSH instead of telnet. to open a connection you can use:<br>
+			<br>
+			tell application &quot;MacSSH&quot;<br>  activate<br>  connect host &quot;domain.com&quot; login &quot;name&quot; password &quot;pass&quot;<br>
+			end tell<br>
+			<br>
+			or you can use your internet control panel and set in the advanced tab the telnet protocol to use the MacSSH program or even add SSH as a protocol.<br>
+			now from your favorite program you can issue a:<br>
+			<br>
+			 ssh://name:password@domain.com<br>
+			<br>
+			remember that the last example uses the &lt;Default&gt; favorite from macssh so be sure to put that to ssh or telnet whichever you generally use. For applescript you can issue:<br>
+			<br>
+			  connect &quot;&lt;Default&gt;&quot; host ....<br>
+			  or<br>
+			  connect &quot;Favorite1&quot; host ... etc.</p>
 		<p></p>
 		<p><a name="PUBK"></a><br>
 			<b>How do I use my Public Key with OpenSSH ?</b></p>
-		<p>Export your public key in SSH2 format. Copy this file's content on your SSH2 host in a text file, for instance 'ssh2.pub', and execute the command:<br>ssh-keygen -X -f ssh2.pub &gt;&gt; ~/.ssh/authorized_keys2<br>
+		<p>Export your public key in SSH2 format. Copy this file's content on your SSH2 host in a text file, for instance 'ssh2.pub', and execute the command:<br>ssh-keygen -i -f ssh2.pub &gt;&gt; ~/.ssh/authorized_keys2<br>
 			you're done.</p>
 		<p></p>
 		<p><a name="CVS"></a><br>
