@@ -169,13 +169,24 @@ void BuildTranslateMenu(MenuHandle whichMenu)
 	deleteList(&theHead);
 	if ( gTableCount < nNational ) {
 		// append hard-coded translations
-		AppendMenu(whichMenu, "\p ");
 		// WARNING: this string  must match the one in NewPreferences
+		AppendMenu(whichMenu, "\p ");
 		SetMenuItemText(whichMenu, gTableCount + 2, "\pJIS (ISO-2022-JP)");
 		AppendMenu(whichMenu, "\p ");
 		SetMenuItemText(whichMenu, gTableCount + 3, "\pEUC-JP");
 		AppendMenu(whichMenu, "\p ");
 		SetMenuItemText(whichMenu, gTableCount + 4, "\pShift-JIS");
+		/* tests */
+/*
+		AppendMenu(whichMenu, "\p ");
+		SetMenuItemText(whichMenu, gTableCount + 5, "\pJISX0208 1978");
+		AppendMenu(whichMenu, "\p ");
+		SetMenuItemText(whichMenu, gTableCount + 6, "\pJISX0208 1983");
+		AppendMenu(whichMenu, "\p ");
+		SetMenuItemText(whichMenu, gTableCount + 7, "\pJISX0212 1990");
+		AppendMenu(whichMenu, "\p ");
+		SetMenuItemText(whichMenu, gTableCount + 8, "\pJISX0201 1976 kana");
+*/
 	}
 }
 
@@ -221,8 +232,9 @@ void trInit(MenuHandle whichMenu)
 }
 
 
-
-
+/*
+ * trTECInit
+ */
 static void trTECInit()
 {
 #if GENERATINGPOWERPC
@@ -243,6 +255,7 @@ static void trTECInit()
 	if (FindSymbol( connID, "\pTECCreateConverter", NULL, NULL ) != noErr)
 		return;
  	nNational = 3;	// 3 hard-coded translations actually
+ 	//nNational = 7;	// tests
 #endif
 }
 
@@ -291,6 +304,7 @@ void switchintranslation(WindRec *tw, short national, short charset)
 	OSStatus		res;
 	TextEncoding	outputEncoding;
 	TextEncoding	inputEncoding;
+	char			*cname ;
 
 	if (gVSemlogging)
 		return;
@@ -302,26 +316,44 @@ void switchintranslation(WindRec *tw, short national, short charset)
 	if ( tw->innational != national ) {
 		switch ( table ) {
 			case kTRJIS:
-				// kTextEncodingJIS_X0208_90 ?
-				// kTextEncodingJIS_X0212_90 ?
-				// kTextEncodingJIS_C6226_78 ?
+				cname = "kTRJIS";
 				inputEncoding  = kTextEncodingISO_2022_JP;
 				outputEncoding = kTextEncodingMacJapanese;
 				break;
 			case kTREUC_JP:
+				cname = "kTREUC_JP";
 				inputEncoding  = kTextEncodingEUC_JP;
 				outputEncoding = kTextEncodingMacJapanese;
 				break;
-			case kTShiftJIS:
+			case kTRShiftJIS:
+				cname = "kTRShiftJIS";
 				inputEncoding  = kTextEncodingShiftJIS;
 				outputEncoding = kTextEncodingMacJapanese;
 				break;
-/*
-			case JISX0212:
+			case kTRJISX0208_1978:
+				cname = "kTRJISX0208_1978";
+				inputEncoding  = kTextEncodingISO_2022_JP;
+				charset = kJISX0208_1978;
+				outputEncoding = kTextEncodingMacJapanese;
+				break;
+			case kTRJISX0208_1983:
+				cname = "kTRJISX0208_1983";
+				//inputEncoding  = kTextEncodingJIS_X0208_83;
+				inputEncoding  = kTextEncodingISO_2022_JP;
+				charset = kJISX0208_1983;
+				outputEncoding = kTextEncodingMacJapanese;
+				break;
+
+			case kTRJISX0212_1990:
+				cname = "kTRJISX0212_1990";
 				inputEncoding  = kTextEncodingJIS_X0212_90;
 				outputEncoding = kTextEncodingMacJapanese;
 				break;
-*/
+			case kTRJISX0201_76kana:
+				cname = "kTRJISX0201_76kana";
+				inputEncoding  = kTextEncodingJIS_X0201_76;
+				outputEncoding = kTextEncodingMacJapanese;
+				break;
 			default:
 				inputEncoding = 0;
 				break;
@@ -338,20 +370,30 @@ void switchintranslation(WindRec *tw, short national, short charset)
 		if ( inputEncoding ) {
 			outputEncoding = CreateTextEncoding(outputEncoding, kTextEncodingDefaultVariant, kTextEncodingDefaultFormat);
 			res = TECCreateConverter(&tw->fromconverter, inputEncoding, outputEncoding);
+			if ( res ) {
+				VSprintf("### switchintranslation %s failed : %d\n", cname, res);
+			}
 		}
 		tw->innational = national;
 		tw->incharset = -1;
+	} else {
+		// force charset for subsets of ISO_2022_JP
+		if ( national == kTRJISX0208_1978 )
+			charset = kJISX0208_1983;
+		else if ( national == kTRJISX0208_1983 )
+			charset = kJISX0208_1983;
 	}
 
 	switch ( table ) {
 		case kTRJIS:
+		case kTRJISX0208_1978:
+		case kTRJISX0208_1983:
 			if ( tw->incharset != charset ) {
 				tw->incharset = charset;
 				if ( tw->fromconverter ) {
 					short srclen;
 					short dstlen;
 					unsigned char buf[4];
-					char *cname = NULL;
 					dstlen = 4;
 					res = TECFlushText(tw->fromconverter, buf, dstlen, &dstlen);
 					switch (charset) {
@@ -367,13 +409,13 @@ void switchintranslation(WindRec *tw, short national, short charset)
 							buf[1] = '(';
 							buf[2] = 'J';
 							break;
-						case kJISX0208_1978:
+						case kJISX0208_1978:		// 	‹ŒJIS ?
 							cname = "kJISX0208_1978";
 							buf[0] = 0x1b;
 							buf[1] = '$';
 							buf[2] = '@';
 							break;
-						case kJISX0208_1983:
+						case kJISX0208_1983:		//  VJIS ?
 							cname = "kJISX0208_1983";
 							buf[0] = 0x1b;
 							buf[1] = '$';
@@ -398,7 +440,7 @@ void switchintranslation(WindRec *tw, short national, short charset)
 					dstlen = 4;
 					res = TECConvertText(tw->fromconverter, buf, srclen, &srclen, buf, dstlen, &dstlen);
 					if ( res && res != kTECPartialCharErr ) {
-						VSprintf("TECConvertText switch %s failed : %d\n", cname, res);
+						VSprintf("### switchintranslation %s failed : %d\n", cname, res);
 					}
 				}
 			}
@@ -422,6 +464,7 @@ void switchouttranslation(WindRec *tw, short national, short charset)
 	OSStatus		res;
 	TextEncoding	outputEncoding;
 	TextEncoding	inputEncoding;
+	char			*cname;
 
 	if (gVSemlogging)
 		return;
@@ -433,26 +476,45 @@ void switchouttranslation(WindRec *tw, short national, short charset)
 	if ( tw->outnational != national ) {
 		switch ( table ) {
 			case kTRJIS:
-				// kTextEncodingJIS_X0208_90 ?
-				// kTextEncodingJIS_X0212_90 ?
-				// kTextEncodingJIS_C6226_78 ?
+				cname = "kTRJIS";
 				inputEncoding  = kTextEncodingMacJapanese;
 				outputEncoding = kTextEncodingISO_2022_JP;
 				break;
 			case kTREUC_JP:
+				cname = "kTREUC_JP";
 				inputEncoding  = kTextEncodingMacJapanese;
 				outputEncoding = kTextEncodingEUC_JP;
 				break;
-			case kTShiftJIS:
+			case kTRShiftJIS:
+				cname = "kTRShiftJIS";
 				inputEncoding  = kTextEncodingMacJapanese;
 				outputEncoding = kTextEncodingShiftJIS;
 				break;
-/*
-			case JISX0212:
+
+			case kTRJISX0208_1978:
+				cname = "kTRJISX0208_1978";
+				inputEncoding  = kTextEncodingMacJapanese;
+				outputEncoding = kTextEncodingISO_2022_JP;
+				charset = kJISX0208_1978;
+				break;
+			case kTRJISX0208_1983:
+				cname = "kTRJISX0208_1983";
+				inputEncoding  = kTextEncodingMacJapanese;
+				//outputEncoding = kTextEncodingJIS_X0208_83;
+				outputEncoding = kTextEncodingISO_2022_JP;
+				charset = kJISX0208_1983;
+				break;
+
+			case kTRJISX0212_1990:
+				cname = "kTRJISX0212_1990";
 				inputEncoding  = kTextEncodingMacJapanese;
 				outputEncoding = kTextEncodingJIS_X0212_90;
 				break;
-*/
+			case kTRJISX0201_76kana:
+				cname = "kTRJISX0201_76kana";
+				inputEncoding  = kTextEncodingMacJapanese;
+				outputEncoding = kTextEncodingJIS_X0201_76;
+				break;
 			default:
 				inputEncoding = 0;
 				break;
@@ -465,11 +527,83 @@ void switchouttranslation(WindRec *tw, short national, short charset)
 			tw->troutcount = 0;
 			inputEncoding = CreateTextEncoding(inputEncoding, kTextEncodingDefaultVariant, kTextEncodingDefaultFormat);
 			res = TECCreateConverter(&tw->toconverter, inputEncoding, outputEncoding);
+			if ( res ) {
+				VSprintf("### switchouttranslation %s failed : %d\n", cname, res);
+			}
 		}
 		tw->outnational = national;
-		tw->outcharset = charset;
+		tw->outcharset = -1;
+	} else {
+		// force charset for subsets of ISO_2022_JP
+		if ( national == kTRJISX0208_1978 )
+			charset = kJISX0208_1983;
+		else if ( national == kTRJISX0208_1983 )
+			charset = kJISX0208_1983;
 	}
-
+/*
+	switch ( table ) {
+		case kTRJIS:
+		case kTRJISX0208_1978:
+		case kTRJISX0208_1983:
+			if ( tw->outcharset != charset ) {
+				tw->outcharset = charset;
+				if ( tw->toconverter ) {
+					short srclen;
+					short dstlen;
+					unsigned char buf[4];
+					dstlen = 4;
+					res = TECFlushText(tw->toconverter, buf, dstlen, &dstlen);
+					switch (charset) {
+						case kASCII:
+							cname = "kASCII";
+							buf[0] = 0x1b;
+							buf[1] = '(';
+							buf[2] = 'B';
+							break;
+						case kJISX0201_1976:
+							cname = "kJISX0201_1976";
+							buf[0] = 0x1b;
+							buf[1] = '(';
+							buf[2] = 'J';
+							break;
+						case kJISX0208_1978:		// 	‹ŒJIS ?
+							cname = "kJISX0208_1978";
+							buf[0] = 0x1b;
+							buf[1] = '$';
+							buf[2] = '@';
+							break;
+						case kJISX0208_1983:		//  VJIS ?
+							cname = "kJISX0208_1983";
+							buf[0] = 0x1b;
+							buf[1] = '$';
+							buf[2] = 'B';
+							break;
+						case kJISX0201_1976Kana:	// [Not Std ISO-2022-JP]
+							cname = "kJISX0201_1976Kana";
+							buf[0] = 0x1b;
+							buf[1] = '(';
+							buf[2] = 'I';
+							break;
+						case kJISX0212_1990:		// [Not Std ISO-2022-JP]
+							cname = "kJISX0212_1990";
+							buf[0] = 0x1b;
+							buf[1] = '$';
+							buf[2] = 'D';
+							break;
+						default:
+							return;
+					}
+					srclen = 3;
+					dstlen = 4;
+					res = TECConvertText(tw->toconverter, buf, srclen, &srclen, buf, dstlen, &dstlen);
+					if ( res && res != kTECPartialCharErr ) {
+						VSprintf("### switchouttranslation %s failed : %d\n", cname, res);
+					}
+				}
+			}
+			break;
+	}
+*/
 #else
 	if (gVSemlogging)
 		return;
@@ -553,6 +687,8 @@ int trbuf_nat_mac(WindRec *tw, unsigned char *buf, long *len, unsigned char *out
 	} else {
 		switch ( table ) {
 			case kTRJIS:
+			case kTRJISX0208_1978:
+			case kTRJISX0208_1983:
 				switch (tw->incharset) {
 				    case kASCII:
 				    case kJISX0201_1976:
@@ -567,7 +703,6 @@ int trbuf_nat_mac(WindRec *tw, unsigned char *buf, long *len, unsigned char *out
 						}
 						break;
 				    case kJISX0201_1976Kana:
-				    	// single byte
 				    	// FIXME
 						memcpy(out, buf, *len);
 						*outlen = *len;
@@ -579,15 +714,16 @@ int trbuf_nat_mac(WindRec *tw, unsigned char *buf, long *len, unsigned char *out
 				}
 				break;
 			case kTREUC_JP:
-			case kTShiftJIS:
-			case JISX0212:
+			case kTRShiftJIS:
+			//case kTRJISX0208_1978:
+			//case kTRJISX0208_1983:
+			case kTRJISX0212_1990:
+			case kTRJISX0201_76kana:
 				if ( tw->fromconverter ) {
 					res = TECConvertText(tw->fromconverter, buf, *len, len, out, *outlen, outlen);
-				} else {
-					memcpy(out, buf, *len);
-					*outlen = *len;
+					break;
 				}
-				break;
+				// FALL THROUGH
 			default:
 				memcpy(out, buf, *len);
 				*outlen = *len;
@@ -621,15 +757,16 @@ int trbuf_mac_nat(WindRec *tw, unsigned char *buf, long *len, unsigned char *out
 		switch ( table ) {
 			case kTRJIS:
 			case kTREUC_JP:
-			case kTShiftJIS:
-			case JISX0212:
+			case kTRShiftJIS:
+			case kTRJISX0208_1978:
+			case kTRJISX0208_1983:
+			case kTRJISX0212_1990:
+			case kTRJISX0201_76kana:
 				if ( tw->toconverter ) {
 					res = TECConvertText(tw->toconverter, buf, *len, len, out, *outlen, outlen);
-				} else {
-					memcpy(out, buf, *len);
-					*outlen = *len;
+					break;
 				}
-				break;
+				// FALL THROUGH
 			default:
 				memcpy(out, buf, *len);
 				*outlen = *len;
