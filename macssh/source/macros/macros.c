@@ -41,7 +41,6 @@ extern void ssh2_sched();
 #define MACRO_IP		0xff	/* Send IP number here */
 #define MACRO_LINES		0xfe	/* Send # of lines here */
 #define	MACRO_MAX_LEN	256		// Maximum macro length
-#define NUM_MACROS		110		// RAB BetterTelnet 2.0b5
 
 extern Cursor *theCursors[];
 
@@ -390,14 +389,17 @@ short	sendmacro(struct WindRec *tw, short n)				/* send macro number n */
 	// Invalid number
 	if (n < 0 || n >= NUM_MACROS) {
 		return -1;
-		}
+	}
 
 	// first we actually have to GET the macro (2.0b5)
 	// we use getmacrointohandle for this
 	i = -1;
-	if (tw->sessmacros.handle) i = getmacrointohandle(&tw->sessmacros, n, &mh);
-	if (i == -1) i = getmacrointohandle(&TelInfo->newMacros, n, &mh);
-	if (i == -1) return 0;
+	if (tw->sessmacros.handle)
+		i = getmacrointohandle(&tw->sessmacros, n, &mh);
+	if (i == -1)
+		i = getmacrointohandle(&TelInfo->newMacros, n, &mh);
+	if (i == -1)
+		return 0;
 
 // Empty macro, so do nothing
 //	if (gMacros[n] == nil) {
@@ -1064,8 +1066,6 @@ void parseMacroFile(NewMacroInfo *macrost, short fileRef)
 		}
 	bufferPtr += count;
 	count = 1;
-
-	GetDefaultMacros(); // get the defaults for the extended keys
 
 	while ((fileErr != eofErr)&&(numMacrosRead < 10))
 	{
