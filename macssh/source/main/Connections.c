@@ -1229,6 +1229,12 @@ void	ConnectionClosedEvent(short port)
 		return;
 		}
 
+	if (screens[i].cxWeHaveAppleEvent) {
+		AEResumeTheCurrentEvent(&screens[i].cxAppleEvent, &screens[i].cxAEReply,
+			MyHandleConnectUPP, 2);
+		screens[i].cxWeHaveAppleEvent = 0;
+	}
+
 	FlushNetwork(i);				/* BYU */
 	netclose( screens[i].port);		/* BYU */
 	removeport(&screens[i]);					/* BYU */

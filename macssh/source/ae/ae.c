@@ -26,6 +26,10 @@
 extern WindRec *screens;
 extern short scrn;
 
+extern Boolean			gPresentOpenConnectionDialog;
+extern unsigned long	gPresentOpenConnectionTicks;
+
+
 static void ProcessURLEscapeCodes (char *url, char **end);
 
 void AEunload(void) { }
@@ -134,8 +138,11 @@ pascal OSErr  MyHandleOApp (AppleEvent *theAppleEvent, AppleEvent *reply, long
 	// Well, actually, we do, because we don't want to show the Open Connection box
 	// automatically if a set file was opened.
 
-	if (gApplicationPrefs->autoOpenDialog && !TelInfo->gotDocument)
-		PresentOpenConnectionDialog();
+	if (gApplicationPrefs->autoOpenDialog && !TelInfo->gotDocument) {
+		//PresentOpenConnectionDialog();
+		gPresentOpenConnectionDialog = 1;
+		gPresentOpenConnectionTicks = LMGetTicks();
+	}
 
 	return noErr;
 }
@@ -243,6 +250,9 @@ pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply,
 	short		port;
 	short		portNegative;
 
+	gPresentOpenConnectionDialog = 0;
+	gPresentOpenConnectionTicks = 0;
+
 	if (handlerRefCon == 1)
 		return noErr;
 	if (handlerRefCon == 2)
@@ -305,6 +315,7 @@ pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply,
 		}
 		if (isSuspended)
 			screens[TelInfo->numwindows - 1].enabled = 0;
+		TelInfo->gotDocument = 1;
 		return noErr;
 	}
 	return paramErr;
@@ -567,7 +578,6 @@ pascal OSErr  MyHandleGURL (AppleEvent *theAppleEvent, AppleEvent* reply, long
 		}
 
 goodUrl:
-	TelInfo->gotDocument = 1;
 /* NONO */
 	if ( gApplicationPrefs->parseAliases ) {
 		BlockMoveData(host, favorite+1, favorite[0] = strlen(host));

@@ -61,6 +61,10 @@ Boolean gHasAppearance = false;
 Boolean gHasAppearance11 = false;
 Boolean haveNotifiedLowMemory = FALSE;
 
+Boolean		gPresentOpenConnectionDialog;
+unsigned long	gPresentOpenConnectionTicks;
+
+
 extern void ssh2_sched();
 
 void	main(void)
@@ -121,6 +125,16 @@ void	main(void)
 		{
 			Alert(MemoryLowAlert, NULL);
 			haveNotifiedLowMemory = true;
+		}
+		if ( gPresentOpenConnectionDialog ) {
+			if ( !TelInfo->gotDocument ) {
+				if (LMGetTicks() - gPresentOpenConnectionTicks > 30) {
+					gPresentOpenConnectionDialog = 0;
+					PresentOpenConnectionDialog();
+				}
+			} else {
+				gPresentOpenConnectionDialog = 0;
+			}
 		}
 	} while (!TelInfo->done);						/* BYU mod */
 		

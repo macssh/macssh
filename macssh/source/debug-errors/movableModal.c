@@ -85,6 +85,14 @@ short preFilterEvent(DialogPtr d, EventRecord *theEvent)
 		case keyDown:
 		case autoKey:
 		break;
+
+		case kHighLevelEvent:
+			/* close current dialog ??? */
+
+			AEProcessAppleEvent(theEvent);
+			
+		break;
+
 	}
 	return (ret);
 }
