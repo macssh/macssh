@@ -1609,7 +1609,7 @@ void ssh_protocol_initial(WindRec*w)
 		goto done;
 	}
 
-
+#if 0
 	/* we need at least OpenTransport 1.1.1 */
 	if ( !sOTTested ) {
 		long result;
@@ -1628,7 +1628,7 @@ void ssh_protocol_initial(WindRec*w)
 		SSH2ErrorDialog((char *)scratchPstring);
 		goto done;
 	}
-
+#endif
 
 	/* we need the Thread Manager */
 	if ( !sThreadsTested ) {
