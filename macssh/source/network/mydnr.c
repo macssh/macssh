@@ -117,7 +117,14 @@ Boolean	TranslateIPtoDNSname(ip_addr ipnum, StringPtr machineName)
 pascal void DNRDone(struct hostInfo *hostInfoPtr, DNRDelayStruct *info)
 {
 	UNUSED_ARG(hostInfoPtr)
-	netputevent(USERCLASS,DOMAIN_DONE,info->screen, (long)info);
+	WindRec *theScreen = &screens[info->screen];
+
+	if ( theScreen->active == CNXN_DNRWAIT ) {
+		netputevent(USERCLASS,DOMAIN_DONE, info->screen, (long)info);
+	} else {
+		DisposePtr((Ptr)info->hinfo);
+		DisposePtr((Ptr)info);
+	}
 }
 
 SIMPLE_UPP(DNRDoneInit, Result);
@@ -147,7 +154,14 @@ pascal void DNRDoneInit(struct hostInfo *hostInfoPtr, DNRDelayStruct *info)
 pascal void DNRDone2(struct hostInfo *hostInfoPtr, DNRDelayStruct *info)
 {
 	UNUSED_ARG(hostInfoPtr)
-	netputevent(USERCLASS,DOMAIN_DONE2,info->screen, (long)info);
+	WindRec *theScreen = &screens[info->screen];
+
+	if ( theScreen->active == CNXN_DNRWAIT ) {
+		netputevent(USERCLASS,DOMAIN_DONE2, info->screen, (long)info);
+	} else {
+		DisposePtr((Ptr)info->hinfo);
+		DisposePtr((Ptr)info);
+	}
 }
 
 SIMPLE_UPP(DNRDone2Init, Result);
@@ -206,8 +220,8 @@ OSErr	DoTheDNR(StringPtr hostname, short window)
 		Info->hinfo->addr[0] = ip;
 		DNRDone(HInfo, Info);
 		return(noErr);
-		}
-		
+	}
+
 	PtoCstr(Info->hostname);
 	Info->theError = StrToAddr((char *)Info->hostname, HInfo,
 								DNRDoneInitUPP, (Ptr)Info);
