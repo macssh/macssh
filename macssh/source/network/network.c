@@ -542,6 +542,12 @@ short netwrite(short pnum, void *buffer, short nsend)
 					(char *)buffer += len;
 					n -= len;
 					nsend += len;
+
+					if (context->_insock) {
+						extern void GUSIWakeupTTYSocket( void *insock );
+						GUSIWakeupTTYSocket(context->_insock);
+					}
+
 				} else {
 					ssh2_sched();
 				}
