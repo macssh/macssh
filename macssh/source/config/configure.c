@@ -61,6 +61,8 @@ static	Boolean InNumOnly(short item);
 static Str255 configPassword;
 static Str255 configPassword2;
 
+static ConstStringPtr gDefaultName = "\p<Default>";
+
 static LinkedListNode *currentHead;
 static ListHandle currentList;
 #define NUMONLYSIZE 8
@@ -495,6 +497,43 @@ Boolean GetApplicationType(OSType *type)
 	return(sfr.good);
 }
 
+
+static Boolean GetCurrentSelection(ListHandle thelist, Point *theCell, StringPtr theString)
+{
+	Point 		tempCell;
+
+	if ( theCell == NULL )
+		theCell = &tempCell;
+	SetPt(theCell, 0, 0);
+	if ( LGetSelect(TRUE, theCell, thelist) ) {
+		if ( theString != NULL ) {
+			short length = 254;
+			LGetCell(theString+1, &length, *theCell, thelist);
+			theString[0] = (char)length;
+		}
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static Boolean IsDefaultLabel(StringPtr theString)
+{
+	return EqualString( theString, gDefaultName, TRUE, FALSE );
+}
+
+static Boolean IsDefaultSelected(ListHandle thelist)
+{
+	Point 		theCell;
+	Str255		ItemName;
+
+	if (GetCurrentSelection(thelist, &theCell, ItemName)) {
+		return IsDefaultLabel(ItemName);
+	}
+	return FALSE;
+}
+
+
+
 //	Our standard modal dialog filter with code for handling user items containing lists.
 SIMPLE_UPP(MyDlogWListFilter, ModalFilter);
 pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
@@ -523,20 +562,35 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 			switch(evt->message & charCodeMask)
 			{
 				case 'e':
-					*item = kChange;
-				break;
+					if (GetCurrentSelection(currentList, NULL, NULL)) {
+						*item = kChange;
+					} else {
+						evt->what == nullEvent;
+						return FALSE;
+					}
+					break;
 				case 'r':
-					*item = kRemove;
-				break;
+					if (!IsDefaultSelected(currentList)) {
+						*item = kRemove;
+					} else {
+						evt->what == nullEvent;
+						return FALSE;
+					}
+					break;
 				case 'n':
 					*item = kNew;
-				break;
+					break;
 				case 'd':
-					*item = kDuplicate;
-				break;
+					if (GetCurrentSelection(currentList, NULL, NULL)) {
+						*item = kDuplicate;
+					} else {
+						evt->what == nullEvent;
+						return FALSE;
+					}
+					break;
 				default:
 					return(FALSE);
-				break;
+					break;
 			}
 			FlashButton(dptr, *item);
 			return (-1);
@@ -581,7 +635,7 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 					tempCell.v = 0;
 				LSetSelect(TRUE,tempCell,currentList);//select it
 				LAutoScroll(currentList);
-				Hilite(dptr, kRemove, 0);
+				Hilite(dptr, kRemove, IsDefaultSelected(currentList) ? 255 : 0);
 				Hilite(dptr, kChange, 0);
 				return(FALSE);
 			}
@@ -599,7 +653,8 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 				LAutoScroll(currentList);
 				if (shortcut[0] == 10)
 					shortcut[0] = 0;
-				Hilite(dptr, kRemove, 0);
+
+				Hilite(dptr, kRemove, IsDefaultSelected(currentList) ? 255 : 0);
 				Hilite(dptr, kChange, 0);
 			}	
 		}
@@ -624,9 +679,10 @@ pascal short MyDlogWListFilter( DialogPtr dptr, EventRecord *evt, short *item)
 		GlobalToLocal(&scratchPoint);
 		if (PtInRect(scratchPoint, &iRect)) 
 		{
+			ListHandle theList;
 			*item = kItemList;
-			if (LClick(scratchPoint, evt->modifiers, (ListHandle)GetWRefCon(dptr))) 
-			{
+			if (LClick(scratchPoint, evt->modifiers, currentList)
+			 && GetCurrentSelection(currentList, NULL, NULL)) {
 				*item = kChange;
 				FlashButton(dptr, kChange);
 			}	
@@ -672,7 +728,11 @@ void	BoundsCheck(long *value, long high, long low)
 	if (*value < low) *value = low;
 }
 
-#define kSCListMods lNoNilHilite+lOnlyOne
+
+
+/*#define kSCListMods lNoNilHilite+lOnlyOne*/
+#define kSCListMods (lNoNilHilite+lOnlyOne)
+
 void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPtr))
 {
 	DialogPtr	dptr;
@@ -714,15 +774,18 @@ void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPt
 	SetRect(&ListBounds, 0,0,1,0);
 	SetPt(&cellSize,(ListBox.right-ListBox.left),16);
 	thelist = LNew(&ListBox, &ListBounds, cellSize, 0, (WindowPtr)dptr,0,0,0,1);
-	(*(thelist))->listFlags = kSCListMods;
-	
+/* NONO: was wrong field */
+/*	(*(thelist))->listFlags = kSCListMods;*/
+	(*(thelist))->selFlags = kSCListMods;
+	(*(thelist))->listFlags = lDoVAutoscroll;
+/* NONO */
 	currentList = thelist;
 	SetWRefCon(dptr, (long)thelist);		// So the Ditem proc can find the list
 	
 	UseResFile(TelInfo->SettingsFile);
 	numberofitems = Count1Resources(ConfigResourceType);
 	if (numberofitems)
-		theHead = createSortedList(ConfigResourceType,numberofitems,"\p<Default>"); //now we have a sorted linked list of the names
+		theHead = createSortedList(ConfigResourceType,numberofitems,gDefaultName); //now we have a sorted linked list of the names
  	else
 		theHead = NULL;
 	leader = theHead;
@@ -738,7 +801,12 @@ void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPt
 	theCell.h = 0;
 	if (numberofitems) LSetSelect(1, theCell, thelist);
 	LSetDrawingMode(1, thelist);
-	
+
+	/* first item is always <default> can't be deleted */
+	if ( IsDefaultSelected(thelist) ) {
+		Hilite(dptr, kRemove, 255);
+	}
+
 	currentHead = theHead; //let dialog filter know about the list
 	while (ditem > 1) {
 		movableModalDialog(MyDlogWListFilterUPP, &ditem);
@@ -746,24 +814,16 @@ void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPt
 		switch(ditem) 
 		{
 			case kRemove:
-				SetPt(&theCell, 0, 0);
-				if (LGetSelect(TRUE, &theCell, thelist)) 
-				{
-					length = 254;
-					LGetCell(ItemName+1, &length, theCell, thelist);
-					ItemName[0] = (char)length;
-					if (!(EqualString(ItemName, "\p<Default>", TRUE, FALSE))) 
-					{
-						deleteItem(&theHead,ItemName);//delete it from the linked list
-						LDelRow(1,theCell.v,thelist);
-						theCell.v--;
-						LSetSelect(TRUE,theCell,thelist);
-						UseResFile(TelInfo->SettingsFile);
-						ItemResource = Get1NamedResource(ConfigResourceType, ItemName);
-						RemoveTaggedResource(ItemResource, ConfigResourceType, ItemName);
-						ReleaseResource(ItemResource);
-						UpdateResFile(TelInfo->SettingsFile);
-					}
+				if ( GetCurrentSelection(thelist, &theCell, ItemName) && !IsDefaultLabel(ItemName) ) {
+					deleteItem(&theHead,ItemName);//delete it from the linked list
+					LDelRow(1,theCell.v,thelist);
+					theCell.v--;
+					LSetSelect(TRUE,theCell,thelist);
+					UseResFile(TelInfo->SettingsFile);
+					ItemResource = Get1NamedResource(ConfigResourceType, ItemName);
+					RemoveTaggedResource(ItemResource, ConfigResourceType, ItemName);
+					ReleaseResource(ItemResource);
+					UpdateResFile(TelInfo->SettingsFile);
 				}
 				break;
 			
@@ -808,17 +868,12 @@ void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPt
 			break;
 			
 			case kDuplicate:
-				SetPt(&theCell, 0, 0);
-				if (LGetSelect(TRUE, &theCell, thelist)) 
-				{
+				if ( GetCurrentSelection(thelist, &theCell, ItemName) ) {
 					Handle oldResource,newResource;
 					unsigned char copyString[] = " copy";
 					short resourceID;
 					short index;
-					length = 254;
-					LGetCell(ItemName+1, &length, theCell, thelist);
 					LSetSelect(FALSE,theCell,thelist);
-					ItemName[0] = (char)length;
 					leader = findNode(theHead,ItemName);
 					UseResFile(TelInfo->SettingsFile);
 					oldResource = GetNamedResource(ConfigResourceType,ItemName);
@@ -846,16 +901,15 @@ void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPt
 			break;
 		} // switch
 		
-		SetPt(&theCell, 0, 0);
-		if (LGetSelect(TRUE, &theCell, thelist)) {
-			Hilite(dptr, kRemove, 0);
+		if ( GetCurrentSelection(thelist, &theCell, ItemName) ) {
+			Hilite(dptr, kRemove, (IsDefaultLabel(ItemName)) ? 255 : 0);
 			Hilite(dptr, kChange, 0);
-			}
-		else {
+			Hilite(dptr, kDuplicate, 0);
+		} else {
 			Hilite(dptr, kRemove, 255);
 			Hilite(dptr, kChange, 255);
-			}
-		
+			Hilite(dptr, kDuplicate, 255);
+		}
 	} // while
 	
 	LDispose(thelist);
@@ -1241,12 +1295,11 @@ Boolean EditTerminal(StringPtr PrefRecordNamePtr)
 		IsNewPrefRecord = FALSE;
 		UseResFile(TelInfo->SettingsFile);
 		TermPrefsHdl = (TerminalPrefs **)Get1NamedSizedResource(TERMINALPREFS_RESTYPE, PrefRecordNamePtr, sizeof(TerminalPrefs));
-		if (EqualString(PrefRecordNamePtr, "\p<Default>", FALSE, FALSE)) {
+		if (IsDefaultLabel(PrefRecordNamePtr)) {
 			HideDialogItem(dptr, TermNameStatText);
 			HideDialogItem(dptr, TermName);
-			}
 		}
-	else { //make sure we have a unique name
+	} else { //make sure we have a unique name
 		TermPrefsHdl = GetDefaultTerminal();
 		IsNewPrefRecord = TRUE;
 		GetIndString(PrefRecordNamePtr, MISC_STRINGS, MISC_NEWTERM);
@@ -1723,7 +1776,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	SPopup[0].h = NewMenu(666, "\p");
 	UseResFile(TelInfo->SettingsFile);
 	numberOfTerms = Count1Resources(TERMINALPREFS_RESTYPE);
-	currentHead  = createSortedList(TERMINALPREFS_RESTYPE,numberOfTerms,"\p<Default>");
+	currentHead  = createSortedList(TERMINALPREFS_RESTYPE,numberOfTerms,gDefaultName);
 	addListToMenu(SPopup[0].h, currentHead, 1);
 	EnableItem(SPopup[0].h, 0);		// Make sure the entire menu is enabled
 	deleteList(&currentHead);
@@ -1746,7 +1799,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 		IsNewPrefRecord = FALSE;
 		UseResFile(TelInfo->SettingsFile);
 		SessPrefsHdl = (SessionPrefs **)Get1NamedSizedResource(SESSIONPREFS_RESTYPE, PrefRecordNamePtr, sizeof(SessionPrefs));
-		if (EqualString(PrefRecordNamePtr, "\p<Default>", FALSE, FALSE)) {
+		if (IsDefaultLabel(PrefRecordNamePtr)) {
 			HideDialogItem(dptr, SessAlias);
 			HideDialogItem(dptr, SessAliasStatText);
 			}
