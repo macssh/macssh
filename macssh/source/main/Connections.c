@@ -730,6 +730,9 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 									// get it for the remote host and not the firewall
 	}
 
+
+
+/*
 	// Get the IP for the host while we set up the connection
 	if (DoTheDNR(hostname, cur) != noErr) {
 		OutOfMemory(1010);
@@ -740,7 +743,7 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 		updateCursor(1);
 		return(FALSE);
 		}
-		
+*/
 	DoTheMenuChecks();
 
 	theScreen->sessmacros = (**Params).sessmacros;
@@ -844,6 +847,19 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 		}
 	}
 /* NONO */
+
+
+	// Get the IP for the host while we set up the connection
+	if (DoTheDNR(hostname, cur) != noErr) {
+		OutOfMemory(1010);
+		DisposeHandle((Handle)(**Params).terminal);
+		DisposeHandle((Handle)(**Params).session);
+		DisposeHandle((Handle)Params);
+		TelInfo->numwindows--;
+		updateCursor(1);
+		return(FALSE);
+		}
+
 
 	GetFNum(TermPtr->DisplayFont, &fontnumber);
 	GetFNum(TermPtr->BoldFont, &otherfnum);
