@@ -764,6 +764,8 @@ short ModalMacros(NewMacroInfo *macrost)
 		SetDialogItemText( MacString[i], temp );
 		}
 
+	TelInfo->macrosModeless = dtemp;
+
 	dItem = 0;
 	while ((dItem != 1) && (dItem != 2)) {
 		movableModalDialog(0, &dItem);
@@ -859,16 +861,18 @@ void MacroDialog(NewMacroInfo *macrost, DialogPtr dtemp, EventRecord *theEvent, 
 
 void CancelMacros(NewMacroInfo *macrost, DialogPtr dtemp)
 {
-	DisposeDialog(dtemp);
-	DisposeHandle(macrost->handle);
+	if ( TelInfo->macrosModeless == dtemp ) {
+		DisposeDialog(dtemp);
+		DisposeHandle(macrost->handle);
 
-	*macrost = oldMacroIndexes;
-	macrost->handle = oldMacros;
+		*macrost = oldMacroIndexes;
+		macrost->handle = oldMacros;
 
-	if ( TelInfo->macrosModeless ) {
-		TelInfo->macrosModeless = 0;
-		AdjustMenus();
-		DoTheMenuChecks();
+		//if ( TelInfo->macrosModeless ) {
+			TelInfo->macrosModeless = 0;
+			AdjustMenus();
+			DoTheMenuChecks();
+		//}
 	}
 }
 
@@ -880,20 +884,22 @@ void CloseMacros(NewMacroInfo *macrost, DialogPtr dtemp)
 	Str255 temp;
 	Handle MacString[10];
 
-	for (i=0; i<10; i++) {
-		GetDialogItem( dtemp, i+13, &dItem, &MacString[i], &dBox);
-		GetDialogItemText( MacString[i], temp);
-		p2cstr(temp);
-		setmacro(macrost, i + (10 * dialogPane), (char *) &temp);
-		}
+	if ( TelInfo->macrosModeless == dtemp ) {
+		for (i=0; i<10; i++) {
+			GetDialogItem( dtemp, i+13, &dItem, &MacString[i], &dBox);
+			GetDialogItemText( MacString[i], temp);
+			p2cstr(temp);
+			setmacro(macrost, i + (10 * dialogPane), (char *) &temp);
+			}
 
-	DisposeHandle(oldMacros);
-	DisposeDialog(dtemp);
-	
-	if ( TelInfo->macrosModeless ) {
-		TelInfo->macrosModeless = 0;
-		AdjustMenus();
-		DoTheMenuChecks();
+		DisposeHandle(oldMacros);
+		DisposeDialog(dtemp);
+		
+		//if ( TelInfo->macrosModeless ) {
+			TelInfo->macrosModeless = 0;
+			AdjustMenus();
+			DoTheMenuChecks();
+		//}
 	}
 }
 

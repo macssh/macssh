@@ -1235,6 +1235,7 @@ void VSIscroll
 	static VSlinePtr tmp, tmp2, tmp3, tmp4;
 	register short i;
 	short theBottom;				/* NCSA 2.5: the correct screen bottom */
+	short scrolled;
 
 	if (VSIw->y > VSIw->lines)		/* BYU - replaces BYU modification below */
 		return;						/* BYU */
@@ -1298,8 +1299,19 @@ void VSIscroll
 //		if (VSIw->forcesave)
 		theBottom = VSIw->bottom;	/* NCSA 2.5: get the correct scroll rgn */
 //		else theBottom = VSIw->Rbottom;				/* NCSA 2.5: just use whole screen */
-		
-		if (VSIcdellines(VSIwn, VSIw->Rtop, theBottom, 1, 1))	/* NCSA 2.5 */
+
+/*
+		if (RSlocal[VSIwn].last.v < VSIw->Rtop) {
+			scrolled = 1;
+		} else if (RSlocal[VSIwn].anchor.v > theBottom) {
+			scrolled = -1;
+		} else {
+			scrolled = 0;
+		}
+*/
+		scrolled = -1;
+
+		if (VSIcdellines(VSIwn, VSIw->Rtop, theBottom, 1, scrolled))	/* NCSA 2.5 */
 		  {
 		  /* no part of on-screen area is visible */
 			if (VSIw->Rtop > -VSIw->numlines)
@@ -1315,7 +1327,7 @@ void VSIscroll
 				line being shown has in fact vanished. Update the display
 				to show this fact. */
 				VSIw->vistop = VSIw->vistop->next;
-				RSdellines(VSIwn, 0, VSIw->Rbottom - VSIw->Rtop, 1, 1);
+				RSdellines(VSIwn, 0, VSIw->Rbottom - VSIw->Rtop, 1, scrolled);
 			  } /* if */
 		  }
 		else
@@ -1363,6 +1375,7 @@ void VSOscroll
 	register short i;
 	short theBottom;				/* NCSA 2.5: the correct screen bottom */
 	static VSlinePtr tmp, tmp2, tmp3, tmp4;
+	short scrolled;
 
 	if (VSIw->y > VSIw->lines)		/* BYU - replaces BYU modification below */
 		return;						/* BYU */
@@ -1428,8 +1441,19 @@ void VSOscroll
 //		if (VSIw->forcesave)
 		theBottom = VSIw->bottom;	/* NCSA 2.5: get the correct scroll rgn */
 //		else theBottom = VSIw->Rbottom;				/* NCSA 2.5: just use whole screen */
-		
-		if (VSIcdellines(VSIwn, VSIw->Rtop, theBottom, 1, 1))	/* NCSA 2.5 */
+
+/*
+		if (RSlocal[VSIwn].last.v < VSIw->Rtop) {
+			scrolled = 1;
+		} else if (RSlocal[VSIwn].anchor.v > theBottom) {
+			scrolled = -1;
+		} else {
+			scrolled = 0;
+		}
+*/
+		scrolled = -1;
+
+		if (VSIcdellines(VSIwn, VSIw->Rtop, theBottom, 1, scrolled))	/* NCSA 2.5 */
 		  {
 		  /* no part of on-screen area is visible */
 			if (VSIw->Rtop > -VSIw->numlines)
@@ -1445,7 +1469,7 @@ void VSOscroll
 				line being shown has in fact vanished. Update the display
 				to show this fact. */
 				VSIw->vistop = VSIw->vistop->next;
-				RSdellines(VSIwn, 0, VSIw->Rbottom - VSIw->Rtop, 1, 1);
+				RSdellines(VSIwn, 0, VSIw->Rbottom - VSIw->Rtop, 1, scrolled);
 			  } /* if */
 		  }
 		else

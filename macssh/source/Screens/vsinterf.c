@@ -538,6 +538,11 @@ void VSrealloc(short w)
 
 	// save the current screen
 	savedTextBlock = VSInewlines(VSIw->lines + 1 + VSDEFLINES);
+	if (!savedTextBlock) {
+		// FIXME: we should display the error here...
+		return;
+	}
+
 	savedTextPtr = savedTextBlock;
 	for (i = 0; i <= VSIw->lines; i++) {
 		BlockMoveData(VSIw->linest[i]->text, savedTextPtr->text, VSIw->allwidth + 1);
@@ -1881,7 +1886,8 @@ long VSgettext(short w, short x1, short y1, short x2, short y2,
 		if (outlen > max) {
 			outlen = max;
 		}
-		charp = VSIstrcopy(pt + x1, outlen, tp = charp, table, !clipspaces);
+		// don't clip trailing spaces if this line is wrapped
+		charp = VSIstrcopy(pt + x1, outlen, tp = charp, table, !clipspaces || VSiswrap(ypt->lattr) );
 		max -= charp - tp;
 		if (max >= elen && !VSiswrap(ypt->lattr) && y1 != ly) {
 			strcpy(charp, EOLS);

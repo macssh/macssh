@@ -863,10 +863,13 @@ void RSdellines
 
 	RSsetattr(0, 0);
 
-	if (scrolled)
-	  {
+
+
+
 // attempt to keep current selection
 #if 0
+	if (scrolled)
+	  {
 		if (RScurrent->selected /*&& scrolled < 0*/)
 		  {
 			/* unhighlight and cancel current selection */
@@ -877,21 +880,23 @@ void RSdellines
 			RScurrent->last.v -= 1;		/* Subtract one from each of the */
 			RScurrent->anchor.v -= 1;	/* vertical Selection components */
 		  } /* if */
-#endif
-		if ( RScurrent->selected ) {
-			RScurrent->anchor.v += scrolled;
-			RScurrent->last.v += scrolled;
-			if ( RScurrent->anchor.v < -VSIw->numlines ) {
-				RScurrent->anchor.v = -VSIw->numlines;
-				RScurrent->anchor.h = -1;
-			}
-			if ( RScurrent->last.v < -VSIw->numlines ) {
-				RScurrent->last.v = -VSIw->numlines;
-				RScurrent->selected = FALSE;
-			}
-		}
 //
 	  } /* if */
+#endif
+
+	if ( RScurrent->selected && scrolled ) {
+		RScurrent->anchor.v += scrolled;
+		RScurrent->last.v += scrolled;
+		if ( RScurrent->anchor.v < -VSIw->numlines ) {
+			RScurrent->anchor.v = -VSIw->numlines;
+			RScurrent->anchor.h = -1;
+		}
+		if ( RScurrent->last.v < -VSIw->numlines ) {
+			RScurrent->last.v = -VSIw->numlines;
+			RScurrent->selected = FALSE;
+		}
+	}
+
 
 	MYSETRECT
 	  (
@@ -971,6 +976,7 @@ void RSinslines
 
 	RSsetattr(0, 0);
 
+// attempt to keep current selection
 #if 0
 	if (RScurrent->selected != 0 && (scrolled < 0))
 	  {
@@ -978,19 +984,6 @@ void RSinslines
 	  	UnHiliteSelection(w);
 	  } /* if */
 #endif
-
-    MYSETRECT
-	  (
-		rect,
-		CHO, /* scroll 3 pixels more on the left */
-		t * RScurrent->fheight,
-		RScurrent->rwidth - 1,
-		(b + 1) * RScurrent->fheight
-	  );
-
-	ScrollRectInRgn(RScurrent->window, &rect, 0, RScurrent->fheight * n);
-
-// attempt to keep current selection
 	if ( RScurrent->selected && scrolled ) {
 		RScurrent->anchor.v += scrolled;
 		RScurrent->last.v += scrolled;
@@ -1004,6 +997,17 @@ void RSinslines
 		}
 	}
 //
+
+    MYSETRECT
+	  (
+		rect,
+		CHO, /* scroll 3 pixels more on the left */
+		t * RScurrent->fheight,
+		RScurrent->rwidth - 1,
+		(b + 1) * RScurrent->fheight
+	  );
+
+	ScrollRectInRgn(RScurrent->window, &rect, 0, RScurrent->fheight * n);
 
     RSsetattr(VSIw->lattrib, VSIw->attrib); /* restore mode for text drawing */
 } /* RSinslines */
