@@ -142,7 +142,7 @@ make_simple_kexinit(struct randomness *r,
 		    struct int_list *compression_algorithms,
 		    struct int_list *languages);
 
-extern struct command_simple kexinit_filter;
+extern struct command_2 kexinit_filter;
 #define KEXINIT_FILTER (&kexinit_filter.super.super)
 
 void initiate_keyexchange(struct ssh_connection *connection);

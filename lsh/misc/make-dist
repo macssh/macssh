@@ -5,5 +5,8 @@
 #  && grep -v '^rsa.c.x$' < src/.dist_classes-old > src/.dist_classes
 # }
 
-make && (cd src/testsuite && make check-more) && \
+# make && (cd src/testsuite && make check-more) && \
+#   ./make_am --rethink && ./make_am && make && make distcheck
+
+make && \
   ./make_am --rethink && ./make_am && make && make distcheck

@@ -298,17 +298,21 @@ make_handshake_info(UINT32 flags,
 /* Buffer size when reading from the socket */
 #define BUF_SIZE (1<<14)
 
-static void
-do_handshake(struct command *s,
-	     struct lsh_object *x,
+DEFINE_COMMAND4(handshake_command)
+     (struct lsh_object *a1,
+      struct lsh_object *a2,
+      struct lsh_object *extra,
+      struct lsh_object *a4,
 	     struct command_continuation *c,
 	     struct exception_handler *e)
 {
-  CAST(handshake_command_2, self, s);
-  CAST(listen_value, lv, x);
+  CAST(handshake_info, info, a1);
+  CAST_SUBTYPE(make_kexinit, init, a2);
+  CAST(listen_value, lv, a4);
+  
   struct lsh_string *version;
   struct ssh_connection *connection;
-  int mode = self->info->flags & CONNECTION_MODE;
+  int mode = info->flags & CONNECTION_MODE;
   
   verbose("Initiating handshake with %S\n", lv->peer->ip);
   
@@ -318,17 +322,17 @@ do_handshake(struct command *s,
       version = ssh_format("SSH-%lz-%lz %lz",
 			   CLIENT_PROTOCOL_VERSION,
 			   SOFTWARE_CLIENT_VERSION,
-			   self->info->id_comment);
+			   info->id_comment);
       break;
     case CONNECTION_SERVER:
 #if WITH_SSH1_FALLBACK
-      if (self->info->fallback)
+      if (info->fallback)
 	{
 	  version =
 	    ssh_format("SSH-%lz-%lz %lz",
 		       SSH1_SERVER_PROTOCOL_VERSION,
 		       SOFTWARE_SERVER_VERSION,
-		       self->info->id_comment);
+		       info->id_comment);
 	}
       else
 #endif
@@ -336,7 +340,7 @@ do_handshake(struct command *s,
 	  ssh_format("SSH-%lz-%lz %lz",
 		     SERVER_PROTOCOL_VERSION,
 		     SOFTWARE_SERVER_VERSION,
-		     self->info->id_comment);
+		     info->id_comment);
       break;
     default:
       fatal("do_handshake: Internal error\n");
@@ -352,8 +356,8 @@ do_handshake(struct command *s,
    * EXC_FINISH_READ exception. */
   
   connection = make_ssh_connection
-    (self->info->flags,
-     lv->peer, self->info->debug_comment, 
+    (info->flags,
+     lv->peer, info->debug_comment, 
      c,
      make_exc_finish_read_handler(lv->fd, e, HANDLER_CONTEXT));
   
@@ -363,17 +367,17 @@ do_handshake(struct command *s,
 		    make_buffered_read
 		    (BUF_SIZE,
 		     make_connection_read_line(connection, 
-					       lv->fd->fd, self->info->fallback)),
-		    self->info->block_size,
+					       lv->fd->fd, info->fallback)),
+		    info->block_size,
 		    make_connection_close_handler(connection))
      ->write_buffer->super,
-     self->info->random);
+     info->random);
 
   connection->versions[mode] = version;
-  connection->kexinits[mode] = MAKE_KEXINIT(self->init); 
+  connection->kexinits[mode] = MAKE_KEXINIT(init); 
   connection->dispatch[SSH_MSG_KEXINIT]
-    = make_kexinit_handler(self->init,
-			   self->extra, self->info->algorithms);
+    = make_kexinit_handler(init,
+			   extra, info->algorithms);
 
 #if WITH_SSH1_FALLBACK
   /* In this mode the server SHOULD NOT send carriage return character (ascii
@@ -381,7 +385,7 @@ do_handshake(struct command *s,
    *
    * Furthermore, it should not send any data after the identification string,
    * until the client's identification string is received. */
-  if (self->info->fallback)
+  if (info->fallback)
     {
       A_WRITE(connection->raw,
 	      ssh_format("%lS\n", version));
@@ -394,33 +398,3 @@ do_handshake(struct command *s,
   
   initiate_keyexchange(connection);
 }
-
-static struct lsh_object *
-collect_handshake_3(struct collect_info_3 *info UNUSED,
-		    struct lsh_object *h,
-		    struct lsh_object *i,
-		    struct lsh_object *extra)
-{
-  CAST(handshake_info, hinfo, h);
-  CAST_SUBTYPE(make_kexinit, init, i);
-  NEW(handshake_command_2, self);
-
-#if 0
-  assert(!info->next);
-#endif
-  self->super.call = do_handshake;
-  self->info = hinfo;
-  self->init = init;
-  self->extra = extra;
-
-  return &self->super.super;
-}
-
-static struct collect_info_3 collect_info_handshake_3 =
-STATIC_COLLECT_3_FINAL(collect_handshake_3);
-
-static struct collect_info_2 collect_info_handshake_2 =
-STATIC_COLLECT_2(&collect_info_handshake_3);
-
-struct collect_info_1 handshake_command =
-STATIC_COLLECT_1(&collect_info_handshake_2);

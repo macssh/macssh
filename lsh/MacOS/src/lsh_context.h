@@ -62,8 +62,9 @@ typedef struct lshcontext {
 
 	sig_atomic_t	_window_changed;
 
-	char			*_envv[3];	// "HOME", "LOGNAME", "TERM"
-	char			_term[64];	// home and logname never change
+	char			*_envv[4];		// "HOME", "LOGNAME", "TERM", "DISPLAY"
+	char			_term[64];		// home and logname never change
+	char			_display[64];	// home and logname never change
 	char			_kpassword[64];
 	int				_kindex;
 	int				_pindex;

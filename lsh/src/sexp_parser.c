@@ -221,11 +221,34 @@ sexp_parse_canonical(struct simple_buffer *buffer)
     }
 }
 
+
+static void
+skip_space(struct simple_buffer *buffer)
+{
+  while (LEFT)
+    {
+      UINT32 length = sexp_scan_class(buffer, CHAR_space);
+      ADVANCE(length);
+      
+      if (LEFT && (*HERE == ';'))
+	while (LEFT && (*HERE != '\n'))
+	  ADVANCE(1);
+
+      else if (!length)
+	/* No comment, and no spaces skipped. Done. */
+	return;
+    }
+}
+
+/* NOTE: Implements the transport syntax. Also allows comments,
+ * starting with ';' and terminating at end of line. */
+
 struct sexp *
 sexp_parse_transport(struct simple_buffer *buffer)
 {
-  while (LEFT && (sexp_char_classes[*HERE] & CHAR_space))
-    ADVANCE(1);
+  struct sexp *expr = NULL;
+  
+  skip_space(buffer);
   
   if (!LEFT)
     {
@@ -234,7 +257,8 @@ sexp_parse_transport(struct simple_buffer *buffer)
     }
   
   if (*HERE != '{')
-    return sexp_parse_canonical(buffer);
+    expr = sexp_parse_canonical(buffer);
+  
   else
     {
       UINT32 length;
@@ -246,7 +270,6 @@ sexp_parse_transport(struct simple_buffer *buffer)
 	  {
 	    struct lsh_string *canonical = decode_base64(length, HERE);
 	    struct simple_buffer inner;
-	    struct sexp *expr;
 	    
 	    if (!canonical)
 	      {
@@ -258,42 +281,55 @@ sexp_parse_transport(struct simple_buffer *buffer)
 	    
 	    lsh_string_free(canonical);
 	    ADVANCE(length + 1);
+	    break;
+	  }
+    }
+  if (expr)
+    /* It seems a little redundant to skip space *both* before and after
+     * parsing an expression, but it's the simplest way to make sure we allow
+     * space both at the beginning and at the end of a file.
+     */
+    skip_space(buffer);
+  else
+    werror("sexp: Missing } in transport encoding.\n");
 	    
 	    return expr;
 	  }
-      werror("sexp: Missing } in transport encoding.\n");
-      return NULL;
+
+struct sexp *
+sexp_parse(int style, struct simple_buffer *buffer)
+{
+  switch(style)
+    {
+    case SEXP_CANONICAL:
+      return sexp_parse_canonical(buffer);
+    case SEXP_ADVANCED:
+    case SEXP_INTERNATIONAL:
+      werror("sexp syntax %i not supported in parser. "
+	     "Using transport syntax instead.\n", style);
+      /* Fall through */
+    case SEXP_TRANSPORT:
+      return sexp_parse_transport(buffer);
+    default:
+      fatal("sexp_parse: Internal error, style %i not implemented.\n", style);
     }
 }
 
 struct sexp *
-string_to_sexp(int style, struct lsh_string *src, int free)
+string_to_sexp(int style, const struct lsh_string *src, int free)
 {
   struct simple_buffer buffer;
-  struct sexp *e = NULL;
+  struct sexp *e;
   
   simple_buffer_init(&buffer, src->length, src->data);
 
-  switch (style)
-    {
-    case SEXP_CANONICAL:
-      e = sexp_parse_canonical(&buffer);
-      break;
-    case SEXP_TRANSPORT:
-      e = sexp_parse_transport(&buffer);
-      break;
-    default:
-      fatal("string_to_sexp: Unsupported style.");
-    }
-  if (e && parse_eod(&buffer))
-    {
+  e = sexp_parse(style, &buffer);
+
+  if (e && !parse_eod(&buffer))
+    e = NULL;
+  
       if (free)
 	lsh_string_free(src);
 
       return e;
     }
-  if (free)
-    lsh_string_free(src);
-
-  return NULL;
-}

@@ -174,7 +174,7 @@ do_##NAME(struct packet_handler *s UNUSED,		\
        (literal_kexinits array (string) 2)
 
        ; Table of all known message types 
-       (dispatch array (object packet_handler) "0x100");
+       (dispatch array (object packet_handler) "0x100")
        
        ; Table of all opened channels
        (table object channel_table)

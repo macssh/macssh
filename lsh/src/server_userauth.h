@@ -46,6 +46,7 @@
    (class
      (name user_db)
      (vars
+       ;; FIXME: Do we really need the FREE parameter?
        (lookup method "struct lsh_user *"
                       "struct lsh_string *name" "int free")))
 */
@@ -93,6 +94,8 @@ struct lsh_string *
 format_userauth_success(void);
 
 /* authentication methods */
+
+extern struct userauth server_userauth_none;
 
 struct userauth *
 make_userauth_password(struct user_db *db);

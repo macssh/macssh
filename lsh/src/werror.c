@@ -48,6 +48,10 @@
 #include <unistd.h>
 #endif
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #if HAVE_SYSLOG_H
 #include <syslog.h>
 #endif
@@ -70,13 +74,14 @@ int trace_flag = 0;
 int debug_flag = 0;
 int quiet_flag = 0;
 int verbose_flag = 0;
-int syslog_flag = 0;
 #else
 #include "lsh_context.h"
 #endif
+static const char *program_name = NULL;
 
 #define WERROR_TRACE -1
 #define WERROR_DEBUG -2
+#define WERROR_LOG -3
 
 static const struct argp_option
 werror_options[] =
@@ -85,17 +90,23 @@ werror_options[] =
   { "verbose", 'v', NULL, 0, "Verbose diagnostic messages", 0},
   { "trace", WERROR_TRACE, NULL, 0, "Detailed trace", 0 },
   { "debug", WERROR_DEBUG, NULL, 0, "Print huge amounts of debug information", 0 },
+  { "log-file", WERROR_LOG, "File name", 0,
+    "Append messages to this file.", 0},
   { NULL, 0, NULL, 0, NULL, 0 }
 };
 
 static error_t
-werror_argp_parser(int key, char *arg UNUSED,
-		   struct argp_state *state UNUSED)
+werror_argp_parser(int key, char *arg,
+		   struct argp_state *state)
 {
   switch(key)
     {
     default:
       return ARGP_ERR_UNKNOWN;
+    case ARGP_KEY_END:
+    case ARGP_KEY_INIT:
+      program_name = state->name;
+      break;
     case 'q':
       quiet_flag = 1;
       break;
@@ -108,6 +119,19 @@ werror_argp_parser(int key, char *arg UNUSED,
     case WERROR_DEBUG:
       debug_flag = 1;
       break;
+    case WERROR_LOG:
+      {
+	/* FIXME: For clients, this is right: We only get lsh-related
+	 * messages to the log file, and child processes are not
+	 * affected. But for the server, perhaps we should also dup
+	 * the logfile over stderr? */
+	
+	int fd = open(arg, O_WRONLY | O_CREAT | O_APPEND, 0666);
+	if (fd < 0)
+	  argp_error(state, "Failed to open log file `%s'.", arg);
+	else
+	  set_error_stream(fd);
+      }
     }
   return 0;
 }
@@ -136,24 +160,24 @@ static const struct exception *
 static const struct exception *
 write_syslog(int fd UNUSED, UINT32 length, const UINT8 *data)
 {
-  struct lsh_string *s = make_cstring_l(length, data);
+  struct lsh_string *s;
 
-  /* NOTE: make_cstring fails if the data contains any NUL characters. */
-  assert(s);
+  /* Data must not contain any NUL:s */
+  assert(!memchr(data, '\0', length));
+  
+  /* NUL-terminate the string. */
+  s = ssh_format("%ls", length, data);
 
-#if 0
-  /* Make sure the message is properly terminated with \0. */
-  snprintf(string_buffer, MIN(BUF_SIZE, length), "%s", data);
-#endif
   /* FIXME: Should we use different log levels for werror, verbose and
    * debug? */
   
-  syslog(LOG_NOTICE, "%s", s->data);
+  syslog(LOG_NOTICE, "%s", lsh_get_cstring(s));
   lsh_string_free(s);
   
   return NULL;
 }
 
+/* FIXME: Delete argument and use program_name. */
 void
 set_error_syslog(const char *id)
 {
@@ -169,11 +193,18 @@ write_ignore(int fd UNUSED,
 { return NULL; }
 
 void
-set_error_stream(int fd, int with_poll)
+set_error_stream(int fd)
 {
   error_fd = fd;
 
-  error_write = with_poll ? write_raw_with_poll : write_raw;
+  error_write = write_raw;
+}
+
+void
+set_error_nonblocking(int fd)
+{
+  if (error_fd == fd)
+    error_write = write_raw_with_poll;
 }
 
 int
@@ -383,6 +414,12 @@ werror_paranoia_putc(UINT8 c)
 void
 werror_vformat(const char *f, va_list args)
 {
+  if (program_name)
+    {
+      werror_write(strlen(program_name), program_name);
+      werror_write(2, ": ");
+    }
+  
   while (*f)
     {
       if (*f == '%')
@@ -420,23 +457,11 @@ werror_vformat(const char *f, va_list args)
 	      (do_hex ? werror_hex : werror_decimal)(va_arg(args, UINT32));
 	      break;
 	    case 'c':
-	      werror_putc(va_arg(args, int));
+	      (do_paranoia ? werror_paranoia_putc : werror_putc)(va_arg(args, int));
 	      break;
 	    case 'n':
 	      werror_bignum(va_arg(args, MP_INT *), do_hex ? 16 : 10);
 	      break;
-	    case 'z':
-	      {
-		char *s = va_arg(args, char *);
-
-		if (do_hex)
-		  werror_hexdump(strlen(s), s);
-
-		while (*s)
-		  (do_paranoia ? werror_paranoia_putc : werror_putc)(*s++);
-
-		break;
-	      }
 	    case 'a':
 	      {
 		int atom = va_arg(args, int);
@@ -513,9 +538,40 @@ werror_vformat(const char *f, va_list args)
 
 		if (do_free)
 		  lsh_string_free(s);
-	      }
-	      break;
 
+		break;
+	      }
+	    case 't':
+	      {
+		struct lsh_object *o = va_arg(args, struct lsh_object *);
+		const char *type;
+
+		if (!o)
+		  type = "<NULL>";
+		else if (o->isa)
+		  type = o->isa->name;
+		else
+		  type = "<STATIC>";
+
+		werror_write(strlen(type), type);
+
+		break;
+	      }
+	    case 'z':
+	      {
+		char *s = va_arg(args, char *);
+
+		if (do_hex)
+		  werror_hexdump(strlen(s), s);
+
+		else if (do_paranoia)
+		  while (*s)
+		    werror_paranoia_putc(*s++);
+		else
+		  werror_write(strlen(s), s);
+		
+		break;
+	      }
 	    default:
 	      fatal("werror_vformat: bad format string!\n");
 	      break;
@@ -531,7 +587,9 @@ werror(const char *format, ...)
 {
   va_list args;
 
-  if (!quiet_flag)
+  /* It is somewhat reasonable to use both -q and -v. In this case
+   * werror()-messages should be displayed. */
+  if (verbose_flag || !quiet_flag)
     {
       va_start(args, format);
       werror_vformat(format, args);

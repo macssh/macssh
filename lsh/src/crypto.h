@@ -74,8 +74,8 @@ struct mac_algorithm *make_hmac_algorithm(struct hash_algorithm *h);
 
 void
 pkcs5_derive_key(struct mac_algorithm *prf,
-		 UINT32 password_length, UINT8 *password,
-		 UINT32 salt_length, UINT8 *salt,
+		 UINT32 password_length, const UINT8 *password,
+		 UINT32 salt_length, const UINT8 *salt,
 		 UINT32 iterations,
 		 UINT32 key_length, UINT8 *key);
 

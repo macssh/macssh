@@ -1,0 +1,22 @@
+#! /bin/sh
+
+# Tests connecting with lsh. In order to use this, you must already
+# have lsh set up so that you can login without password.
+
+# This restriction can be fixed if we add an option to lshd to use a
+# custom passwd-file.
+
+echo lshg, cat test
+
+if [ -z "$srcdir" ] ; then
+  srcdir=`pwd`
+fi
+
+. $srcdir/functions.sh
+
+spawn_lshd && spawn_lsh -G && sleep 20 && exec_lshg "cat `pwd`/../lshd" > test.out1
+cat ../lshd > test.out2
+
+compare_output "lsh-cat-test"
+
+

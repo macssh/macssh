@@ -32,7 +32,7 @@
 #include "cbc.c.x"
 
 #if !HAVE_MEMXOR
-#include "memxor.h"
+#include "nettle/memxor.h"
 #endif
 
 /* GABA:

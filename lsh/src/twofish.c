@@ -26,7 +26,7 @@
 #include "werror.h"
 #include "xalloc.h"
 
-#include "twofish.h"
+#include "nettle/twofish.h"
 
 #include <assert.h>
 
@@ -38,25 +38,25 @@
      (name twofish_instance)
      (super crypto_instance)
      (vars
-       (ctx . "TWOFISH_context")))
+       (ctx . "struct twofish_ctx")))
 */
 
-static void do_twofish_encrypt(struct crypto_instance *s,
-				UINT32 length, const UINT8 *src, UINT8 *dst)
+static void
+do_twofish_encrypt(struct crypto_instance *s,
+		   UINT32 length, const UINT8 *src, UINT8 *dst)
 {
   CAST(twofish_instance, self, s);
 
-  FOR_BLOCKS(length, src, dst, TWOFISH_BLOCKSIZE)
-    twofish_encrypt(&self->ctx, src, dst);
+  twofish_encrypt(&self->ctx, length, dst, src);
 }
 
-static void do_twofish_decrypt(struct crypto_instance *s,
-				UINT32 length, const UINT8 *src, UINT8 *dst)
+static void
+do_twofish_decrypt(struct crypto_instance *s,
+		   UINT32 length, const UINT8 *src, UINT8 *dst)
 {
   CAST(twofish_instance, self, s);
 
-  FOR_BLOCKS(length, src, dst, TWOFISH_BLOCKSIZE)
-    twofish_decrypt(&self->ctx, src, dst);
+  twofish_decrypt(&self->ctx, length, dst, src);
 }
 
 static struct crypto_instance *
@@ -65,14 +65,14 @@ make_twofish_instance(struct crypto_algorithm *algorithm, int mode,
 {
   NEW(twofish_instance, self);
 
-  self->super.block_size = TWOFISH_BLOCKSIZE;
+  self->super.block_size = TWOFISH_BLOCK_SIZE;
   self->super.crypt = ( (mode == CRYPTO_ENCRYPT)
 			? do_twofish_encrypt
 			: do_twofish_decrypt);
 
   /* We don't have to deal with weak keys - being an AES candidate, Twofish was
    * designed to have none. */
-  twofish_setup(&self->ctx, algorithm->key_size, key);
+  twofish_set_key(&self->ctx, algorithm->key_size, key);
 
   return &self->super;
 }
@@ -82,10 +82,10 @@ make_twofish_algorithm(UINT32 key_size)
 {
   NEW(crypto_algorithm, algorithm);
 
-  assert(key_size <= TWOFISH_MAX_KEYSIZE);
-  assert(key_size >= TWOFISH_MIN_KEYSIZE);
+  assert(key_size <= TWOFISH_MAX_KEY_SIZE);
+  assert(key_size >= TWOFISH_MIN_KEY_SIZE);
 
-  algorithm->block_size = TWOFISH_BLOCKSIZE;
+  algorithm->block_size = TWOFISH_BLOCK_SIZE;
   algorithm->key_size = key_size;
   algorithm->iv_size = 0;
   algorithm->make_crypt = make_twofish_instance;
@@ -94,10 +94,10 @@ make_twofish_algorithm(UINT32 key_size)
 }
 
 struct crypto_algorithm twofish128_algorithm =
-{ STATIC_HEADER, TWOFISH_BLOCKSIZE, 16, 0, make_twofish_instance};
+{ STATIC_HEADER, TWOFISH_BLOCK_SIZE, 16, 0, make_twofish_instance};
 
 struct crypto_algorithm twofish192_algorithm =
-{ STATIC_HEADER, TWOFISH_BLOCKSIZE, 24, 0, make_twofish_instance};
+{ STATIC_HEADER, TWOFISH_BLOCK_SIZE, 24, 0, make_twofish_instance};
 
 struct crypto_algorithm twofish256_algorithm =
-{ STATIC_HEADER, TWOFISH_BLOCKSIZE, 32, 0, make_twofish_instance};
+{ STATIC_HEADER, TWOFISH_BLOCK_SIZE, 32, 0, make_twofish_instance};

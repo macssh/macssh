@@ -600,22 +600,22 @@ int AvailableFromTTY(int id, void *context)
  * tty_getwinsize : replaces tty_getwinsize from liblsh
  */
 int
-tty_getwinsize(int fd, UINT32 *w, UINT32 *h, UINT32 *wp, UINT32 *hp)
+tty_getwinsize(int fd, struct terminal_dimensions *dims)
 {
   FontInfo	info;
 
-  *w = SIOUXSettings.columns;
-  *h = SIOUXSettings.rows;
-  *wp = 0;
-  *hp = 0;
+  dims->char_width = SIOUXSettings.columns;
+  dims->char_height = SIOUXSettings.rows;
+  dims->pixel_width = 0;
+  dims->pixel_height = 0;
 /*
   if (!FetchFontInfo(SIOUXSettings.fontid,SIOUXSettings.fontsize,SIOUXSettings.fontface, &info)) {
-    *wp = info.widMax;
-    *hp = info.ascent + info.descent;
+  	dims->pixel_width = info.widMax;
+  	dims->pixel_height = info.ascent + info.descent;
   } else {
     // just guess...
-    *wp = 12;
-    *hp = 16;
+    dims->pixel_width = 12;
+    dims->pixel_height = 16;
   }
 */
   return 1;
@@ -672,11 +672,11 @@ char *getpass( const char *prompt )
  * yes_or_no
  */
 
-int yes_or_no(struct lsh_string *s, int def, int free)
+int yes_or_no(const struct lsh_string *s, int def, int free)
 {
   struct lsh_string *prompt;
 
-  prompt = make_cstring(s, free);
+  prompt = make_string(s);
   if (prompt) {
     if (!quiet_flag) {
       Str255 pprompt;

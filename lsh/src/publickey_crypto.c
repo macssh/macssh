@@ -31,7 +31,6 @@
 #include "crypto.h"
 #include "format.h"
 #include "parse.h"
-#include "sha.h"
 #include "ssh.h"
 #include "werror.h"
 #include "xalloc.h"
@@ -102,6 +101,7 @@ zn_invert(struct abstract_group *c, mpz_t res, mpz_t x)
 {
   CAST(group_zn, closure, c);
 
+  /* NOTE: In gmp-2, mpz_invert sometimes generates negative inverses. */
   if (!mpz_invert(res, x, closure->modulo))
     fatal("zn_invert: element is non-invertible\n");
 

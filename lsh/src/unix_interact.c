@@ -28,6 +28,7 @@
 #include "format.h"
 #include "io.h"
 #include "resource.h"
+#include "suspend.h"
 #include "tty.h"
 #include "werror.h"
 #include "xalloc.h"
@@ -53,7 +54,7 @@
 #include "unix_interact.c.x"
 
 #if MACOS
-extern int yes_or_no(struct lsh_string *s, int def, int free);
+extern int yes_or_no(const struct lsh_string *s, int def, int free);
 #else
 static volatile sig_atomic_t window_changed;
 #endif
@@ -64,6 +65,7 @@ static void winch_handler(int signum)
 
   window_changed = 1;
 }
+
 
 /* Depends on the tty being line buffered */
 static int
@@ -166,32 +168,36 @@ unix_is_tty(struct interact *s)
 static struct lsh_string *
 unix_read_password(struct interact *s UNUSED,
 		   UINT32 max_length UNUSED,
-		   struct lsh_string *prompt, int free)
+		   const struct lsh_string *prompt, int free)
 {
   /* NOTE: Ignores max_length; instead getpass's limit applies. */
 
   char *password;
-  
-  prompt = make_cstring(prompt, free);
+  const char *cprompt = lsh_get_cstring(prompt);
 
-  if (!prompt)
-    return NULL;
-
+  if (!cprompt)
+    {
+      if (free)
+	lsh_string_free(prompt);
+      return NULL;
+    }
   /* NOTE: This function uses a static buffer. */
-  password = getpass(prompt->data);
+  password = getpass(cprompt);
 
+  if (free)
   lsh_string_free(prompt);
 
   if (!password)
     return NULL;
   
-  return format_cstring(password);
+  return make_string(password);
 }
 
 
 static int
 unix_yes_or_no(struct interact *s,
-	       struct lsh_string *prompt, int def, int free)
+	       const struct lsh_string *prompt,
+	       int def, int free)
 {
 #define TTY_BUFSIZE 10
 
@@ -300,9 +306,7 @@ unix_window_size(struct interact *s,
   CAST(unix_interact, self, s);
 
   return IS_TTY(self)
-    && tty_getwinsize(self->tty_fd,
-		      &d->char_width, &d->char_height,
-		      &d->pixel_width, &d->pixel_height);
+    && tty_getwinsize(self->tty_fd, d);
 }
 
 static struct resource *
@@ -312,7 +316,7 @@ unix_window_change_subscribe(struct interact *s,
   CAST(unix_interact, self, s);
 
   NEW(window_subscriber, subscriber);
-  resource_init(&subscriber->super, NULL);
+  init_resource(&subscriber->super, NULL);
 
   subscriber->next = self->subscribers;
   subscriber->callback = callback;
@@ -408,6 +412,8 @@ make_unix_interact(struct io_backend *backend)
 
       io_signal_handler(backend, &window_changed,
 			make_winch_handler(self));
+
+      suspend_handle_tty(self->tty_fd);
     }
   return &self->super;
 }

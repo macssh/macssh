@@ -249,20 +249,19 @@ parse_next_atom(struct simple_buffer *buffer, int *result)
 	return 0;
     }
 
-  /* No empty atoms. */
-/*C+ NONO: fix attempt from Niels for SSH-1.99-2.0.13 */
-/*
+  /* NOTE: ssh-2.0.13, server string "SSH-1.99-2.0.13
+   * (non-commercial)", sends USERAUTH_FAILURE messages with strings
+   * like "publickey,password,". It's not entirely clear to me if that
+   * is allowed for the spec, but it seems safe and straightforward to
+   * treat empty atoms as any other unknown atom. */
   if (!i)
-    return 0;
-  *result = lookup_atom(i, HERE);
-*/
-
-  if (!i)
+    {
+      verbose("parse_next_atom: Received an empty atom.\n");
     /* Treat empty atoms as unknown */
     *result = 0;
+    }
   else
     *result = lookup_atom(i, HERE);
-/*C- NONO: fix attempt from Niels for SSH-1.99-2.0.13 */
 
   ADVANCE(i+1);  /* If the atom was terminated at the end of the
 		  * buffer, rather than by a comma, this points beyond
@@ -314,6 +313,36 @@ parse_atom_list(struct simple_buffer *buffer, unsigned limit)
     return NULL;
 
   return parse_atoms(&sub_buffer, limit);
+}
+
+/* Used by client_x11.c, for parsing xauth */
+int
+parse_uint16(struct simple_buffer *buffer, UINT32 *result)
+{
+  if (LEFT < 2)
+    return 0;
+
+  *result = READ_UINT16(HERE);
+  ADVANCE(2);
+  return 1;
+}
+
+int
+parse_string16(struct simple_buffer *buffer,
+	       UINT32 *length, const UINT8 **start)
+{
+  UINT32 l;
+
+  if (!parse_uint16(buffer, &l))
+    return 0;
+
+  if (LEFT < l)
+    return 0;
+
+  *length = l;
+  *start = HERE;
+  ADVANCE(l);
+  return 1;
 }
 
 void

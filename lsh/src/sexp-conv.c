@@ -274,8 +274,8 @@ static struct sexp_conv_options *make_options(void)
   self->output = SEXP_ADVANCED;
   self->once = 0;
   self->mode = MODE_VANILLA;
-  self->select = &command_I.super;
-  self->transform = &command_I.super;
+  self->select = &command_I;
+  self->transform = &command_I;
   self->algorithms = make_alist(2,
 				ATOM_MD5, &md5_algorithm,
 				ATOM_SHA1, &sha1_algorithm,
@@ -315,7 +315,7 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 	  default:
 	    fatal("Internal error!");
 	  case MODE_VANILLA:
-	    self->transform = &command_I.super;
+	    self->transform = &command_I;
 	    self->print = &make_sexp_print_command(self->output)->super;
 	    break;
 	  case MODE_SPKI_HASH:
@@ -330,7 +330,7 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 	    {
 	      CAST_SUBTYPE(hash_algorithm, a,
 			   ALIST_GET(self->algorithms, self->hash));
-	      self->transform = &command_I.super;
+	      self->transform = &command_I;
 	      self->print = make_sexp_print_raw_hash(a);
 	      break;
 	    }
@@ -384,6 +384,7 @@ main_argp =
   
 
 #define SEXP_BUFFER_SIZE 1024
+#define MAX_SEXP_SIZE 100000
 
 #ifdef MACOS
 char *applname = "sexp-conv";
@@ -407,18 +408,21 @@ int main(int argc, char **argv)
   {
     CAST_SUBTYPE(command, work,
 		 make_sexp_conv(
-		   make_read_sexp_command(options->input, !options->once),
+		   make_read_sexp_command(options->input,
+					  !options->once,
+					  MAX_SEXP_SIZE),
 		   options->select,
 		   options->transform,
 		   options->print,
 		   &(io_write(make_lsh_fd(backend,
 					 STDOUT_FILENO,
+					  "stdout",
 					 e),
 			      SEXP_BUFFER_SIZE,
 			      NULL)
 		     ->write_buffer->super)));
 
-    struct lsh_fd *in = make_lsh_fd(backend, STDIN_FILENO, e);
+    struct lsh_fd *in = make_lsh_fd(backend, STDIN_FILENO, "stdin", e);
 
     /* Fixing the exception handler creates a circularity */
     e->parent = make_exc_finish_read_handler(in,

@@ -68,7 +68,7 @@ rsa_generate_key(mpz_t e, struct randomness *r, UINT32 bits)
   debug("phi = %xn\ne = %xn\n", phi, e);
   
   /* Compute d such that e d = 1 (mod phi) */
-  /* NOTE: mpz_invert sometimes generates negative inverses. */
+  /* NOTE: In gmp-2, mpz_invert sometimes generates negative inverses. */
   if (!mpz_invert(d, e, phi))
     {
       debug("rsa_generate_key: e not invertible.\n");
@@ -93,6 +93,7 @@ rsa_generate_key(mpz_t e, struct randomness *r, UINT32 bits)
 
   debug("b = %xn\n", b);
   
+  /* NOTE: In gmp-2, mpz_invert sometimes generates negative inverses. */
   if (!mpz_invert(c, q, p))
     {
       werror("rsa_generate_key: q not invertible.");

@@ -29,11 +29,12 @@
 #include "format.h"
 #include "parse.h"
 #include "sexp.h"
-#include "sha.h"
 #include "spki.h"
 #include "ssh.h"
 #include "werror.h"
 #include "xalloc.h"
+
+#include "nettle/sha1.h"
 
 #include <assert.h>
 
@@ -45,7 +46,7 @@
 
 #define DSA_MAX_SIZE 300
 
-#define DSA_MAX_QSIZE SHA_DIGESTSIZE
+#define DSA_MAX_QSIZE SHA1_DIGEST_SIZE
 
 #define SA(x) sexp_a(ATOM_##x)
 
@@ -87,22 +88,16 @@ static void
 dsa_hash(mpz_t h, UINT32 length, const UINT8 *msg)
 {
   /* Compute hash */
-#if ALLOCA_68K_BUG
-  ALLOCA_START(alloca_ref);
-#endif
-  struct hash_instance *hash = MAKE_HASH(&sha1_algorithm);
-  UINT8 *digest = alloca(hash->hash_size);
-  HASH_UPDATE(hash, length, msg);
-  HASH_DIGEST(hash, digest);
+  UINT8 digest[SHA1_DIGEST_SIZE];
+  struct sha1_ctx ctx;
+  sha1_init(&ctx);
+  sha1_update(&ctx, length, msg);
+  sha1_final(&ctx);
+  sha1_digest(&ctx, SHA1_DIGEST_SIZE, digest);
 
-  bignum_parse_u(h, hash->hash_size, digest);
+  bignum_parse_u(h, SHA1_DIGEST_SIZE, digest);
 
   debug("DSA hash: %xn\n", h);
-  
-  KILL(hash);
-#if ALLOCA_68K_BUG
-  ALLOCA_FREE(alloca_ref);
-#endif
 }
 
 static struct sexp *
@@ -150,7 +145,7 @@ generic_dsa_verify(struct dsa_verifier *key,
   /* Compute w = s^-1 (mod q) */
   mpz_init(w);
 
-  /* NOTE: mpz_invert sometimes generates negative inverses. */
+  /* NOTE: In gmp-2, mpz_invert sometimes generates negative inverses. */
   if (!mpz_invert(w, s, key->q))
     {
       werror("generic_dsa_verify: s non-invertible.\n");

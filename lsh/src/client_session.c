@@ -27,6 +27,7 @@
 #include "channel_commands.h"
 #include "client.h"
 #include "io.h"
+#include "read_data.h"
 #include "ssh.h"
 #include "werror.h"
 #include "xalloc.h"
@@ -46,6 +47,8 @@
        (out object lsh_fd)
        (err object lsh_fd)
 
+       ; Escape char handling
+       (escape object escape_info)
        ; Where to save the exit code.
        (exit_status . "int *")))
 */
@@ -60,9 +63,6 @@ do_client_session_eof(struct ssh_channel *c)
   
   close_fd_nicely(session->out);
   close_fd_nicely(session->err);
-#if 0
-  close_fd(session->in);
-#endif
 }  
 
 static void
@@ -107,6 +107,19 @@ do_send_adjust(struct ssh_channel *s,
   self->in->want_read = 1;
 }
 
+/* Escape char handling */
+
+static struct io_callback *
+client_read_stdin(struct client_session_channel *session)
+{
+  struct abstract_write *write = make_channel_write(&session->super);
+
+  if (session->escape)
+    write = make_handle_escape(session->escape, write);
+  
+  return make_read_data(&session->super, write);
+}
+
 /* We have a remote shell */
 static void
 do_client_io(struct command *s UNUSED,
@@ -142,7 +155,8 @@ do_client_io(struct command *s UNUSED,
   /* Set up the fd we read from. */
   channel->send_adjust = do_send_adjust;
 
-  session->in->read = make_channel_read_data(channel);
+  /* Setup escape char handler, if appropriate. */
+  session->in->read = client_read_stdin(session);
 
   /* FIXME: Perhaps there is some way to arrange that channel.c calls
    * the CHANNEL_SEND_ADJUST method instead? */
@@ -175,6 +189,7 @@ struct ssh_channel *
 make_client_session_channel(struct lsh_fd *in,
 			    struct lsh_fd *out,
 			    struct lsh_fd *err,
+			    struct escape_info *escape,
 			    UINT32 initial_window,
 			    int *exit_status)
 {
@@ -197,6 +212,11 @@ make_client_session_channel(struct lsh_fd *in,
   self->in = in;
   self->out = out;
   self->err = err;
+  self->escape = escape;
+  
+  REMEMBER_RESOURCE(self->super.resources, &in->super);
+  REMEMBER_RESOURCE(self->super.resources, &out->super);
+  REMEMBER_RESOURCE(self->super.resources, &err->super);
 
   /* Flow control */
   out->write_buffer->report = &self->super.super;

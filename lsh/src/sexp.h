@@ -85,7 +85,8 @@
 
 struct lsh_string *sexp_format(struct sexp *e, int style, unsigned indent);
 
-struct lsh_string *encode_base64(struct lsh_string *s,
+struct lsh_string *
+encode_base64(const struct lsh_string *s,
 				 const char *delimiters,
 				 int break_lines,
 				 unsigned indent, int free);
@@ -119,7 +120,7 @@ int sexp_atomp(const struct sexp *e);
 
 /* Checks that the sexp is a simple string (i.e. no display part).
  * e == NULL is allowed. */
-struct lsh_string *sexp2string(struct sexp *e);
+const struct lsh_string *sexp2string(struct sexp *e);
 
 /* Returns an ATOM_FOO constant if e is a simple sexp string
  * corresponding to an atom. Or zero if that is not the case. */
@@ -131,8 +132,8 @@ sexp2bignum_u(struct sexp *e, mpz_t n, UINT32 limit);
 int
 sexp2uint32(struct sexp *e, UINT32 *n);
 
-struct lsh_string *sexp_contents(const struct sexp *e);
-struct lsh_string *sexp_display(const struct sexp *e);
+const struct lsh_string *sexp_contents(const struct sexp *e);
+const struct lsh_string *sexp_display(const struct sexp *e);
 int sexp_atom(const struct sexp *e);
 int sexp_bignum_u(const struct sexp *e, mpz_t n);
 int sexp_bignum_s(const struct sexp *e, mpz_t n);
@@ -173,15 +174,20 @@ struct sexp *
 sexp_parse_transport(struct simple_buffer *buffer);
 
 struct sexp *
-string_to_sexp(int style, struct lsh_string *src, int free);
+sexp_parse(int style, struct simple_buffer *buffer);
+
+struct sexp *
+string_to_sexp(int style, const struct lsh_string *src, int free);
 
 
+#if 0
 /* Streamed parser */
 
 struct read_handler *
 make_read_sexp(int style, int goon,
 	       struct command_continuation *c,
 	       struct exception_handler *e);
+#endif
 
 extern const struct argp sexp_input_argp;
 extern const struct argp sexp_output_argp;

@@ -39,6 +39,18 @@ struct client_userauth;
 
 #include "client_userauth.c.x"
 
+static struct lsh_string *
+format_userauth_none(struct lsh_string *name,
+                     int service)
+{
+  return ssh_format("%c%S%a%a",
+		    SSH_MSG_USERAUTH_REQUEST,
+		    name,
+		    service,
+		    ATOM_NONE);
+}
+
+/* The last parameters says whether or not to free the password. */
 struct lsh_string *
 format_userauth_password(struct lsh_string *name,
 			 int service,
@@ -126,6 +138,7 @@ format_userauth_publickey(struct lsh_string *name,
      (name client_userauth)
      (super command)
      (vars
+       ; The name should already be converted to utf8
        (username string)            ; Remote user name to authenticate as.
        (service_name . int)         ; Service we want to access.
        (methods object object_list) ; Authentication methods, in order.
@@ -200,8 +213,6 @@ do_userauth_success(struct packet_handler *c,
     {
       unsigned i;
       
-      lsh_string_free(packet);
-
       verbose("User authentication successful.\n");
 
       for (i = SSH_FIRST_USERAUTH_GENERIC; i < SSH_FIRST_CONNECTION_GENERIC; i++) 
@@ -210,10 +221,7 @@ do_userauth_success(struct packet_handler *c,
       COMMAND_RETURN(self->c, connection);
     }
   else
-    {
-      lsh_string_free(packet);
-      PROTOCOL_ERROR(connection->e, "Invalid USERAUTH_SUCCESS message");
-    }
+    PROTOCOL_ERROR(connection->e, "Invalid USERAUTH_SUCCESS message");
 }
 
 static struct packet_handler *
@@ -250,6 +258,14 @@ userauth_method_is_useful(struct client_userauth *userauth,
 
   unsigned i;
 
+#if 0
+  debug("userauth_method_is_useful, advertised:\n");
+  for(i = 0; i < LIST_LENGTH(advertised); i++)
+    debug("  %a\n", LIST(advertised)[i]);
+
+  debug("  method: type = %a, class = %t\n", method->type, method);
+#endif
+  
   for(i = 0; i < LIST_LENGTH(advertised); i++)
     if (LIST(advertised)[i] == method->type)
       return 1;
@@ -280,8 +296,6 @@ do_userauth_failure(struct packet_handler *c,
       && parse_boolean(&buffer, &partial_success)
       && parse_eod(&buffer))
     {
-      lsh_string_free(packet);
-      
       if (partial_success)
 	/* Doesn't help us */
 	werror("Received SSH_MSH_USERAUTH_FAILURE "
@@ -297,10 +311,7 @@ do_userauth_failure(struct packet_handler *c,
 							methods, self->state->current));
     }
   else
-    {
-      lsh_string_free(packet);
       PROTOCOL_ERROR(connection->e, "Invalid USERAUTH_FAILURE message.");
-    }
   
   KILL(methods);	
 }
@@ -345,8 +356,6 @@ do_userauth_banner(struct packet_handler *self UNUSED,
     }
   else
     PROTOCOL_ERROR(connection->e, "Invalid USERAUTH_SUCCESS message");
-
-  lsh_string_free(packet);
 }
 
 static struct packet_handler userauth_banner_handler =
@@ -496,7 +505,7 @@ make_client_userauth(struct lsh_string *username,
   NEW(client_userauth, self);
 
   self->super.call = do_client_userauth;
-  self->username = username;
+  self->username = local_to_utf8(username, 1);
   self->service_name = service_name;
   self->methods = methods;
 
@@ -504,6 +513,70 @@ make_client_userauth(struct lsh_string *username,
 }
 
    
+/* None authentication */
+/* GABA:
+   (class
+     (name client_none_state)
+     (super client_userauth_failure)
+     (vars
+       (e object exception_handler)))
+*/
+
+static void
+do_none_failure(struct client_userauth_failure *s, int again)
+{
+  CAST(client_none_state, self, s);
+  
+  static const struct exception need_auth =
+    STATIC_EXCEPTION(EXC_USERAUTH, "Need real authentication.");
+
+  trace("client_userauth.c: do_none_failure\n");
+
+  if (again)
+    werror("Odd. Server says we should try the `none'authentication method again.\n");
+
+  EXCEPTION_RAISE(self->e, &need_auth);
+}
+
+static struct client_userauth_failure *
+make_client_none_state(struct exception_handler *e)
+{
+  NEW(client_none_state, self);
+
+  trace("client_userauth.c: make_client_none_state\n");
+
+  self->super.failure = do_none_failure;
+  self->e = e;
+
+  return &self->super;
+}
+
+static struct client_userauth_failure *
+do_none_login(struct client_userauth_method *s UNUSED,
+              struct client_userauth *userauth,
+              struct ssh_connection *connection,
+              struct exception_handler *e)
+{
+  trace("client_userauth.c: do_none_login\n");
+
+  C_WRITE(connection,
+          format_userauth_none(userauth->username,
+                               userauth->service_name));
+  
+  return make_client_none_state(e);
+}
+
+static struct client_userauth_method
+client_userauth_none =
+  { STATIC_HEADER, ATOM_NONE, do_none_login };
+
+struct client_userauth_method *
+make_client_none_auth(void)
+{
+  return &client_userauth_none;
+}
+
+
 /* Password authentication */
 
 #define MAX_PASSWD 100
@@ -544,7 +617,7 @@ send_password(struct client_password_state *state)
 	}
 
       C_WRITE(state->connection,
-	      format_userauth_password(local_to_utf8(state->userauth->username, 0),
+	      format_userauth_password(state->userauth->username,
 				       state->userauth->service_name,
 				       local_to_utf8(passwd, 1),
 				       1));
@@ -619,6 +692,7 @@ make_client_password_state(struct client_userauth *userauth,
        (tty object interact)))
 */
 
+
 static struct client_userauth_failure *
 do_password_login(struct client_userauth_method *s,
 		  struct client_userauth *userauth,
@@ -642,6 +716,7 @@ struct client_userauth_method *
 make_client_password_auth(struct interact *tty)
 {
   NEW(client_password_method, self);
+
   self->super.type = ATOM_PASSWORD;
   self->super.login = do_password_login;
   self->tty = tty;
@@ -806,7 +881,6 @@ do_userauth_pk_ok(struct packet_handler *s,
       && parse_string(&buffer, &keyblob_length, &keyblob)
       && parse_eod(&buffer))
 #endif
-
     {
       CAST(keypair, key, LIST(self->state->keys)[self->state->done]);
       verbose("SSH_MSG_USERAUTH_PK_OK received\n");
@@ -819,16 +893,17 @@ do_userauth_pk_ok(struct packet_handler *s,
     
 #if DATAFELLOWS_WORKAROUNDS
 	  if (connection->peer_flags & PEER_USERAUTH_REQUEST_KLUDGE)
-	    request = format_userauth_publickey(local_to_utf8(self->state->userauth->username, 0),
+	    request = format_userauth_publickey(self->state->userauth->username,
 						ATOM_SSH_USERAUTH,
 						key->type,
 						key->public);
 	  else
 #endif /* DATAFELLOWS_WORKAROUNDS */ 
-	    request = format_userauth_publickey(local_to_utf8(self->state->userauth->username, 0),
+	    request = format_userauth_publickey(self->state->userauth->username,
 						self->state->userauth->service_name,
 						key->type,
 						key->public);
+
 	  signed_data = ssh_format("%S%lS", connection->session_id, request);
 	  request = ssh_format("%flS%fS", 
 			       request, 
@@ -840,15 +915,11 @@ do_userauth_pk_ok(struct packet_handler *s,
       else
 	werror("client_userauth.c: Unexpected key in USERAUTH_PK_OK message.\n");
 
-      lsh_string_free(packet);
       client_publickey_next(self->state);
     }
   else
-    {
-      lsh_string_free(packet);
       PROTOCOL_ERROR(self->state->e, "Invalid USERAUTH_PK_OK message");
     }
-}
 
 static struct packet_handler *
 make_pk_ok_handler(struct client_publickey_state *state)
@@ -884,8 +955,10 @@ do_publickey_login(struct client_userauth_method *s,
       {
 	CAST(keypair, key, LIST(self->keys)[i]);
 
+	/* NOTE: The PEER_USERAUTH_REQUEST_KLUDGE only applies to the
+	 * signed data. */
 	C_WRITE(connection, 
-		format_userauth_publickey_query(local_to_utf8(userauth->username, 0),
+		format_userauth_publickey_query(userauth->username,
 						userauth->service_name,
 						key->type, key->public));
       }
@@ -899,6 +972,7 @@ make_client_publickey_auth(struct object_list *keys)
 {
   NEW(client_publickey_method, self);
 
+  self->super.type = ATOM_PUBLICKEY;
   self->super.login = do_publickey_login;
   self->keys = keys;
   

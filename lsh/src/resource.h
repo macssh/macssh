@@ -48,7 +48,7 @@
 #define KILL_RESOURCE(r) ((r)->kill((r)))
 
 void
-resource_init(struct resource *self,
+init_resource(struct resource *self,
 	      void (*k)(struct resource *));
 
 /* For the resource list. */

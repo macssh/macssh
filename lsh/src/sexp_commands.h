@@ -38,26 +38,19 @@
 /* GABA:
    (class
      (name sexp_print_command)
-     (super command_simple)
+     (super command_2)
      (vars
        (format . int)))
 */
 
-struct lsh_object *
-do_sexp_print_simple(struct command_simple *s,
-		     struct lsh_object *a);
-
 #define STATIC_PRINT_SEXP(format) \
-{ STATIC_COMMAND_SIMPLE(do_sexp_print_simple), format }
+{{ STATIC_HEADER, do_command_2}, format }
 
-struct command_simple *
+struct command_2 *
 make_sexp_print_command(int format);
 
 struct command *
 make_sexp_print_to(int format, struct abstract_write *dest);
-
-extern struct collect_info_1 sexp_print_raw_hash;
-#define SEXP_PRINT_RAW_HASH (&sexp_print_raw_hash.super.super)
 
 struct command *
 make_sexp_print_raw_hash(struct hash_algorithm *algorithm);
@@ -72,7 +65,8 @@ make_sexp_print_raw_hash_to(struct hash_algorithm *algorithm,
      (super command)
      (vars
        (format . int)
-       (goon . int)))
+       (goon . int)
+       (max_size . UINT32)))
 */
 
 void
@@ -81,13 +75,13 @@ do_read_sexp(struct command *s,
 	     struct command_continuation *c,
 	     struct exception_handler *e);
 
-#define STATIC_READ_SEXP(format, goon) \
-{ STATIC_COMMAND(do_read_sexp), format, goon }
+#define STATIC_READ_SEXP(format, goon, max_size) \
+{ STATIC_COMMAND(do_read_sexp), format, goon, max_size }
 
 struct command *
-make_read_sexp_command(int format, int goon);
+make_read_sexp_command(int format, int goon, UINT32 max_size);
 
-extern struct command_simple for_sexp_command;
-#define FOR_SEXP (&for_sexp_command.super.super)
+extern struct command for_sexp_command;
+#define FOR_SEXP (&for_sexp_command.super)
 
 #endif /* SEXP_COMMANDS_H_INCLUDED */

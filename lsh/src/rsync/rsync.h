@@ -34,14 +34,16 @@
 # endif
 #endif
 
-#include "md5.h"
+#include <inttypes.h>
+
+#include <nettle/md5.h>
 
 #include <stdlib.h>
 
 /* FIXME: replace with proper autoconf check */
 #define OFF_T size_t
 
-#define RSYNC_SUM_SIZE MD5_DIGESTSIZE
+#define RSYNC_SUM_SIZE MD5_DIGEST_SIZE
 
 /* Size of block count, block size, tail */
 #define RSYNC_HEADER_SIZE 12
@@ -59,14 +61,14 @@
 struct rsync_generate_state
 {
   /* Public fields */
-  UINT8 *next_in;
-  UINT32 avail_in;
-  UINT8 *next_out;
-  UINT32 avail_out;
+  uint8_t *next_in;
+  uint32_t avail_in;
+  uint8_t *next_out;
+  uint32_t avail_out;
 
-  UINT32 block_size;
-  UINT32 total_length;
-  UINT32 offset; /* Current offset in input file. */
+  uint32_t block_size;
+  uint32_t total_length;
+  uint32_t offset; /* Current offset in input file. */
 
   /* Weak check sum */
   unsigned a_sum;
@@ -75,11 +77,11 @@ struct rsync_generate_state
   struct md5_ctx block_sum;
 
   /* Internal state */
-  UINT8 buf[RSYNC_ENTRY_SIZE];
-  UINT8 buf_length; /* Zero means no buffered data. */
-  UINT8 buf_pos;
+  uint8_t buf[RSYNC_ENTRY_SIZE];
+  uint8_t buf_length; /* Zero means no buffered data. */
+  uint8_t buf_pos;
 
-  UINT32 left; /* Amount left of current block */
+  uint32_t left; /* Amount left of current block */
 };
 
 /* Return values */
@@ -106,8 +108,8 @@ rsync_generate(struct rsync_generate_state *state);
 
 enum rsync_result_t
 rsync_generate_init(struct rsync_generate_state *state,
-		    UINT32 block_size,
-		    UINT32 size);
+		    uint32_t block_size,
+		    uint32_t size);
 
 
 /* Receiving a file. */
@@ -129,19 +131,19 @@ rsync_generate_init(struct rsync_generate_state *state,
  */
 
 typedef int (*rsync_lookup_read_t)(void *opaque,
-				   UINT8 *dst, UINT32 length,
-				   UINT32 index, UINT32 offset, UINT32 *done);
+				   uint8_t *dst, uint32_t length,
+				   uint32_t index, uint32_t offset, uint32_t *done);
 
 struct rsync_receive_state
 {
   /* Public fields */
-  UINT8 *next_in;
-  UINT32 avail_in;
-  UINT8 *next_out;
-  UINT32 avail_out;
+  uint8_t *next_in;
+  uint32_t avail_in;
+  uint8_t *next_out;
+  uint32_t avail_out;
 
-  UINT32 block_size;
-  /* UINT32 offset; */ /* Current offset in output file. */
+  uint32_t block_size;
+  /* uint32_t offset; */ /* Current offset in output file. */
 
   rsync_lookup_read_t lookup;
   void *opaque;
@@ -167,10 +169,10 @@ struct rsync_receive_state
     RSYNC_READ_INVALID
   } state;
   
-  UINT32 token; 
-  UINT32 i;
+  uint32_t token; 
+  uint32_t i;
 
-  UINT8 buf[RSYNC_SUM_SIZE];
+  uint8_t buf[RSYNC_SUM_SIZE];
 };
 
 enum rsync_result_t
@@ -190,30 +192,30 @@ struct rsync_read_table_state
   struct rsync_table *table;
 
   /* Limits */
-  UINT32 max_count;
-  UINT32 max_block_size;
+  uint32_t max_count;
+  uint32_t max_block_size;
     
-  UINT32 count; /* Block count */
-  UINT32 block_size;
-  UINT32 remainder;
+  uint32_t count; /* Block count */
+  uint32_t block_size;
+  uint32_t remainder;
 
   /* Private state */
-  UINT8 buf[RSYNC_ENTRY_SIZE];
+  uint8_t buf[RSYNC_ENTRY_SIZE];
   unsigned pos;
 };
 
 enum rsync_result_t
 rsync_read_table(struct rsync_read_table_state *state,
-		 UINT32 length, UINT8 *input);
+		 uint32_t length, uint8_t *input);
 
 /* For reading the list of checksums. */
 struct rsync_send_state
 {
   /* Public fields */
-  UINT8 *next_in;
-  UINT32 avail_in;
-  UINT8 *next_out;
-  UINT32 avail_out;
+  uint8_t *next_in;
+  uint32_t avail_in;
+  uint8_t *next_out;
+  uint32_t avail_out;
 
   struct rsync_table *table;
   
@@ -229,19 +231,19 @@ struct rsync_send_state
 
   /* The input and output buffer. */
   
-  UINT32 buf_size;
+  uint32_t buf_size;
   /* The allocated size includes space for header and trailer,
    * besides the input buffer of BUD_SIZE octets. */
-  UINT8 *buf;
+  uint8_t *buf;
   
   /* In writing mode, we copy the data from I to OUT_END */
-  UINT32 i;
-  UINT32 out_end;
+  uint32_t i;
+  uint32_t out_end;
 
   /* Size of buffer (relevant in primarily in read mode).
    * It does not include the buffer header. */
 
-  UINT32 size;
+  uint32_t size;
   
   unsigned sum_a;
   unsigned sum_b;
@@ -261,11 +263,11 @@ void rsync_send_free(struct rsync_send_state *state);
 
 void
 rsync_update_1(unsigned *ap, unsigned *cp,
-	       UINT32 length, UINT8 *data);
+	       uint32_t length, uint8_t *data);
 
 struct rsync_node *
 rsync_search(unsigned *ap, unsigned *bp, unsigned block_size,
-	     UINT32 length, UINT8 *start, UINT8 *end,
-	     UINT32 *found, struct rsync_node **hash);
+	     uint32_t length, uint8_t *start, uint8_t *end,
+	     uint32_t *found, struct rsync_node **hash);
 
 #endif /* RSYNC_H_INCLUDED */

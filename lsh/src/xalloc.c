@@ -73,7 +73,8 @@ static void *debug_malloc(size_t real_size)
   return (void *) res;
 }
 
-static void debug_free(void *m)
+static void
+debug_free(const void *m)
 {
   if (m)
     {
@@ -92,7 +93,9 @@ static void debug_free(void *m)
 
 #else  /* !DEBUG_ALLOC */
 
-#define lsh_free free
+/* ANSI-C free doesn't allow const pointers to be freed. (That is one
+ * of the few things that C++ gets right). */
+#define lsh_free(p) free((void *) (p))
 #define lsh_malloc malloc
 
 #endif /* !DEBUG_ALLOC */
@@ -114,43 +117,117 @@ static void *xalloc(size_t size)
   return res;
 }
 
-static unsigned number_of_strings = 0;
-
-struct lsh_string *lsh_string_alloc(UINT32 length)
-{
-  struct lsh_string *s
-    = xalloc(sizeof(struct lsh_string) - 1 + length);
 #if DEBUG_ALLOC
-  s->header.magic = -1717;
+#undef lsh_string_alloc
+static
 #endif
+
+struct lsh_string *
+lsh_string_alloc(UINT32 length)
+{
+  /* NOTE: The definition of the struct contains a char array of
+   * length 1, so the below includes space for a terminating NUL. */
+  
+  struct lsh_string *s
+    = xalloc(sizeof(struct lsh_string) + length);
+
   s->length = length;
+  s->data[length] = '\0';
   s->sequence_number = 0;
-  number_of_strings++;
   
   return s;
 }
 
-void lsh_string_free(struct lsh_string *s)
+#if DEBUG_ALLOC
+
+unsigned number_of_strings = 0;
+struct lsh_string *all_strings = NULL;
+
+static void sanity_check_string_list(void)
+{
+  unsigned i = 0;
+  struct lsh_string *s;
+
+  if (!all_strings)
+    {
+      assert(!number_of_strings);
+      return;
+    }
+  assert(!all_strings->header.prev);
+  
+  for(i = 0, s = all_strings; s; s = s->header.next, i++)
+    {
+      if (s->header.next)
+	{
+	  assert(s->header.next->header.prev = s);
+	}
+    }
+  assert (i == number_of_strings);
+}
+
+struct lsh_string *
+lsh_string_alloc_clue(UINT32 length, const char *clue)
+{
+  struct lsh_string *s = lsh_string_alloc(length);
+
+  sanity_check_string_list();
+  
+  s->header.magic = -1717;
+  number_of_strings++;
+
+  s->header.clue = clue;
+  s->header.next = all_strings;
+  s->header.prev = NULL;
+  if (s->header.next)
+    s->header.next->header.prev = s;
+  all_strings = s;
+
+  sanity_check_string_list();
+
+  return s;
+}
+#endif
+
+void
+lsh_string_free(const struct lsh_string *s)
 {
   if (!s)
     return;
 
-  assert(number_of_strings);
+#if DEBUG_ALLOC
+  sanity_check_string_list();
 
+  assert(number_of_strings);
   number_of_strings--;
+
+  if (s->header.magic != -1717)
+    fatal("lsh_string_free: Not string!\n");
+  if (s->data[s->length])
+    fatal("lsh_string_free: String not NUL-terminated.\n");
+
+  if (s->header.next)
+    s->header.next->header.prev = s->header.prev;
+  
+  if (s->header.prev)
+    s->header.prev->header.next = s->header.next;
+  else
+    {
+      assert (all_strings == s);
+      all_strings = s->header.next;
+    }
+  
+  sanity_check_string_list();	
+#endif
 
 #if 0
   debug("lsh_string_free: freeing %xi,\n", (UINT32) s);
 #endif
   
-#if DEBUG_ALLOC
-  if (s->header.magic != -1717)
-    fatal("lsh_string_free: Not string!\n");
-#endif
   lsh_free(s);
 }
 
-struct lsh_object *lsh_object_alloc(struct lsh_class *class)
+struct lsh_object *
+lsh_object_alloc(struct lsh_class *class)
 {
   struct lsh_object *instance = xalloc(class->size);
   instance->isa = class;
@@ -161,7 +238,8 @@ struct lsh_object *lsh_object_alloc(struct lsh_class *class)
   return instance;
 }
 
-struct lsh_object *lsh_object_clone(struct lsh_object *o)
+struct lsh_object *
+lsh_object_clone(struct lsh_object *o)
 {
   struct lsh_object *i = xalloc(o->isa->size);
 
@@ -176,7 +254,8 @@ struct lsh_object *lsh_object_clone(struct lsh_object *o)
   return i;
 }
 
-struct list_header *lsh_list_alloc(struct lsh_class *class,
+struct list_header *
+lsh_list_alloc(struct lsh_class *class,
 				   unsigned length, size_t element_size)
 {
   struct list_header *list = xalloc(class->size
@@ -197,7 +276,8 @@ struct list_header *lsh_list_alloc(struct lsh_class *class,
 }
     
 /* Should be called *only* by the gc */
-void lsh_object_free(struct lsh_object *o)
+void
+lsh_object_free(struct lsh_object *o)
 {
   if (!o)
     return;
@@ -270,36 +350,37 @@ struct lsh_object *lsh_object_check_subtype(struct lsh_class *class,
 #if DEBUG_ALLOC
 void *lsh_space_alloc(size_t size)
 {
-  int * p = xalloc(size + sizeof(int));
+  UNIT *p = xalloc(size + sizeof(UNIT));
 
   *p = -1919;
 
   return (void *) (p + 1);
 }
 
-void lsh_space_free(void *p)
+void lsh_space_free(const void *p)
 {
-  int *m;
+  UNIT *m;
   
   if (!p)
     return;
   
-  m = ((int *) p) - 1;
-
-  if (*m != -1919)
+  m = (UNIT *) p;
+  
+  if (m[-1] != (UNIT) -1919)
     fatal("lsh_free_space: Type error!\n");
 
-  lsh_free(m);
+  lsh_free(m-1);
 }
 
 #else /* !DEBUG_ALLOC */
 
+/* FIXME: Why not use macros for this? */
 void *lsh_space_alloc(size_t size)
 {
-  return xalloc(size);
+  return lsh_malloc(size);
 }
 
-void lsh_space_free(void *p)
+void lsh_space_free(const void *p)
 {
   lsh_free(p);
 }

@@ -73,7 +73,7 @@
        (end . UINT32)))
 */
 
-struct write_buffer *write_buffer_alloc(UINT32 size);
+struct write_buffer *make_write_buffer(UINT32 size);
 int write_buffer_pre_write(struct write_buffer *buffer);
 void write_buffer_consume(struct write_buffer *buffer, UINT32 size);
 void write_buffer_close(struct write_buffer *buffer);

@@ -24,7 +24,7 @@ Internet.
 <p><code>lsh</code> is a component of the <small>GNU</small> system.
 
 <p>This manual explains how to use and hack <code>lsh</code>; it corresponds to
-<code>lsh</code> version 1.1.6.
+<code>lsh</code> version 1.3.4.
 
 <ul>
 <li><a href="#Introduction">Introduction</a>: 
@@ -221,11 +221,12 @@ Up:<a rel=up href="#Introduction">Introduction</a>
 <h2>Features</h2>
 
 <p><code>lsh</code> does not only provide more secure replacements for
-<code>telnet</code>, <code>rsh</code> and <code>rlogin</code>, it also provides some other
-features to make it convenient to communicate securely. But <code>lsh</code> is
-still in an early stage of development, so this section is expected to
-grow with time. One goal for <code>lsh</code> is to make it reasonable easy to
-extend it, without messing with the core security functionality.
+<code>telnet</code>, <code>rsh</code> and <code>rlogin</code>, it also provides
+some other features to make it convenient to communicate securely. This
+section is expected to grow with time, as more features from the
+wish-list are added to lsh. One goal for <code>lsh</code> is to make it
+reasonable easy to extend it, without messing with the core security
+functionality.
 
 <p><code>lsh</code> can be configured to allow login based on a personal key-pair
 consisting of a private and a public key, so that you can execute remote
@@ -241,11 +242,22 @@ mechanism to delegate restricted logins.
 is useful for tunneling otherwise insecure protocols, like telnet and
 pop, through an encrypted <code>lsh</code> connection.
 
-<p>Convenient tunneling of <small>X</small> is one of the most impressive features of the
-original <code>ssh</code> programs. <code>lsh</code> doesn't do this yet. Other kind
-of tunneling that may turn out to be useful include authentication (i.e. 
-<code>ssh-agent</code>), general forwarding of <small>UDP</small>, and why not also
-general <small>IP</small>-tunneling.
+<p>Convenient tunneling of <small>X</small> was one of the most impressive
+features of the original <code>ssh</code> programs. The current version of
+<code>lsh</code> implements <small>X</small>-forwarding, although the
+<code>lshd</code> server doesn't provide that service yet.
+
+<p>Whan <small>X</small> forwarding is in effect, the remote process is started
+in an environment where the <code>DISPLAY</code> variable in the environment
+points to a fake <small>X</small> server, connection to which are forwarded
+to the <small>X</small> server in your local environment. <code>lsh</code> also
+creates a new "fake" <code>MIT-MAGIC-COOKIE-1</code> for controlling access
+control. Your real <small>X</small> authentication data is never sent to the
+remote machine.
+
+<p>Other kinds of tunneling that may turn out to be useful include
+authentication (i.e. <code>ssh-agent</code>), general forwarding of
+<small>UDP</small>, and why not also general <small>IP</small>-tunneling.
 
 <p><hr>
 Node:<a name="Related%20techniques">Related techniques</a>,
@@ -292,9 +304,6 @@ back, for security reasons.
 and Windows. <code>ossh</code> and later OpenSSH are derived from earlier
 version av Tatu Ylönen's <code>ssh</code>, and are free software.
 
-<p>Until <code>lsh</code> becomes stable and well tested, I would recommend using
-some implementation of the <code>ssh-1</code> protocol.
-
 <p><hr>
 Node:<a name="ssh2">ssh2</a>,
 Next:<a rel=next href="#Kerberos">Kerberos</a>,
@@ -323,7 +332,7 @@ for recent versions of <code>ssh1</code>, but with a narrower definition of
 "non-commercial use".
 
 <p>Besides <code>lsh</code> there are few free implementations of the
-<code>ssh-2</code> protocols, but since May 2000 it is supported also by
+<code>ssh-2</code> protocols. Since May 2000 it is supported also by
 OpenSSH.
 
 <p><hr>
@@ -584,9 +593,9 @@ the firewall in a secure way.
 
 <li>Port forwarding is done in addition to anything else <code>lsh</code> is
 doing. In the example above, a tunnel is set up, but <code>lsh</code> will
-also start an interactive shell for you. Just like the <code>-L</code>
-option was not present. If this is not what you want, the <code>-N</code>
-option is for you (see <a href="#Invoking%20lsh">Invoking lsh</a>)
+also start an interactive shell for you. Just as if the <code>-L</code>
+option was not present. If this is not what you want, the <code>-N</code> or
+<code>-B</code> option is for you (see <a href="#Invoking%20lsh">Invoking lsh</a>)
 </ul>
 
 <p>Remote forwarding is similar, but asks the <em>remote</em> machine to
@@ -687,13 +696,11 @@ public key to the machines where you want to authorize it.
 keypair on each of the systems, and on each system you authorize some or
 all of your other public keys for login.
 
-<p>Note that <code>lsh</code> does <em>not</em> currently encrypt your private
-key in any way. That means that you can lose it if a backup tape gets
-into the wrong hands, and if you use NFS it will likely be sent in the
-clear across your local network. (Actually, you can encrypt the key
-using a pass phrase, by passing the <code>-c 3des</code> option to
-<code>lsh-writekey</code>, but <code>lsh</code> doesn't yet support decrypting
-it).
+<p>Note that <code>lsh-writekey</code> does <em>not</em> currently encrypt your
+private key in any way. That means that you can lose it if a backup tape
+gets into the wrong hands, and if you use NFS it will likely be sent in
+the clear across your local network. To encrypt the key using a pass
+phrase, give the <code>-c 3des</code> option to <code>lsh-writekey</code>.
 
 <p><hr>
 Node:<a name="srp">srp</a>,
@@ -753,18 +760,20 @@ talking to the real server, he needs to know your password as well.
 <p><small>SRP</small> support is disabled by default, but can be enabled by the
 <code>--srp-keyexchange</code> option to <code>lshd</code> and <code>lsh</code>
 (naturally, it won't be used unless enabled on both sides). At the time
-of this writing, <small>SRP</small> is too new to be trusted, at least
-according to conservative cryptographers (and remember that conservatism
-is a virtue when it comes to security).
+of this writing, <small>SRP</small> is too new to be trusted by conservative
+cryptographers (and remember that conservatism is a virtue when it comes
+to security).
 
 <p>And even if <small>SRP</small> in itself is secure, the way <code>lsh</code>
 integrates it into the <code>ssh</code> protocol has not had much peer review. 
 The bottom line of this disclaimer is that the <small>SRP</small> support in
 <code>lsh</code> should be considered experimental.
 
-<p>As far as I know, <small>SRP</small> is not supported by any other <code>ssh</code>
-implementation. The protocol <code>lsh</code> uses is described in the
-<code>doc/srp-spec.txt</code>.
+<p>As far as I know, using <small>SRP</small> as a host authentication mechanism
+is not supported by any other <code>ssh</code> implementation. The protocol
+<code>lsh</code> uses is described in the <code>doc/srp-spec.txt</code>. 
+Implementations that use <small>SRP</small> only as a user authentication
+mechanism are not compatible with <code>lsh</code>.
 
 <p><hr>
 Node:<a name="sexp">sexp</a>,
@@ -778,7 +787,7 @@ Up:<a rel=up href="#Getting%20started">Getting started</a>
 <p>Keys and most other objects <code>lsh</code> needs to store on disk are
 represented as so called S-expressions or <dfn>sexps</dfn> for short. 
 S-expressions have their roots in the Lisp world, and a variant of them
-are used in the Simple Public Key Infrastructure (<small>SPKI</small>). 
+in used in the Simple Public Key Infrastructure (<small>SPKI</small>). 
 Currently, <code>lsh</code>'s support for <small>SPKI</small> is quite limited,
 but it uses <small>SPKI</small>'s formats for keys and Access Control Lists
 (<small>ACL</small>:s).
@@ -826,10 +835,9 @@ one or more personal keypairs, you need to convert the public keys to
 </pre>
 
 <p>You can then use the usual <code>lsh-authorize</code> on the converted
-keys. For this to work, you must be using <small>DSA</small> keys:
-<code>lsh</code> doesn't support <code>RSA</code>.
+keys. <code>ssh-conv</code> supports both <small>DSA</small> and <code>RSA</code> keys.
 
-<p>There is currently no tools for converting private keys.
+<p>There are currently no tools for converting private keys.
 
 <p><hr>
 Node:<a name="Invoking%20lsh">Invoking lsh</a>,
@@ -1014,11 +1022,6 @@ currently not implemented.
 <br><dt><code>--no-publickey</code>
 <dd>Don't attempt to log in using public key authentication.
 
-<br><dt><code>--no-userauth</code>
-<dd>Attempt to start a session without performing the user authentication
-sub-protocol at all. This is the default if <small>SRP</small> was used for
-the initial handshake, and should not make much sense otherwise.
-
 </dl>
 
 <p><hr>
@@ -1075,14 +1078,16 @@ executed on the remote machine.
 <br><dt><code>-G</code>
 <dd>Open a gateway on the local machine. A gateway is a local socket,
 located under /tmp, that can be used for controlling and using the ssh
-connection. It is protected using the ordinary file permissions. This
-feature is experimental.
+connection. It is protected using the ordinary file permissions.
 
 <br><dt><code>-N</code>
 <dd>This is a no-operation action. It inhibits the default action, which is
 to start an interactive shell on the remote machine. It is useful if you
-want to set up a few forwarded tunnels, and nothing more.
+want to set up a few forwarded tunnels or a gateway, and nothing more.
 
+<br><dt><code>-B</code>
+<dd>Put the client into the background after key exchange and
+user authentication. Implies <code>-N</code>
 </dl>
 
 <p>If there are trailing arguments after the name of the remote system,
@@ -1111,6 +1116,10 @@ applies to actions that create remote processes, i.e. <code>-E</code> and
 
 <p>Currently, this option is ignored if there is no local terminal.
 
+<br><dt><code>-x</code>
+<dd>Request <small>X</small> forwarding. Applies to the <small>-E</small> and
+<code>S</code> and the default actions.
+
 <br><dt><code>--stdin</code>
 <dd>Redirect the stdin of a remote process from a given, local, file. 
 Default is to use <code>lsh</code>'s stdin for the first process, and
@@ -1129,7 +1138,7 @@ after it is used.
 Analogous to the <code>--stdout</code> option.
 
 <br><dt><code>-g</code>
-<dd>Remote peers, aka Global forwarding. This option applies to the
+<dd>Remote peers, aka global forwarding. This option applies to the
 forwarding actions, i.e. <code>-L</code> and <code>-R</code>. By default, only
 connections to the loopback interface, ip 127.0.0.1, are forwared. This
 implies that only processes on the same machine can use the forwarded
@@ -1169,6 +1178,10 @@ and makes sense also to those not familiar with <code>lsh</code> internals.
 sent and received packets. It tries to avoid dumping highly sensitive data,
 such as private keys and the contents of <code>SSH_MSG_USERAUTH_REQUEST</code>
 messages, but you should still use it with care.
+
+<br><dt><code>--log-file</code>
+<dd>This option redirects all messages to a file. Takes one mandatory
+argument: The name of that file.
 
 </dl>
 
@@ -1278,7 +1291,7 @@ details.
 
 <br><dt><code>--login-shell</code>
 <dd>Use the specified program as the login shell for all users, overriding
-the login shell in the passwd database.
+the login shell in the passwd database. Mainly useful for testing.
 
 <br><dt><code>--srp-keyexchange</code>
 <dd>Enable <small>SRP</small> keyexchange and user authentication.

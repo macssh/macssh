@@ -68,7 +68,7 @@
 #  include <utmpx.h>
 # endif
 #else /* !WITH_UTMP */
-# struct utmp;
+  struct utmp;
 #endif
 
 #if HAVE_LIBUTIL_H
@@ -159,15 +159,15 @@ lsh_make_utmp(struct lsh_user *user,
   struct utmp *log;
   NEW_SPACE(log);
 
-#if HAVE_UT_NAME
+#if HAVE_STRUCT_UTMP_UT_NAME
   CP(log->ut_name, user->name);
-#elif HAVE_UT_USER
+#elif HAVE_STRUCT_UTMP_UT_USER
   CP(log->ut_user, user->name);
 #endif
   
   CP_TTY(log->ut_line, ttyname);
 
-#if HAVE_UT_HOST
+#if HAVE_STRUCT_UTMP_UT_HOST
   CP(log->ut_host, peer->ip);
 #endif
   
@@ -182,7 +182,7 @@ lsh_make_utmp(struct lsh_user *user,
 /* GABA:
    (class
      (name process_resource)
-     (super resource)
+     (super lsh_process)
      (vars
        (pid . pid_t)
        ; Signal used for killing the process.
@@ -194,9 +194,9 @@ do_kill_process(struct resource *r)
 {
   CAST(process_resource, self, r);
 
-  if (self->super.alive)
+  if (self->super.super.alive)
     {
-      self->super.alive = 0;
+      self->super.super.alive = 0;
       /* NOTE: This function only makes one attempt at killing the
        * process. An improvement would be to install a callout handler
        * which will kill -9 the process after a delay, if it hasn't died
@@ -210,11 +210,22 @@ do_kill_process(struct resource *r)
     }
 }
 
-static struct resource *
+static int
+do_signal_process(struct lsh_process *s, int signal)
+{
+  CAST(process_resource, self, s);
+  
+  return self->super.super.alive
+    && (kill(self->pid, signal) == 0);
+}
+
+
+static struct lsh_process *
 make_process_resource(pid_t pid, int signal)
 {
   NEW(process_resource, self);
-  resource_init(&self->super, do_kill_process);
+  init_resource(&self->super.super, do_kill_process);
+  self->super.signal = do_signal_process;
 
   self->pid = pid;
   self->signal = signal;
@@ -356,7 +367,9 @@ kerberos_check_pw(struct unix_user *user, struct lsh_string *pw,
 
 	close(in[0]);
 
-	fd = io_write(make_lsh_fd(user->ctx->backend, in[1], e),
+	fd = io_write(make_lsh_fd(user->ctx->backend,
+				  in[1], "password helper stdin",
+				  e),
 		      pw->length, NULL);
 
 	A_WRITE(&fd->write_buffer->super, pw);
@@ -381,12 +394,10 @@ do_verify_password(struct lsh_user *s,
   CAST(unix_user, user, s);
   const struct exception *x = NULL;
 
-  /* Convert password to a NUL-terminated string; no supported
-   * password verification methods allows passwords containing NUL. */
+  /* No supported password verification methods allows passwords
+   * containing NUL, so check that here. */
 
-  password = make_cstring(password, 1);
-  
-  if (!password)
+  if (!lsh_get_cstring(password))
     {
       static const struct exception invalid_passwd
 	= STATIC_EXCEPTION(EXC_USERAUTH, "NUL character in password.");
@@ -458,6 +469,7 @@ do_file_exists(struct lsh_user *u,
   CAST(unix_user, user, u);
   struct lsh_string *path;
   struct stat st;
+  const char *s;
   
   if (!user->home)
     {
@@ -466,10 +478,11 @@ do_file_exists(struct lsh_user *u,
       return 0;
     }
   
-  path = ssh_cformat(free ? "%lS/%lfS" : "%lS/%lS",
+  path = ssh_format(free ? "%lS/%lfS" : "%lS/%lS",
 		     user->home, name);
-
-  if (stat(path->data, &st) == 0)
+  s = lsh_get_cstring(path);
+  
+  if (s && (stat(s, &st) == 0))
     {
       lsh_string_free(path);
       return 1;
@@ -508,7 +521,8 @@ check_user_permissions(struct stat *sbuf, const char *fname,
 }
 
 /* NOTE: No arbitrary file names are passed to this method, so we
- * don't have to check for things like "../../some/secret/file" */
+ * don't have to check for things like "../../some/secret/file",
+ * or for filenames containing NUL. */
 
 static void 
 do_read_file(struct lsh_user *u, 
@@ -543,9 +557,9 @@ do_read_file(struct lsh_user *u,
       return;
     }
 
-  f = ssh_cformat("%lS/.lsh/%lz", user->home, name);
+  f = ssh_format("%lS/.lsh/%lz", user->home, name);
   
-  if (stat(f->data, &sbuf) < 0)
+  if (stat(lsh_get_cstring(f), &sbuf) < 0)
     {
       if (errno != ENOENT)
 	werror("io_read_user_file: Failed to stat %S (errno = %i): %z\n",
@@ -560,7 +574,7 @@ do_read_file(struct lsh_user *u,
   /* Perform a preliminary permissions check before forking, as errors
    * detected by the child process are not reported as accurately. */
 
-  x = check_user_permissions(&sbuf, f->data, user->super.uid, secret);
+  x = check_user_permissions(&sbuf, lsh_get_cstring(f), user->super.uid, secret);
   if (x)
     {
       EXCEPTION_RAISE(e, x);
@@ -591,9 +605,10 @@ do_read_file(struct lsh_user *u,
       /* Parent */
       close(out[1]);
 
-      /* NOTE: We could install an exit handler for tre child process,
+      /* NOTE: We could install an exit handler for the child process,
        * but there's nothing useful for that to do. */
-      COMMAND_RETURN(c, make_lsh_fd(user->ctx->backend, out[0], e));
+      COMMAND_RETURN(c, make_lsh_fd(user->ctx->backend,
+				    out[0], "stdout, reading a user file", e));
 
       lsh_string_free(f);
       return;
@@ -612,7 +627,7 @@ do_read_file(struct lsh_user *u,
 	  }
 	assert(user->super.uid == getuid());
 	
-	fd = open(f->data, O_RDONLY);
+	fd = open(lsh_get_cstring(f), O_RDONLY);
 
 	/* Check permissions again, in case the file or some symlinks
 	 * changed under our feet. */
@@ -624,7 +639,7 @@ do_read_file(struct lsh_user *u,
 	    _exit(EXIT_FAILURE);
 	  }
 
-	x = check_user_permissions(&sbuf, f->data, user->super.uid, secret);
+	x = check_user_permissions(&sbuf, lsh_get_cstring(f), user->super.uid, secret);
 
 	if (x)
 	  {
@@ -656,7 +671,7 @@ do_chdir_home(struct lsh_user *u)
 	  return 0;
 	}
     }
-  else if (chdir(user->home->data) < 0)
+  else if (chdir(lsh_get_cstring(user->home)) < 0)
     {
       werror("chdir to %S failed (using / instead): %z\n",
 	     user->home, 
@@ -670,6 +685,9 @@ do_chdir_home(struct lsh_user *u)
   return 1;  
 }
 
+/* FIXME: initgroups in glibc (and possibly on other systems as well)
+ * is broken, and can't handle more than 32 groups. We need a
+ * workaround for that. */
 static int
 change_uid(struct unix_user *user)
 {
@@ -677,7 +695,7 @@ change_uid(struct unix_user *user)
    * wrong, the server will think that the user is logged in
    * under his or her user id, while in fact the process is
    * still running as root. */
-  if (initgroups(user->super.name->data, user->gid) < 0)
+  if (initgroups(lsh_get_cstring(user->super.name), user->gid) < 0)
     {
       werror("initgroups failed: %z\n", STRERROR(errno));
       return 0;
@@ -697,7 +715,7 @@ change_uid(struct unix_user *user)
 
 static int
 do_fork_process(struct lsh_user *u,
-		struct resource **process,
+		struct lsh_process **process,
 		struct exit_callback *c,
 		struct address_info *peer, struct lsh_string *tty)
 {
@@ -729,9 +747,9 @@ do_fork_process(struct lsh_user *u,
       if (log)
 	  /* FIXME: It should be safe to perform a blocking reverse dns lookup here,
 	   * as we have forked. */
-#if HAVE_UT_NAME
+#if HAVE_STRUCT_UTMP_UT_NAME
 	  logwtmp(log->ut_line, log->ut_name, log->ut_host);
-#elif HAVE_UT_USER
+#elif HAVE_STRUCT_UTMP_UT_USER
 	  logwtmp(log->ut_line, log->ut_user, log->ut_host);
 #endif
 
@@ -749,7 +767,7 @@ do_fork_process(struct lsh_user *u,
       
     default: /* Parent */
       *process = make_process_resource(child, SIGHUP);
-      REAP(user->ctx->reaper, child, make_logout_cleanup(*process, log, c));
+      REAP(user->ctx->reaper, child, make_logout_cleanup(&(*process)->super, log, c));
       
       return 1;
     }
@@ -757,26 +775,27 @@ do_fork_process(struct lsh_user *u,
 
 #define USE_LOGIN_DASH_CONVENTION 1
 
-static char *
+static const char *
 format_env_pair(const char *name, struct lsh_string *value)
 {
-  return ssh_cformat("%lz=%lS", name, value)->data;
+  assert(lsh_get_cstring(value));
+  return lsh_get_cstring(ssh_format("%lz=%lS", name, value));
 }
 
-static char *
+static const char *
 format_env_pair_c(const char *name, const char *value)
 {
-  return ssh_cformat("%lz=%lz", name, value)->data;
+  return lsh_get_cstring(ssh_format("%lz=%lz", name, value));
 }
 
 static void
 do_exec_shell(struct lsh_user *u, int login,
-	      char **argv,
+	      const char **argv,
 	      unsigned env_length,
 	      const struct env_value *env)
 {
   CAST(unix_user, user, u);
-  char **envp;
+  const char **envp;
   char *tz = getenv("TZ");
   unsigned i, j;
   
@@ -825,29 +844,35 @@ do_exec_shell(struct lsh_user *u, int login,
   if (login)
     {
       /* Fixup argv[0], so that it starts with a dash */
-      char *p;
+      const char *p;
+      const char *shell = lsh_get_cstring(user->shell);
+      char *loginshell;
 
       debug("do_exec_shell: fixing up name of shell...\n");
       
-      argv[0] = alloca(user->shell->length + 2);
+      loginshell = alloca(user->shell->length + 2);
 
       /* Make sure that the shell's name begins with a -. */
-      p = strrchr (user->shell->data, '/');
+      p = strrchr (shell, '/');
       if (!p)
-	p = user->shell->data;
+	p = shell;
       else
 	p ++;
 	      
-      argv[0][0] = '-';
-      strncpy (argv[0] + 1, p, user->shell->length);
+      loginshell[0] = '-';
+      strncpy (loginshell + 1, p, user->shell->length);
+      
+      argv[0] = loginshell;
     }
   else
 #endif /* USE_LOGIN_DASH_CONVENTION */
-    argv[0] = user->shell->data;
+    argv[0] = lsh_get_cstring(user->shell);
 
   debug("do_exec_shell: argv[0] = '%z'.\n", argv[0]);
   
-  execve(user->shell->data, argv, envp);
+  /* FIXME: Is there a better way? The execve prototype uses char *
+   * const argv, and similarly for envp. */
+  execve(lsh_get_cstring(user->shell), (char **) argv, (char **) envp);
 }
 
 static struct lsh_user *
@@ -860,7 +885,7 @@ make_unix_user(struct lsh_string *name,
 {
   NEW(unix_user, user);
   
-  assert(name && NUL_TERMINATED(name));
+  assert(lsh_get_cstring(name));
 
   user->super.name = name;
   user->super.verify_password = do_verify_password;
@@ -877,11 +902,11 @@ make_unix_user(struct lsh_string *name,
   
   /* Treat empty strings as NULL. */
 
-#define TERMINATE(s) (((s) && *(s)) ? format_cstring((s)) : NULL)
-  user->passwd = TERMINATE(passwd);
-  user->home = TERMINATE(home);
-  user->shell = TERMINATE(shell);
-#undef TERMINATE
+#define STRING(s) (((s) && *(s)) ? make_string((s)) : NULL)
+  user->passwd = STRING(passwd);
+  user->home = STRING(home);
+  user->shell = STRING(shell);
+#undef STRING
   
   return &user->super;
 }
@@ -923,13 +948,16 @@ do_lookup_user(struct user_db *s,
   struct passwd *passwd;
   const char *home;
   const char *shell;
+  const char *cname = lsh_get_cstring(name);
   
-  name = make_cstring(name, free);
+  if (!cname)
+    {
+      if (free)
+	lsh_string_free(name);
+      return NULL;
+    }
   
-  if (!name)
-    return NULL;
-  
-  if ((passwd = getpwnam(name->data))
+  if ((passwd = getpwnam(cname))
       /* Check for root login */
       && (passwd->pw_uid || self->allow_root))
     {      
@@ -947,7 +975,7 @@ do_lookup_user(struct user_db *s,
 	   * FIXME: Which timezone is used in the /etc/shadow file? */
 	  long now = time(NULL) / (3600 * 24);
 	  
-	  if (!(shadowpwd = getspnam(name->data)))
+	  if (!(shadowpwd = getspnam(cname)))
 	    goto fail;
 
           /* sp_expire == -1 means there is no account expiration date.
@@ -1008,7 +1036,7 @@ do_lookup_user(struct user_db *s,
       else
 	shell = passwd->pw_shell;
       
-      return make_unix_user(name, 
+      return make_unix_user(free ? name : lsh_string_dup(name), 
 			    passwd->pw_uid, passwd->pw_gid,
 			    self,
 			    crypted,
@@ -1017,6 +1045,7 @@ do_lookup_user(struct user_db *s,
   else
     {
     fail:
+      if (free)
       lsh_string_free(name);
       return NULL;
     }

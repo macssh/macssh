@@ -27,6 +27,7 @@
 
 #include "format.h"
 #include "io.h"
+#include "read_file.h"
 #include "werror.h"
 #include "xalloc.h"
 
@@ -34,7 +35,7 @@
 
 /* Forward declarations */
 static struct catch_command catch_sexp_exceptions;
-#define CATCH_SEXP (&catch_sexp_exceptions.super.super.super)
+#define CATCH_SEXP (&catch_sexp_exceptions.super.super)
 
 static struct read_sexp_command read_sexp;
 #define READ_SEXP (&read_sexp.super.super)
@@ -49,83 +50,56 @@ static struct read_sexp_command read_sexp;
  *
  * Prints the sexp to tha abstract_write OUT. Returns the sexp. */
 
-/* GABA:
-   (class
-     (name sexp_print_to)
-     (super command)
-     (vars
-       (format . int)
-       (dest object abstract_write)))
-*/
-
 static void
-do_sexp_print(struct command *s,
-	      struct lsh_object *a,
+do_sexp_print(struct command_2 *s,
+	      struct lsh_object *a1,
+	      struct lsh_object *a2,
 	      struct command_continuation *c,
 	      struct exception_handler *e UNUSED)
 {
-  CAST(sexp_print_to, self, s);
-  CAST_SUBTYPE(sexp, o, a);
+  CAST(sexp_print_command, self, s);
+  CAST_SUBTYPE(abstract_write, dest, a1);
+  CAST_SUBTYPE(sexp, o, a2);
 
-  A_WRITE(self->dest, sexp_format(o, self->format, 0));
+  A_WRITE(dest, sexp_format(o, self->format, 0));
   if (self->format != SEXP_CANONICAL)
-    A_WRITE(self->dest, ssh_format("\n"));
+    A_WRITE(dest, ssh_format("\n"));
 
-  COMMAND_RETURN(c, a);
+  COMMAND_RETURN(c, o);
+}
+
+struct command_2 *
+make_sexp_print_command(int format)
+{
+  NEW(sexp_print_command, self);
+  self->super.super.call = do_command_2;
+  self->super.invoke = do_sexp_print;
+  self->format = format;
+
+  return &self->super;
 }
 
 struct command *
 make_sexp_print_to(int format, struct abstract_write *dest)
 {
-  NEW(sexp_print_to, self);
-  self->super.call = do_sexp_print;
-  self->format = format;
-  self->dest = dest;
-
-  return &self->super;
+  return
+    make_command_2_invoke(make_sexp_print_command(format),
+			  &dest->super);
 }
 
-struct lsh_object *
-do_sexp_print_simple(struct command_simple *s,
-		     struct lsh_object *a)
+DEFINE_COMMAND3(sexp_print_raw_hash)
+     (struct lsh_object *a1,
+      struct lsh_object *a2,
+      struct lsh_object *a3,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
-  CAST(sexp_print_command, self, s);
-  CAST_SUBTYPE(abstract_write, dest, a);
-
-  return &make_sexp_print_to(self->format, dest)->super;
-}
-
-struct command_simple *
-make_sexp_print_command(int format)
-{
-  NEW(sexp_print_command, self);
-  self->super.super.call = do_call_simple_command;
-  self->super.call_simple = do_sexp_print_simple;
-  self->format = format;
-
-  return &self->super;
-}
-
-/* GABA:
-   (class
-     (name sexp_print_raw_hash_to)
-     (super command)
-     (vars
-       (algorithm object hash_algorithm)
-       (dest object abstract_write)))
-*/
-
-static void
-do_print_raw_hash_to(struct command *s,
-		     struct lsh_object *a,
-		     struct command_continuation *c,
-		     struct exception_handler *e UNUSED)
-{
-  CAST(sexp_print_raw_hash_to, self, s);
-  CAST_SUBTYPE(sexp, o, a);
+  CAST_SUBTYPE(hash_algorithm, algorithm, a1);
+  CAST_SUBTYPE(abstract_write, dest, a2);
+  CAST_SUBTYPE(sexp, o, a3);
 
   struct lsh_string *canonical = sexp_format(o, SEXP_CANONICAL, 0);
-  struct hash_instance *hash = MAKE_HASH(self->algorithm);
+  struct hash_instance *hash = MAKE_HASH(algorithm);
   struct lsh_string *digest = lsh_string_alloc(hash->hash_size);
 
   HASH_UPDATE(hash, canonical->length, canonical->data);
@@ -134,134 +108,92 @@ do_print_raw_hash_to(struct command *s,
   lsh_string_free(canonical);
   KILL(hash);
 
-  A_WRITE(self->dest, ssh_format("%lxfS\n", digest));
+  A_WRITE(dest, ssh_format("%lxfS\n", digest));
 
-  COMMAND_RETURN(c, a);
+  COMMAND_RETURN(c, o);
 }
-
-struct command *
-make_sexp_print_raw_hash_to(struct hash_algorithm *algorithm,
-			    struct abstract_write *dest)
-{
-  NEW(sexp_print_raw_hash_to, self);
-  self->super.call = do_print_raw_hash_to;
-  self->algorithm = algorithm;
-  self->dest = dest;
-
-  return &self->super;
-}
-
-static struct lsh_object *
-collect_print_raw_hash_2(struct collect_info_2 *info,
-			 struct lsh_object *a,
-			 struct lsh_object *d)
-{
-  CAST_SUBTYPE(hash_algorithm, algorithm, a);
-  CAST_SUBTYPE(abstract_write, dest, d);
-
-  assert(!info->next);
-  
-  return &make_sexp_print_raw_hash_to(algorithm, dest)->super;
-}
-
-struct collect_info_2 collect_info_print_raw_2 =
-STATIC_COLLECT_2_FINAL(collect_print_raw_hash_2);
-
-struct collect_info_1 sexp_print_raw_hash =
-STATIC_COLLECT_1(&collect_info_print_raw_2);
 
 struct command *
 make_sexp_print_raw_hash(struct hash_algorithm *algorithm)
 {
-  CAST_SUBTYPE(command, print,
-	       make_collect_state_1(&sexp_print_raw_hash, &algorithm->super));
-  
-  return print;
-}
-
-#if 0 
-static struct lsh_object *
-do_print_raw_hash_simple(struct command_simple *s UNUSED,
-			 struct lsh_object *a)
-{
-  CAST_SUBTYPE(abstract_write, dest, a);
-
-  return &make_print_raw_hash_to(dest)->super;
-}
-
-struct command_simple sexp_print_raw_hash =
-STATIC_COMMAND_SIMPLE(do_print_raw_hash_simple);
-#endif
-
-/* Make sure that the fd is closed properly. */
-/* GABA:
-   (class
-     (name read_sexp_continuation)
-     (super command_continuation)
-     (vars
-       (fd object lsh_fd)
-       (up object command_continuation)))
-*/
-
-static void
-do_read_sexp_continue(struct command_continuation *s,
-		      struct lsh_object *a)
-{
-  CAST(read_sexp_continuation, self, s);
-  close_fd_nicely(self->fd);
-
-  trace("do_read_sexp_continue\n");
-  
-  COMMAND_RETURN(self->up, a);
-}
-
-static struct command_continuation*
-make_read_sexp_continuation(struct lsh_fd *fd,
-			    struct command_continuation *up)
-{
-  NEW(read_sexp_continuation, self);
-
-  trace("make_read_sexp_continuation\n");
-  self->super.c = do_read_sexp_continue;
-  self->fd = fd;
-  self->up = up;
-
-  return &self->super;
+  return make_command_3_invoke(&sexp_print_raw_hash,
+			       &algorithm->super);
 }
 
 /* GABA:
    (class
-     (name read_sexp_exception_handler)
-     (super exception_handler)
+     (name sexp_parser)
+     (super abstract_write)
      (vars
-       (fd object lsh_fd)))
+       (style . int)
+       (c object command_continuation)
+       (e object exception_handler)))
 */
 
-static void
-do_read_sexp_exception_handler(struct exception_handler *s,
-			       const struct exception *x)
-{
-  CAST(read_sexp_exception_handler, self, s);
-  if (x->type & EXC_SEXP)
-    close_fd_nicely(self->fd);
+static const struct exception
+sexp_syntax_exception = STATIC_EXCEPTION(EXC_SEXP_SYNTAX,
+					 "Sexp syntax error");
 
-  EXCEPTION_RAISE(self->super.parent, x);
+static const struct exception
+sexp_eof_exception = STATIC_EXCEPTION(EXC_SEXP_EOF, "All sexps read");
+
+static void
+do_sexp_parse_once(struct abstract_write *s, struct lsh_string *input)
+{
+  CAST(sexp_parser, self, s);
+  struct simple_buffer buffer;
+  struct sexp *expr;
+  
+  assert(input);
+
+  simple_buffer_init(&buffer, input->length, input->data);
+
+  expr = sexp_parse(self->style, &buffer);
+  if (!expr)
+    EXCEPTION_RAISE(self->e, &sexp_syntax_exception);
+  else
+    COMMAND_RETURN(self->c, expr);
+
+  lsh_string_free(input);
 }
 
-static struct exception_handler *
-make_read_sexp_exception_handler(struct lsh_fd *fd,
-				 struct exception_handler *e,
-				 const char *context)
+static void
+do_sexp_parse_many(struct abstract_write *s, struct lsh_string *input)
 {
-  NEW(read_sexp_exception_handler, self);
+  CAST(sexp_parser, self, s);
+  struct simple_buffer buffer;
+  const struct exception *e = &sexp_eof_exception;
+    
+  assert(input);
 
-  trace("make_read_sexp_exception_handler\n");
+  simple_buffer_init(&buffer, input->length, input->data);
 
-  self->super.raise = do_read_sexp_exception_handler;
-  self->super.parent = e;
-  self->super.context = context;
-  
-  self->fd = fd;
+  while (!parse_eod(&buffer))
+    {
+      struct sexp *expr = sexp_parse(self->style, &buffer);
+      if (!expr)
+	{
+	  e = &sexp_syntax_exception;
+	  break;
+	}
+      else
+	COMMAND_RETURN(self->c, expr);
+    }
+
+  EXCEPTION_RAISE(self->e, e);
+  lsh_string_free(input);
+}
+
+static struct abstract_write *
+make_sexp_parser(int style, int goon,
+		 struct command_continuation *c,
+		 struct exception_handler *e)
+{
+  NEW(sexp_parser, self);
+  self->super.write = goon ? do_sexp_parse_many : do_sexp_parse_once;
+  self->style = style;
+  self->c = c;
+  self->e = e;
 
   return &self->super;
 }
@@ -281,19 +213,19 @@ do_read_sexp(struct command *s,
     
   assert(fd);
   
-  if (!self->goon)
-    c = make_read_sexp_continuation(fd, c);
-  
   io_read(fd,
-	  make_buffered_read(SEXP_BUFFER_SIZE,
- 	    make_read_sexp(self->format, self->goon, c,
-	      make_read_sexp_exception_handler(fd, e,
-					       HANDLER_CONTEXT))),
+	  make_buffered_read
+	  (SEXP_BUFFER_SIZE,
+	   make_read_file
+	   (make_sexp_parser(self->format,
+			     self->goon,
+			     c, e),
+	    self->max_size)),
 	  NULL);
 }
 
 struct command *
-make_read_sexp_command(int format, int goon)
+make_read_sexp_command(int format, int goon, UINT32 max_size)
 {
   NEW(read_sexp_command, self);
 
@@ -302,6 +234,7 @@ make_read_sexp_command(int format, int goon)
   self->super.call = do_read_sexp;
   self->format = format;
   self->goon = goon;
+  self->max_size = max_size;
 
   return &self->super;
 }
@@ -309,8 +242,11 @@ make_read_sexp_command(int format, int goon)
 static struct catch_command catch_sexp_exceptions
 = STATIC_CATCH_COMMAND(EXC_ALL, EXC_SEXP_EOF, 1);
 
+/* Arbitrary limit on file size. */
+#define MAX_SEXP_SIZE 10000
+
 static struct read_sexp_command read_sexp
-= STATIC_READ_SEXP(SEXP_ADVANCED, 1);
+= STATIC_READ_SEXP(SEXP_TRANSPORT, 1, MAX_SEXP_SIZE);
 
 /* GABA:
    (expr
@@ -324,8 +260,12 @@ static struct read_sexp_command read_sexp
 		       (proc (read_sexp file)))))))
 */
 
-DEFINE_COMMAND_SIMPLE(for_sexp_command, a)
+DEFINE_COMMAND(for_sexp_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST_SUBTYPE(command, handler, a);
-  return for_sexp(handler);
+  COMMAND_RETURN(c, for_sexp(handler));
 }

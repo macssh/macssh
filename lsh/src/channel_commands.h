@@ -107,25 +107,29 @@ make_install_global_request_handler(UINT32 name,
 /* GABA:
    (class
      (name install_info)
-     (super collect_info_2)
+     (super command_2)
      (vars
        (name . int)))
 */
 
-struct lsh_object *
-do_install_global_request_handler(struct collect_info_2 *info,
-				  struct lsh_object *a,
-				  struct lsh_object *b);
-struct lsh_object *
-do_install_channel_open_handler(struct collect_info_2 *info,
-				struct lsh_object *a,
-				struct lsh_object *b);
+void
+do_install_global_request_handler(struct command_2 *s,
+				  struct lsh_object *a1,
+				  struct lsh_object *a2,
+				  struct command_continuation *c,
+				  struct exception_handler *e);
+void
+do_install_channel_open_handler(struct command_2 *s,
+				struct lsh_object *a1,
+				struct lsh_object *a2,
+				struct command_continuation *c,
+				struct exception_handler *e);
 
 #define STATIC_INSTALL_GLOBAL_HANDLER(atom) \
-{ STATIC_COLLECT_2_FINAL(do_install_global_request_handler),(atom) }
+{ { { STATIC_HEADER, do_command_2 }, do_install_global_request_handler }, atom }
 
 #define STATIC_INSTALL_OPEN_HANDLER(atom) \
-{ STATIC_COLLECT_2_FINAL(do_install_channel_open_handler),(atom) }
+{ { { STATIC_HEADER, do_command_2 }, do_install_channel_open_handler }, atom }
 
 struct command *
 make_install_fix_global_request_handler(UINT32 name,

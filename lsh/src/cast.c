@@ -27,7 +27,7 @@
 #include "werror.h"
 #include "xalloc.h"
 
-#include "cast.h"
+#include "nettle/cast128.h"
 
 #include <assert.h>
 
@@ -41,26 +41,26 @@ struct crypto_algorithm *make_cast_algorithm(UINT32 key_size);
      (name cast_instance)
      (super crypto_instance)
      (vars
-       (ctx . "struct cast_key")))
+       (ctx . "struct cast128_ctx")))
 */
 
 
-static void do_cast_encrypt(struct crypto_instance *s,
-				UINT32 length, const UINT8 *src, UINT8 *dst)
+static void
+do_cast_encrypt(struct crypto_instance *s,
+		UINT32 length, const UINT8 *src, UINT8 *dst)
 {
   CAST(cast_instance, self, s);
 
-  FOR_BLOCKS(length, src, dst, CAST_BLOCKSIZE)
-    cast_encrypt(&self->ctx, src, dst);
+  cast128_encrypt(&self->ctx, length, dst, src);
 }
 
-static void do_cast_decrypt(struct crypto_instance *s,
-				UINT32 length, const UINT8 *src, UINT8 *dst)
+static void
+do_cast_decrypt(struct crypto_instance *s,
+		UINT32 length, const UINT8 *src, UINT8 *dst)
 {
   CAST(cast_instance, self, s);
 
-  FOR_BLOCKS(length, src, dst, CAST_BLOCKSIZE)
-    cast_decrypt(&self->ctx, src, dst);
+  cast128_decrypt(&self->ctx, length, dst, src);
 }
 
 static struct crypto_instance *
@@ -69,12 +69,12 @@ make_cast_instance(struct crypto_algorithm *algorithm, int mode,
 {
   NEW(cast_instance, self);
 
-  self->super.block_size = CAST_BLOCKSIZE;
+  self->super.block_size = CAST128_BLOCK_SIZE;
   self->super.crypt = ( (mode == CRYPTO_ENCRYPT)
 			? do_cast_encrypt
 			: do_cast_decrypt);
 
-  cast_setkey(&self->ctx, key, algorithm->key_size);
+  cast128_set_key(&self->ctx, algorithm->key_size, key);
   return &self->super;
 }
 
@@ -82,10 +82,10 @@ struct crypto_algorithm *make_cast_algorithm(UINT32 key_size)
 {
   NEW(crypto_algorithm, algorithm);
 
-  assert(key_size <= CAST_MAX_KEYSIZE);
-  assert(key_size >= CAST_MIN_KEYSIZE);
+  assert(key_size <= CAST128_MAX_KEY_SIZE);
+  assert(key_size >= CAST128_MIN_KEY_SIZE);
 
-  algorithm->block_size = CAST_BLOCKSIZE;
+  algorithm->block_size = CAST128_BLOCK_SIZE;
   algorithm->key_size = key_size;
   algorithm->iv_size = 0;
   algorithm->make_crypt = make_cast_instance;
@@ -94,4 +94,4 @@ struct crypto_algorithm *make_cast_algorithm(UINT32 key_size)
 }
 
 struct crypto_algorithm cast128_algorithm =
-{ STATIC_HEADER, CAST_BLOCKSIZE, CAST_MAX_KEYSIZE, 0, make_cast_instance};
+{ STATIC_HEADER, CAST128_BLOCK_SIZE, CAST128_MAX_KEY_SIZE, 0, make_cast_instance};

@@ -89,39 +89,273 @@ make_apply(struct command *f,
   return &res->super.super;
 }
 
-struct lsh_object *gaba_apply(struct lsh_object *f,
-			      struct lsh_object *x)
+/* GABA:
+   (class
+     (name gaba_continuation)
+     (super command_continuation)
+     (vars
+       (value object lsh_object)))
+*/
+
+static void
+do_gaba_continuation(struct command_continuation *c,
+		     struct lsh_object *x)
 {
-  CAST_SUBTYPE(command_simple, cf, f);
-  return COMMAND_SIMPLE_CALL(cf, x);
+  CAST(gaba_continuation, self, c);
+
+  assert(!self->value);
+  self->value = x;
+}
+
+struct lsh_object *
+gaba_apply(struct lsh_object *f,
+	   struct lsh_object *x)
+{
+  CAST_SUBTYPE(command, cf, f);
+  struct gaba_continuation c =
+  { { STATIC_HEADER, do_gaba_continuation }, NULL };
+
+  COMMAND_CALL(cf, x, &c.super, &default_exception_handler);
+  return c.value;
+}
+
+/* A command taking 2 arguments */
+/* GABA:
+   (class
+     (name command_2_invoke)
+     (super command)
+     (vars
+       (f object command_2)
+       (a1 object lsh_object)))
+*/
+
+static void
+do_command_2_invoke(struct command *s, struct lsh_object *a2,
+		    struct command_continuation *c,
+		    struct exception_handler *e)
+{
+  CAST(command_2_invoke, self, s);
+  COMMAND_2_INVOKE(self->f, self->a1, a2, c, e);
+}
+
+struct command *
+make_command_2_invoke(struct command_2 *f,
+		      struct lsh_object *a1)
+{
+  NEW(command_2_invoke, self);
+
+  self->super.call = do_command_2_invoke;
+  self->f = f;
+  self->a1 = a1;
+
+  return &self->super;
 }
 
 void
-do_call_simple_command(struct command *s,
-		       struct lsh_object *arg,
-		       struct command_continuation *c,
-		       struct exception_handler *e UNUSED)
+do_command_2(struct command *s,
+	     struct lsh_object *a1,
+	     struct command_continuation *c,
+	     struct exception_handler *e UNUSED)
 {
-  CAST_SUBTYPE(command_simple, self, s);
-  COMMAND_RETURN(c, COMMAND_SIMPLE_CALL(self, arg));
+  CAST_SUBTYPE(command_2, self, s);
+  COMMAND_RETURN(c, make_command_2_invoke(self, a1));
+}
+
+/* A command taking 3 arguments */
+/* GABA:
+   (class
+     (name command_3_invoke_2)
+     (super command)
+     (vars
+       (f object command_3)
+       (a1 object lsh_object)
+       (a2 object lsh_object)))
+*/
+
+static void
+do_command_3_invoke_2(struct command *s,
+		      struct lsh_object *a3,
+		      struct command_continuation *c,
+		      struct exception_handler *e)
+{
+  CAST(command_3_invoke_2, self, s);
+  self->f->invoke(self->a1, self->a2, a3, c, e);
+}
+
+struct command *
+make_command_3_invoke_2(struct command_3 *f,
+			struct lsh_object *a1,
+			struct lsh_object *a2)
+{
+  NEW(command_3_invoke_2, self);
+
+  self->super.call = do_command_3_invoke_2;
+  self->f = f;
+  self->a1 = a1;
+  self->a2 = a2;
+
+  return &self->super;
+}
+
+/* GABA:
+   (class
+     (name command_3_invoke)
+     (super command)
+     (vars
+       (f object command_3)
+       (a1 object lsh_object)))
+*/
+
+static void
+do_command_3_invoke(struct command *s,
+		    struct lsh_object *a2,
+		    struct command_continuation *c,
+		    struct exception_handler *e UNUSED)
+{
+  CAST(command_3_invoke, self, s);
+  COMMAND_RETURN(c, make_command_3_invoke_2(self->f, self->a1, a2));
+}
+
+struct command *
+make_command_3_invoke(struct command_3 *f,
+		      struct lsh_object *a1)
+{
+  NEW(command_3_invoke, self);
+
+  self->super.call = do_command_3_invoke;
+  self->f = f;
+  self->a1 = a1;
+
+  return &self->super;
+}
+
+void
+do_command_3(struct command *s,
+	     struct lsh_object *a1,
+	     struct command_continuation *c,
+	     struct exception_handler *e UNUSED)
+{
+  CAST_SUBTYPE(command_3, self, s);
+  COMMAND_RETURN(c, make_command_3_invoke(self, a1));
 }
 
 
-/* Unimplemented command */
+/* A command taking 4 arguments */
+/* GABA:
+   (class
+     (name command_4_invoke_3)
+     (super command)
+     (vars
+       (f object command_4)
+       (a1 object lsh_object)
+       (a2 object lsh_object)
+       (a3 object lsh_object)))
+*/
+
 static void
-do_command_unimplemented(struct command *s UNUSED,
-			 struct lsh_object *o UNUSED,
-			 struct command_continuation *c UNUSED,
-			 struct exception_handler *e UNUSED)
-{ fatal("command.c: Unimplemented command.\n"); }
+do_command_4_invoke_3(struct command *s,
+		      struct lsh_object *a4,
+		      struct command_continuation *c,
+		      struct exception_handler *e)
+{
+  CAST(command_4_invoke_3, self, s);
+  self->f->invoke(self->a1, self->a2, self->a3, a4, c, e);
+}
 
-static struct lsh_object *
-do_command_simple_unimplemented(struct command_simple *s UNUSED,
-				struct lsh_object *o UNUSED)
-{ fatal("command.c: Unimplemented simple command.\n"); }
+struct command *
+make_command_4_invoke_3(struct command_4 *f,
+			struct lsh_object *a1,
+			struct lsh_object *a2,
+			struct lsh_object *a3)
+{
+  NEW(command_4_invoke_3, self);
 
-struct command_simple command_unimplemented =
-{ { STATIC_HEADER, do_command_unimplemented}, do_command_simple_unimplemented};
+  self->super.call = do_command_4_invoke_3;
+  self->f = f;
+  self->a1 = a1;
+  self->a2 = a2;
+  self->a3 = a3;
+
+  return &self->super;
+}
+
+/* GABA:
+   (class
+     (name command_4_invoke_2)
+     (super command)
+     (vars
+       (f object command_4)
+       (a1 object lsh_object)
+       (a2 object lsh_object)))
+*/
+
+static void
+do_command_4_invoke_2(struct command *s,
+		      struct lsh_object *a3,
+		      struct command_continuation *c,
+		      struct exception_handler *e UNUSED)
+{
+  CAST(command_4_invoke_2, self, s);
+  COMMAND_RETURN(c, make_command_4_invoke_3(self->f, self->a1, self->a2, a3));
+}
+
+struct command *
+make_command_4_invoke_2(struct command_4 *f,
+			struct lsh_object *a1,
+			struct lsh_object *a2)
+{
+  NEW(command_4_invoke_2, self);
+
+  self->super.call = do_command_4_invoke_2;
+  self->f = f;
+  self->a1 = a1;
+  self->a2 = a2;
+
+  return &self->super;
+}
+
+
+/* GABA:
+   (class
+     (name command_4_invoke)
+     (super command)
+     (vars
+       (f object command_4)
+       (a1 object lsh_object)))
+*/
+
+static void
+do_command_4_invoke(struct command *s,
+		    struct lsh_object *a2,
+		    struct command_continuation *c,
+		    struct exception_handler *e UNUSED)
+{
+  CAST(command_4_invoke, self, s);
+  COMMAND_RETURN(c, make_command_4_invoke_2(self->f, self->a1, a2));
+}
+
+struct command *
+make_command_4_invoke(struct command_4 *f,
+		      struct lsh_object *a1)
+{
+  NEW(command_4_invoke, self);
+
+  self->super.call = do_command_4_invoke;
+  self->f = f;
+  self->a1 = a1;
+
+  return &self->super;
+}
+
+void
+do_command_4(struct command *s,
+	     struct lsh_object *a1,
+	     struct command_continuation *c,
+	     struct exception_handler *e UNUSED)
+{
+  CAST_SUBTYPE(command_4, self, s);
+  COMMAND_RETURN(c, make_command_4_invoke(self, a1));
+}
 
 
 /* Tracing */
@@ -142,15 +376,9 @@ do_trace_continuation(struct command_continuation *s,
 		      struct lsh_object *x)
 {
   CAST(trace_continuation, self, s);
-  const char *type;
 
-  if (x)
-    type = (x->isa) ? x->isa->name : "<STATIC>";
-  else
-    type = "<NULL>";
-  
-  trace("Leaving %z, value of type %z.\n",
-	self->name, type);
+  trace("Leaving %z, value of type %t.\n",
+	self->name, x);
   COMMAND_RETURN(self->real, x);
 }
 
@@ -210,90 +438,6 @@ struct lsh_object *collect_trace(const char *name, struct lsh_object *c)
 }
 #endif /* DEBUG_TRACE */
 
-/* Collecting arguments */
-struct lsh_object *
-do_collect_1(struct command_simple *s, struct lsh_object *a)
-{
-  CAST(collect_info_1, self, s);
-  return self->f(self, a);
-}
-
-/* GABA:
-   (class
-     (name collect_state_1)
-     (super command_simple)
-     (vars
-       (info object collect_info_2)
-       (a object lsh_object)))
-*/
-
-/* GABA:
-   (class
-     (name collect_state_2)
-     (super command_simple)
-     (vars
-       (info object collect_info_3)
-       (a object lsh_object)
-       (b object lsh_object)))
-*/
-
-/* GABA:
-   (class
-     (name collect_state_3)
-     (super command_simple)
-     (vars
-       (info object collect_info_4)
-       (a object lsh_object)
-       (b object lsh_object)
-       (c object lsh_object)))
-*/
-
-static struct lsh_object *
-do_collect_2(struct command_simple *s,
-	     struct lsh_object *x)
-{
-  CAST(collect_state_1, self, s);
-  return self->info->f(self->info, self->a, x);
-}
-
-struct lsh_object *
-make_collect_state_1(struct collect_info_1 *info,
-		     struct lsh_object *a)
-{
-  NEW(collect_state_1, self);
-  self->info = info->next;
-  self->a = a;
-
-  self->super.call_simple = do_collect_2;
-  self->super.super.call = do_call_simple_command;
-  
-  return &self->super.super.super;
-}
-
-static struct lsh_object *
-do_collect_3(struct command_simple *s,
-	     struct lsh_object *x)
-{
-  CAST(collect_state_2, self, s);
-  return self->info->f(self->info, self->a, self->b, x);
-}
-
-struct lsh_object *
-make_collect_state_2(struct collect_info_2 *info,
-		     struct lsh_object *a,
-		     struct lsh_object *b)
-{
-  NEW(collect_state_2, self);
-  self->info = info->next;
-  self->a = a;
-  self->b = b;
-  
-  self->super.call_simple = do_collect_3;
-  self->super.super.call = do_call_simple_command;
-  
-  return &self->super.super.super;
-}
-
 /* GABA:
    (class
      (name parallell_progn)
@@ -335,11 +479,17 @@ struct command *make_parallell_progn(struct object_list *body)
   }
 }
 
-DEFINE_COMMAND_SIMPLE(progn_command, a)
+DEFINE_COMMAND(progn_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(object_list, body, a);
-  return LIST_LENGTH(body) ? &make_parallell_progn(body)->super
-    : &command_I.super.super;
+
+  COMMAND_RETURN(c, (LIST_LENGTH(body)
+		     ? make_parallell_progn(body)
+		     : &command_I));
 }
 
 /* Catch command
@@ -464,42 +614,45 @@ make_catch_apply(struct catch_handler_info *info,
 /* GABA:
    (class
      (name catch_collect_body)
-     (super command_simple)
+     (super command)
      (vars
        (info object catch_handler_info)))
 */
 
-static struct lsh_object *
-do_catch_collect_body(struct command_simple *s,
-		      struct lsh_object *a)
+static void
+do_catch_collect_body(struct command *s,
+		      struct lsh_object *a,
+		      struct command_continuation *c,
+		      struct exception_handler *e UNUSED)
 {
   CAST(catch_collect_body, self, s);
   CAST_SUBTYPE(command, body, a);
 
-  return &make_catch_apply(self->info, body)->super;
+  COMMAND_RETURN(c, make_catch_apply(self->info, body));
 }
 
 static struct command *
 make_catch_collect_body(struct catch_handler_info *info)
 {
   NEW(catch_collect_body, self);
-  self->super.super.call = do_call_simple_command;
-  self->super.call_simple = do_catch_collect_body;
+  self->super.call = do_catch_collect_body;
   self->info = info;
 
-  return &self->super.super;
+  return &self->super;
 }
 
-struct lsh_object *
-do_catch_simple(struct command_simple *s,
-		struct lsh_object *a)
+void
+do_catch_simple(struct command *s,
+		struct lsh_object *a,
+		struct command_continuation *c,
+		struct exception_handler *e UNUSED)
 {
   CAST(catch_command, self, s);
   CAST_SUBTYPE(command, f, a);
-
-  return &(make_catch_collect_body(make_catch_handler_info(self->mask,
-							   self->value, self->ignore_value, f))
-	   ->super);
+  COMMAND_RETURN(c,
+		 make_catch_collect_body
+		 (make_catch_handler_info(self->mask,
+					  self->value, self->ignore_value, f)));
 }
 
 
@@ -541,13 +694,15 @@ make_catch_report_apply(struct report_exception_info *info,
   return &self->super;
 }
 
-struct lsh_object *
-do_catch_report_collect(struct command_simple *s,
-			struct lsh_object *a)
+void
+do_catch_report_collect(struct command *s,
+			struct lsh_object *a,
+			struct command_continuation *c,
+			struct exception_handler *e UNUSED)
 {
   CAST(catch_report_collect, self, s);
   CAST_SUBTYPE(command, body, a);
 
-  return &make_catch_report_apply(self->info, body)->super;
+  COMMAND_RETURN(c,
+		 make_catch_report_apply(self->info, body));
 }
-

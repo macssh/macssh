@@ -39,14 +39,6 @@ struct terminal_dimensions;
 /* Abstract class defining methods needed to communicate with the
  * user's terminal. */
 
-struct terminal_dimensions
-{
-  UINT32 char_width;
-  UINT32 char_height;
-  UINT32 pixel_width;
-  UINT32 pixel_height;
-};
-
 /* GABA:
    (class
      (name terminal_attributes)
@@ -73,12 +65,13 @@ struct terminal_dimensions
      (vars
        (is_tty method int)
        ; (read_line method int "UINT32 size" "UINT8 *buffer")
+       ;; FIXME: Do we really need the FREE parameter?
        (read_password method (string)
                   "UINT32 max_length"
-                  "struct lsh_string *prompt"
+                  "const struct lsh_string *prompt"
 		  "int free")
        (yes_or_no method int
-                  "struct lsh_string *prompt"
+                  "const struct lsh_string *prompt"
 		  "int def" "int free")
 
        (get_attributes method (object terminal_attributes) )

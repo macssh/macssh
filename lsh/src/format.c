@@ -51,35 +51,6 @@ struct lsh_string *ssh_format(const char *format, ...)
   return packet;
 }
 
-struct lsh_string *ssh_cformat(const char *format, ...)
-{
-  va_list args;
-  UINT32 length;
-  struct lsh_string *packet;
-
-  va_start(args, format);
-  length = ssh_vformat_length(format, args);
-  va_end(args);
-
-  packet = lsh_string_alloc(length + 1);
-
-  va_start(args, format);
-  ssh_vformat_write(format, length, packet->data, args);
-  va_end(args);
-
-  if (memchr(packet->data, '\0', length))
-    {
-      lsh_string_free(packet);
-      return NULL;
-    }
-  
-  packet->data[length] = '\0';
-  packet->length--;
-
-  assert(packet->length == length);
-  return packet;
-}
-
 UINT32 ssh_format_length(const char *format, ...)
 {
   va_list args;
@@ -628,30 +599,10 @@ static int write_decimal_length(UINT8 *buffer, UINT32 n)
   return length + 1;
 }
 
-/* These functions add an extra NUL-character at the end of the string
- * (not included in the length), to make it possible to pass the
- * string directly to C library functions. */
-struct lsh_string *
-format_cstring(const char *s)
+const char *
+lsh_get_cstring(const struct lsh_string *s)
 {
-  return s ? ssh_cformat("%lz", s) : NULL;
-}
-
-struct lsh_string *
-make_cstring_l(UINT32 length, const UINT8 *data)
-{
-  return ssh_cformat("%ls", length, data);
-}
-
-struct lsh_string *
-make_cstring(struct lsh_string *s, int free)
-{
-  struct lsh_string *res = ssh_cformat("%lS", s);
-
-  if (free)
-    lsh_string_free(s);
-
-  return res;
+  return (s && !memchr(s->data, '\0', s->length) ? s->data : NULL);
 }
 
 int

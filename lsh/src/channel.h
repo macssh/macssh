@@ -119,11 +119,7 @@ struct channel_request_info
        (send_window_size . UINT32)
        (send_max_packet . UINT32)
 
-       ; FIXME: Perhaps this should be moved to the channel_table, and
-       ; a pointer to that table be stored here instead?
-       ; Now that we pass the connection pointer to most functions,
-       ; is this field needed at all?
-       (write object abstract_write)
+       (connection object ssh_connection)
   
        (request_types object alist)
 
@@ -232,6 +228,12 @@ struct channel_request_info
        (local_ports struct object_queue)
        (remote_ports struct object_queue)
        
+       ; Used if we're currently forwarding X11
+       ; To support several screens at the same time,
+       ; this should be replaced with a list, analogous to
+       ; the remote_ports list above.
+       (x11_display object client_x11_display)
+       
        ; Global requests that we have received, and should reply to
        ; in the right order
        (active_global_requests struct object_queue)
@@ -302,15 +304,14 @@ make_channel_open_exception(UINT32 error_code, const char *msg);
      (vars
        (handler method void
 		"struct ssh_channel *channel"
-		"struct ssh_connection *connection"
 		"struct channel_request_info *info"
 		"struct simple_buffer *args"
 		"struct command_continuation *c"
 		"struct exception_handler *e")))
 */
 
-#define CHANNEL_REQUEST(s, c, conn, i, a, n, e) \
-((s)->handler((s), (c), (conn), (i), (a), (n), (e)))
+#define CHANNEL_REQUEST(s, c, i, a, n, e) \
+((s)->handler((s), (c), (i), (a), (n), (e)))
 
 
 void init_channel(struct ssh_channel *channel);
@@ -324,8 +325,7 @@ use_channel(struct ssh_connection *connection,
 	    UINT32 local_channel_number);
 
 void
-register_channel(struct ssh_connection *connection,
-		      UINT32 local_channel_number,
+register_channel(UINT32 local_channel_number,
 		      struct ssh_channel *channel,
 		      int take_into_use);
 
@@ -410,8 +410,8 @@ struct lsh_string *channel_transmit_extended(struct ssh_channel *channel,
 
 void init_connection_service(struct ssh_connection *connection);
 
-extern struct command_simple connection_service_command;
-#define INIT_CONNECTION_SERVICE (&connection_service_command.super.super)
+extern struct command connection_service_command;
+#define INIT_CONNECTION_SERVICE (&connection_service_command.super)
 
 
 #endif /* LSH_CHANNEL_H_INCLUDED */

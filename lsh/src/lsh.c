@@ -72,17 +72,17 @@
 #endif
 
 /* Forward declarations */
-struct command_simple lsh_verifier_command;
+struct command_2 lsh_verifier_command;
 #define OPTIONS2VERIFIER (&lsh_verifier_command.super.super)
 
-struct command_simple lsh_login_command;
+struct command_2 lsh_login_command;
 #define LSH_LOGIN (&lsh_login_command.super.super)
 
 static struct command options2known_hosts;
 #define OPTIONS2KNOWN_HOSTS (&options2known_hosts.super)
 
-struct command_simple options2service;
-#define OPTIONS2SERVICE (&options2service.super.super)
+struct command options2service;
+#define OPTIONS2SERVICE (&options2service.super)
 
 static struct command options2identities;
 #define OPTIONS2IDENTITIES (&options2identities.super)
@@ -91,9 +91,6 @@ static struct request_service request_userauth_service =
 STATIC_REQUEST_SERVICE(ATOM_SSH_USERAUTH);
 #define REQUEST_USERAUTH_SERVICE (&request_userauth_service.super.super)
 
-static struct request_service request_connection_service =
-STATIC_REQUEST_SERVICE(ATOM_SSH_CONNECTION);
-#define REQUEST_CONNECTION_SERVICE (&request_connection_service.super.super)
 
 #include "lsh.c.x"
 
@@ -112,8 +109,6 @@ STATIC_REQUEST_SERVICE(ATOM_SSH_CONNECTION);
      (vars
        (algorithms object algorithms_options)
 
-       (random object randomness_with_poll)
-
        (signature_algorithms object alist)
        (home . "const char *")
        
@@ -122,9 +117,6 @@ STATIC_REQUEST_SERVICE(ATOM_SSH_CONNECTION);
 
        (with_srp_keyexchange . int)
        (with_dh_keyexchange . int)
-
-       ; Ask for the userauth service
-       (with_userauth . int)
 
        ; Command to invoke to start ssh-connection service)
        (service object command)
@@ -148,16 +140,16 @@ make_options(struct io_backend *backend,
 	     int *exit_code)
 {
   NEW(lsh_options, self);
-  init_client_options(&self->super, backend, handler, exit_code);
+  init_client_options(&self->super, backend,
+		      make_default_random(NULL, handler),
+		      handler, exit_code);
 
   self->algorithms
     = make_algorithms_options(all_symmetric_algorithms());
 
-  self->random = make_default_random(NULL, handler);
-  
   self->home = getenv("HOME");
   
-  self->signature_algorithms = all_signature_algorithms(&self->random->super);
+  self->signature_algorithms = all_signature_algorithms(&self->super.random->super);
 
   self->sloppy = 0;
   self->capture = NULL;
@@ -174,8 +166,6 @@ make_options(struct io_backend *backend,
   /* By default, enable only one of dh and srp. */
   self->with_dh_keyexchange = -1;
 
-  self->with_userauth = -1;
-  
   self->kex_algorithms = NULL;
   
   return self;
@@ -184,10 +174,14 @@ make_options(struct io_backend *backend,
 
 /* Request ssh-userauth or ssh-connection service, as appropriate,
  * and pass the options as a first argument. */
-DEFINE_COMMAND_SIMPLE(options2service, a)
+DEFINE_COMMAND(options2service)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(lsh_options, options, a);
-  return &options->service->super;
+  COMMAND_RETURN(c, options->service);
 }
 
 /* Open hostkey database. By default, "~/.lsh/known_hosts". */
@@ -209,11 +203,11 @@ do_options2known_hosts(struct command *ignored UNUSED,
   else 
     {
 #ifndef MACOS
-      tmp = ssh_cformat("%lz/.lsh/known_hosts", options->home);
+      tmp = ssh_format("%lz/.lsh/known_hosts", options->home);
 #else
-      tmp = ssh_cformat("%lzknown_hosts", options->home);
+      tmp = ssh_format("%lzknown_hosts", options->home);
 #endif
-      s = tmp->data;
+      s = lsh_get_cstring(tmp);
     }
   
   f = io_read_file(options->super.backend, s, e);
@@ -266,19 +260,19 @@ do_options2identities(struct command *ignored UNUSED,
     s = options->identity;
 #if MACOS
       if ( access( s, R_OK ) != 0 ) {
-        tmp = ssh_cformat("%lz%lz", options->home, s);
-        s = tmp->data;
+        tmp = ssh_format("%lz%lz", options->home, s);
+        s = lsh_get_cstring(tmp);
       }
 #endif
     }
   else 
     {
 #ifndef MACOS
-      tmp = ssh_cformat("%lz/.lsh/identity", options->home);
+      tmp = ssh_format("%lz/.lsh/identity", options->home);
 #else
-      tmp = ssh_cformat("%lzidentity", options->home);
+      tmp = ssh_format("%lzidentity", options->home);
 #endif
-      s = tmp->data;
+      s = lsh_get_cstring(tmp);
     }
   
   f = io_read_file(options->super.backend, s, e);
@@ -308,27 +302,6 @@ do_options2identities(struct command *ignored UNUSED,
 static struct command options2identities =
 STATIC_COMMAND(do_options2identities);
 
-/* GABA:
-   (class
-     (name options_command)
-     (super command)
-     (vars
-       (options object lsh_options)))
-*/
-
-static struct command *
-make_options_command(struct lsh_options *options,
-		     void (*call)(struct command *s,
-				  struct lsh_object *a,
-				  struct command_continuation *c,
-				  struct exception_handler *e))
-{
-  NEW(options_command, self);
-  self->super.call = call;
-  self->options = options;
-
-  return &self->super;
-}
 
 /* Maps a host key to a (trusted) verifier object. */
 
@@ -449,10 +422,12 @@ do_lsh_lookup(struct lookup_verifier *c,
     }
   else
     {
+      struct sexp *acl;
+      
       verbose("SPKI authorization failed.\n");
       if (!self->sloppy)
 	{
-	  werror("lsh: Server's hostkey is not trusted. Disconnecting.\n");
+	  werror("Server's hostkey is not trusted. Disconnecting.\n");
 	  return NULL;
 	}
       
@@ -474,20 +449,24 @@ do_lsh_lookup(struct lookup_verifier *c,
 	    return NULL;
 	}
       
-      /* Write an ACL to disk. */
-      if (self->file)
-	{
-	  A_WRITE(self->file, ssh_format("\n; ACL for host %lS\n", self->host->ip));
-	  A_WRITE(self->file,
-		  sexp_format(sexp_l(2, sexp_a(ATOM_ACL),
+      acl = sexp_l(2, sexp_a(ATOM_ACL),
 				     sexp_l(3, sexp_a(ATOM_ENTRY),
 					    subject->key,
 					    sexp_l(2, sexp_a(ATOM_TAG),
 						   self->access,
 						   -1),
 					    -1),
-				     -1),
-			      SEXP_TRANSPORT, 0));
+		   -1);
+
+      /* Remember this key. We don't want to ask again for key re-exchange */
+      spki_add_acl(self->db, acl);
+      
+      /* Write an ACL to disk. */
+      if (self->file)
+	{
+	  A_WRITE(self->file, ssh_format("\n; ACL for host %lS\n", self->host->ip));
+	  A_WRITE(self->file,
+		  sexp_format(acl, SEXP_TRANSPORT, 0));
 	  A_WRITE(self->file, ssh_format("\n"));
 	}
     }
@@ -516,70 +495,60 @@ make_lsh_host_db(struct spki_context *db,
   return &res->super;
 }
 
-/* Takes an spki_context as argument and returns a lookup_verifier */
-static void
-do_lsh_verifier(struct command *s,
-		struct lsh_object *a,
-		struct command_continuation *c,
-		struct exception_handler *e UNUSED)
+/* Takes options and an spki_context as argument and returns a
+ * lookup_verifier */
+
+DEFINE_COMMAND2(lsh_verifier_command)
+     (struct command_2 *s UNUSED,
+      struct lsh_object *a1,
+      struct lsh_object *a2,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
-  CAST(options_command, self, s);
-  CAST_SUBTYPE(spki_context, db, a);
+  CAST(lsh_options, options, a1);
+  CAST_SUBTYPE(spki_context, db, a2);
   COMMAND_RETURN(c, make_lsh_host_db(db,
-				     self->options->super.tty,
-				     self->options->super.remote,
-				     self->options->sloppy,
-				     self->options->capture_file));
+				     options->super.tty,
+				     options->super.remote,
+				     options->sloppy,
+				     options->capture_file));
 }
 
-/* Takes an options object as argument and returns a lookup_verifier */
 
-DEFINE_COMMAND_SIMPLE(lsh_verifier_command, a)
+/* (login options public-keys connection) */
+DEFINE_COMMAND2(lsh_login_command)
+     (struct command_2 *s UNUSED,
+      struct lsh_object *a1,
+      struct lsh_object *a2,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
-  CAST(lsh_options, options, a);
-
-  return
-    & make_options_command(options,
-			   do_lsh_verifier)->super;
-}
-
-/* list-of-public-keys -> login-command */
-static void
-do_lsh_login(struct command *s,
-	     struct lsh_object *a,
-	     struct command_continuation *c,
-	     struct exception_handler *e UNUSED)
-{
-  CAST(options_command, self, s);
-  CAST_SUBTYPE(object_list, keys, a);
+  CAST(lsh_options, options, a1);
+  CAST_SUBTYPE(object_list, keys, a2);
 
   struct client_userauth_method *password
-    = make_client_password_auth(self->options->super.tty);
+    = make_client_password_auth(options->super.tty);
+
+  /* FIXME: Perhaps we should try "none" only when using SRP. */
+  struct client_userauth_method *none
+    = make_client_none_auth();
   
   COMMAND_RETURN(c,
 		 make_client_userauth
-		 (ssh_format("%lz", self->options->super.user),
+		 (ssh_format("%lz", options->super.user),
 		  ATOM_SSH_CONNECTION,
 		  (LIST_LENGTH(keys)
 		   ? make_object_list
-		   (2, 
+		   (3,
+                    none,
 		    make_client_publickey_auth(keys),
 		    password,
 		    -1)
-		   : make_object_list(1, password, -1))));
+		   : make_object_list(2, none, password, -1))));
 }
 
-/* (login options public-keys connection) */
-DEFINE_COMMAND_SIMPLE(lsh_login_command, a)
-{
-  CAST(lsh_options, options, a);
 
-  return
-    &make_options_command(options,
-			  do_lsh_login)->super;
-}
-
-/* NOTE: options2identities is a command_simple, so it must not be
+/* NOTE: options2identities can block for reading, so it must not be
  * invoked directly. */
 
 /* Requests the ssh-userauth service, log in, and request connection
@@ -593,8 +562,8 @@ DEFINE_COMMAND_SIMPLE(lsh_login_command, a)
        (lambda (connection)
          (lsh_login options
 	   
-	   ; The prog1 delay is needed because options2identities is
-	   ; not a command_simple.
+	   ; The prog1 delay is needed because options2identities
+	   ; may not return immediately.
 	   (options2identities (prog1 options connection))
 
 	   ; Request the userauth service
@@ -644,7 +613,6 @@ const char *argp_program_bug_address = BUG_ADDRESS;
 
 #define OPT_DH 0x206
 #define OPT_SRP 0x207
-#define OPT_USERAUTH 0x208
 
 #define OPT_STDIN 0x210
 #define OPT_STDOUT 0x211
@@ -687,17 +655,24 @@ main_options[] =
 
   { "no-dh-keyexchange", OPT_DH | ARG_NOT, NULL, 0, "Disable DH support.", 0 },
 
+#if 0
   { "userauth", OPT_USERAUTH, NULL, 0,
     "Request the ssh-userauth service (default, unless SRP is being used).", 0 },
   { "no-userauth", OPT_USERAUTH | ARG_NOT, NULL, 0,
     "Request the ssh-userauth service (default if SRP is used).", 0 },
+#endif
 
-  /* ACtions */
+  /* Actions */
   { "forward-remote-port", 'R', "remote-port:target-host:target-port",
     0, "", CLIENT_ARGP_ACTION_GROUP },
 #if !MACOS
   { "gateway", 'G', NULL, 0, "Setup a local gateway", 0 },
 #endif
+
+  { "x11-forward", 'x', NULL, 0, "Enable X11 forwarding.", CLIENT_ARGP_MODIFIER_GROUP },
+  { "no-x11-forward", 'x' | ARG_NOT, NULL, 0,
+    "Disable X11 forwarding (default).", 0 },
+  
   { NULL, 0, NULL, 0, NULL, 0 }
 };
 
@@ -776,7 +751,7 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 	      LIST(self->kex_algorithms)[i++] = ATOM_SRP_RING1_SHA1_LOCAL;
 	      ALIST_SET(self->algorithms->algorithms,
 			ATOM_SRP_RING1_SHA1_LOCAL,
-			&make_srp_client(make_srp1(&self->random->super),
+			&make_srp_client(make_srp1(&self->super.random->super),
 					 self->super.tty,
 					 ssh_format("%lz", self->super.user))
 			->super);
@@ -787,7 +762,7 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 	      LIST(self->kex_algorithms)[i++] = ATOM_DIFFIE_HELLMAN_GROUP1_SHA1;
 	      ALIST_SET(self->algorithms->algorithms,
 			ATOM_DIFFIE_HELLMAN_GROUP1_SHA1,
-			&make_dh_client(make_dh1(&self->random->super))
+			&make_dh_client(make_dh1(&self->super.random->super))
 			->super);
 	    }
 	}
@@ -795,49 +770,8 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 	argp_error(state, "All keyexchange algorithms disabled.");
 
       {
-	struct command *perform_userauth = NULL;
-
-	/* NOTE: The default, self->with_userauth < 0, means that we
-	 * should figure out the right thing automatically. */
-
-	if (self->with_userauth < 0)
-	  {
-	    /* Make the decision  early, if possible. */
-	    if (!self->with_srp_keyexchange)
-	      /* We're not using SRP, so we request the
-	       * ssh-userauth-service */
-	      self->with_userauth = 1;
-
-	    else if (!self->with_dh_keyexchange)
-	      /* We're using SRP, and should not need any extra
-	       * user authentication. */
-	      self->with_userauth = 0;
-	  }
-	   
-	if (self->with_userauth)
-	  {
 	    CAST_SUBTYPE(command, o, make_lsh_userauth(self));
-	    perform_userauth = o;
-	  }
-
-	switch(self->with_userauth)
-	  {
-	  case 0:
-	    self->service = &request_connection_service.super;
-	    break;
-	  case 1:
-	    self->service = perform_userauth;
-	    break;
-	  case -1:
-	    /* Examine the CONNECTION_SRP flag, later. */
-	    self->service
-	      = make_connection_if_srp(&request_connection_service.super,
-				       perform_userauth);
-	  default:
-	    fatal("Internal error.\n");
-	  }
-	  
-	assert(self->service);
+        self->service = o;
       }
 	
       {
@@ -849,11 +783,11 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 	else if (self->sloppy)
 	  {
 #ifndef MACOS
-	    tmp = ssh_cformat("%lz/.lsh/captured_keys", self->home);
+	    tmp = ssh_format("%lz/.lsh/captured_keys", self->home);
 #else
-	    tmp = ssh_cformat("%lzcaptured_keys", self->home);
+	    tmp = ssh_format("%lzcaptured_keys", self->home);
 #endif
-	    s = tmp->data;
+	    s = lsh_get_cstring(tmp);
 	  }
 	if (s)
 	  {
@@ -914,7 +848,7 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 	}
       
       /* Start background poll */
-      RANDOM_POLL_BACKGROUND(self->random->poller);
+      RANDOM_POLL_BACKGROUND(self->super.random->poller);
       
       break;
       
@@ -943,37 +877,6 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
     CASE_FLAG(OPT_DH, with_dh_keyexchange);
     CASE_FLAG(OPT_SRP, with_srp_keyexchange);
 
-    CASE_FLAG(OPT_USERAUTH, with_userauth);
-
-#if 0
-    case 'L':
-      {
-	UINT32 listen_port;
-	struct address_info *target;
-#if MACOS
-	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-#endif
-
-	if (!client_parse_forward_arg(arg, &listen_port, &target))
-	  argp_error(state, "Invalid forward specification '%s'.", arg);
-
-#if MACOS
-	if ( context ) {
-	  context->_forward = 1;
-	  context->_localport = listen_port;
-	}
-#endif
-	client_add_action(&self->super, make_forward_local_port
-			  (self->super.backend,
-			   make_address_info((self->super.with_remote_peers
-					      ? NULL
-					      : ssh_format("%lz", "127.0.0.1")),
-					     listen_port),
-			   target));
-	break;
-      }      
-#endif
-      
     case 'R':
       {
 	UINT32 listen_port;
@@ -997,6 +900,7 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 #if !MACOS
     CASE_FLAG('G', start_gateway);
 #endif
+    CASE_FLAG('x', super.with_x11);
     }
 
   return 0;
@@ -1035,7 +939,7 @@ do_lsh_default_handler(struct exception_handler *s,
       CAST_SUBTYPE(io_exception, exc, e);
       *self->status = EXIT_FAILURE;
       
-      werror("lsh: %z, (errno = %i)\n", e->msg, exc->error);
+      werror("%z, (errno = %i)\n", e->msg, exc->error);
     }
   else
     switch(e->type)
@@ -1048,7 +952,7 @@ do_lsh_default_handler(struct exception_handler *s,
       case EXC_CHANNEL_REQUEST:
       case EXC_CHANNEL_OPEN:
 
-	werror("lsh: %z\n", e->msg);
+	werror("%z\n", e->msg);
 	*self->status = EXIT_FAILURE;
 	break;
       default:
@@ -1120,10 +1024,10 @@ int main(int argc, char **argv)
 	make_handshake_info(CONNECTION_CLIENT,
 			    "lsh - a free ssh2 on MacOS9", NULL,
 			    SSH_MAX_PACKET,
-			    &options->random->super,
+			    &options->super.random->super,
 			    options->algorithms->algorithms,
 			    NULL),
-	make_simple_kexinit(&options->random->super,
+	make_simple_kexinit(&options->super.random->super,
 			    options->kex_algorithms,
 			    options->algorithms->hostkey_algorithms,
 			    options->algorithms->crypto_algorithms,
@@ -1144,15 +1048,17 @@ int main(int argc, char **argv)
    * or not anybody is still using it. */
   close(STDOUT_FILENO);
   if (open("/dev/null", O_WRONLY) != STDOUT_FILENO)
-    werror("lsh: Strange: Final redirect of stdout to /dev/null failed.\n");
+    werror("Strange: Final redirect of stdout to /dev/null failed.\n");
 #endif
   
   io_run(backend);
   
-  /* FIXME: Perhaps we have to reset the stdio file descriptors to
-   * blocking mode? */
+  /* Close all files and other resources associated with the backend. */
+  io_final(backend);
   
   gc_final();
   
+  /* FIXME: Perhaps we have to reset the stdio file descriptors to
+   * blocking mode? */
   return lsh_exit_code;
 }

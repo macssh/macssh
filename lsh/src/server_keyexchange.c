@@ -70,7 +70,6 @@ do_handle_dh_init(struct packet_handler *c,
   trace("handle_dh_init\n");
 
   res = dh_process_client_msg(&closure->dh, packet);
-  lsh_string_free(packet);
   
   if (!res)
     {
@@ -192,7 +191,6 @@ do_srp_server_proof_handler(struct packet_handler *s,
   CAST(srp_server_handler, self, s);
 
   struct lsh_string *response = srp_process_client_proof(&self->srp->dh, packet);
-  lsh_string_free(packet);
 
   connection->dispatch[SSH_MSG_KEXSRP_PROOF] = &connection_fail_handler;
   
@@ -282,6 +280,8 @@ make_server_srp_continuation(struct srp_server_instance *srp,
   return &self->super;
 }
 
+#define MAX_SRP_SIZE 2000
+
 static void
 do_handle_srp_init(struct packet_handler *s,
 		   struct ssh_connection *connection,
@@ -311,7 +311,7 @@ do_handle_srp_init(struct packet_handler *s,
   e = make_exception_handler(do_exc_srp, connection->e, HANDLER_CONTEXT);
   
   USER_READ_FILE(self->srp->user, "srp-verifier", 1,		 
-		 make_apply(make_read_sexp_command(SEXP_CANONICAL, 0),
+		 make_apply(make_read_sexp_command(SEXP_CANONICAL, 0, MAX_SRP_SIZE),
 			    make_server_srp_continuation(self->srp, connection),
 			    e),
 		 e);

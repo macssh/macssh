@@ -45,10 +45,24 @@
  * function. Pointers into a packet are valid only while you own it.
  * */
 
+#if DEBUG_ALLOC
+extern struct lsh_string *all_strings;
+
+struct lsh_string *lsh_string_alloc_clue(UINT32 size, const char *clue);
+
+#define lsh_string_alloc(size) \
+  (lsh_string_alloc_clue((size), (__FILE__ ":" STRING_LINE ": " FUNCTION_NAME)))
+
+#else /* !DEBUG_ALLOC */
 struct lsh_string *lsh_string_alloc(UINT32 size);
-void lsh_string_free(struct lsh_string *packet);
+#endif /* !DEBUG_ALLOC */
+
+void
+lsh_string_free(const struct lsh_string *packet);
 
 struct lsh_object *lsh_object_alloc(struct lsh_class *class);
+
+/* FIXME: Should take a const struct lsh_object. */
 void lsh_object_free(struct lsh_object *o);
 
 /* NOTE: This won't work for if there are strings or other instance
@@ -56,7 +70,7 @@ void lsh_object_free(struct lsh_object *o);
 struct lsh_object *lsh_object_clone(struct lsh_object *o);
 
 void *lsh_space_alloc(size_t size);
-void lsh_space_free(void *p);
+void lsh_space_free(const void *p);
 
 #if DEBUG_ALLOC
 
@@ -76,11 +90,12 @@ struct lsh_object *lsh_object_check_subtype(struct lsh_class *class,
 #define CAST_SUBTYPE(class, var, o) \
   struct class *(var) = (struct class *) CHECK_SUBTYPE(class, o)
    
+extern unsigned number_of_strings;
 
 #else   /* !DEBUG_ALLOC */
 
 #define CHECK_TYPE(c, o) ((struct lsh_object *)(o))
-#define CHECK_SUBTYPE(c, o) o
+#define CHECK_SUBTYPE(c, o) ((struct lsh_object *)(o))
      
 #define CAST(class, var, o) \
    struct class *(var) = (struct class *) (o)

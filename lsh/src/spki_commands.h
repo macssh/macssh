@@ -28,23 +28,23 @@
 #include "interact.h"
 #include "spki.h"
 
-extern struct command_simple spki_signer2verifier;
-#define SIGNER2VERIFIER (&spki_signer2verifier.super.super)
+extern struct command spki_signer2verifier;
+#define SIGNER2VERIFIER (&spki_signer2verifier.super)
 
-extern struct command_simple spki_verifier2public;
-#define VERIFIER2PUBLIC (&spki_verifier2public.super.super)
+extern struct command spki_verifier2public;
+#define VERIFIER2PUBLIC (&spki_verifier2public.super)
 
-extern struct command_simple spki_sexp2signer_command;
-#define SEXP2SIGNER (&spki_sexp2signer_command.super.super)
+extern struct command spki_sexp2signer_command;
+#define SEXP2SIGNER (&spki_sexp2signer_command.super)
 
-extern struct command_simple spki_sexp2keypair_command;
-#define SEXP2KEYPAIR (&spki_sexp2keypair_command.super.super)
+extern struct command spki_sexp2keypair_command;
+#define SEXP2KEYPAIR (&spki_sexp2keypair_command.super)
 
-extern struct command_simple spki_make_context_command;
-#define SPKI_MAKE_CONTEXT (&spki_make_context_command.super.super)
+extern struct command spki_make_context_command;
+#define SPKI_MAKE_CONTEXT (&spki_make_context_command.super)
 
-extern struct command_simple spki_read_hostkeys_command;
-#define SPKI_READ_HOSTKEYS (&spki_read_hostkeys_command.super.super)
+extern struct command spki_read_hostkeys_command;
+#define SPKI_READ_HOSTKEYS (&spki_read_hostkeys_command.super)
 
 struct command *
 make_spki_hash(int name, struct hash_algorithm *algorithm);

@@ -40,7 +40,8 @@ extern int verbose_flag;
 #endif
 extern const struct argp werror_argp;
 
-void set_error_stream(int fd, int with_poll);
+void set_error_stream(int fd);
+void set_error_nonblocking(int fd);
 void set_error_ignore(void);
 
 /* Tries to dup any error fd to something higher than STDERR_FILENO.
@@ -62,6 +63,7 @@ void set_error_syslog(const char *id);
  * %a  Insert a string containing one atom.
  * %s  UINT32 length, UINT8 *data
  * %S  lsh_string *s
+ * %t  The type of an struct lsh_object *
  *
  * Modifiers:
  *

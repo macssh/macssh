@@ -211,6 +211,9 @@ do_zlib(struct compress_instance *c,
       switch (rc)
 	{
 	case Z_BUF_ERROR:
+	  /* If avail_in is zero, this just means that all data have
+	   * been flushed. */
+	  if (self->z.avail_in)
 	  werror2("do_zlib (%z): Z_BUF_ERROR (probably harmless),\n"
 		 "  avail_in = %i, avail_out = %i\n",
 		 ZLIB_TYPE(&self->z)->operation,

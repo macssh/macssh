@@ -72,12 +72,6 @@ struct remote_port *
 make_remote_port(struct address_info *listen,
 		 struct command *callback);
 
-struct ssh_channel *
-make_tcpip_channel(struct lsh_fd *socket, UINT32 initial_window);
-
-void
-tcpip_channel_start_io(struct ssh_channel *c);
-
 struct channel_open *
 make_channel_open_direct_tcpip(struct command *callback);
 

@@ -6,7 +6,7 @@
 
 /* lsh, an implementation of the ssh protocol
  *
- * Copyright (C) 1998 Niels Möller
+ * Copyright (C) 1998, 1999, 2000, 2001 Niels Möller
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -36,7 +36,6 @@
 
 /* The argp option group for actions. */
 #define CLIENT_ARGP_ACTION_GROUP 100
-
 #define CLIENT_ARGP_MODIFIER_GROUP 200
 
 struct packet_handler *
@@ -62,6 +61,20 @@ do_request_service(struct command *s,
 { STATIC_COMMAND(do_request_service), service } 
 
 struct command *make_request_service(int service);
+
+/* GABA:
+   (class
+     (name escape_info)
+     (vars
+       (escape . UINT8)
+       ; Handlers, indexed by character.
+       (dispatch array (object lsh_callback) "0x100")))
+*/
+
+struct escape_info *make_escape_info(UINT8 escape);
+struct abstract_write *
+make_handle_escape(struct escape_info *info, struct abstract_write *next);
+
 struct channel_request *make_handle_exit_status(int *exit_code);
 struct channel_request *make_handle_exit_signal(int *exit_code);
 
@@ -78,6 +91,7 @@ struct ssh_channel *
 make_client_session_channel(struct lsh_fd *in,
 			    struct lsh_fd *out,
 			    struct lsh_fd *err,
+			    struct escape_info *escape,
 			    UINT32 initial_window,
 			    int *exit_status);
 
@@ -87,14 +101,31 @@ make_exec_request(struct lsh_string *command);
 struct command *
 make_pty_request(struct interact *tty);
 
+
+struct channel_open *
+make_channel_open_x11(struct io_backend *backend);
+
+struct command *
+make_forward_x11(const char *display_string,
+		 struct randomness *random);
+
+struct client_x11_display *
+make_client_x11_display(const char *display, struct lsh_string *fake);
+
 /* GABA:
    (class
      (name client_options)
      (vars
        (backend object io_backend)
 
+       ;; Used only by lsh, NULL for lshg.
+       (random object randomness_with_poll)
+
        (tty object interact)
 
+       ; -1 means default.
+       (escape . int)
+       
        ; For i/o exceptions 
        (handler object exception_handler)
 
@@ -112,6 +143,8 @@ make_pty_request(struct interact *tty);
        ; -1 means default behaviour
        (with_pty . int)
        
+       (with_x11 . int)
+       
        ; Session modifiers
        (stdin_file . "const char *")
        (stdout_file . "const char *")
@@ -126,6 +159,7 @@ make_pty_request(struct interact *tty);
        ; True if the process's stdin or pty (respectively) has been used. 
        (used_stdin . int)
        (used_pty . int)
+       (used_x11 . int)
 
        (start_shell . int)
        (remote_forward . int)
@@ -135,6 +169,7 @@ make_pty_request(struct interact *tty);
 void
 init_client_options(struct client_options *options,
 		    struct io_backend *backend,
+		    struct randomness_with_poll *random,
 		    struct exception_handler *handler,
 		    int *exit_code);
 
@@ -147,11 +182,11 @@ client_parse_forward_arg(char *arg,
 			 UINT32 *listen_port,
 			 struct address_info **target);
 
-extern struct command_simple client_options2remote;
-#define OPTIONS2REMOTE (&client_options2remote.super.super)
+extern struct command client_options2remote;
+#define OPTIONS2REMOTE (&client_options2remote.super)
 
-extern struct command_simple client_options2actions;
-#define OPTIONS2ACTIONS (&client_options2actions.super.super)
+extern struct command client_options2actions;
+#define OPTIONS2ACTIONS (&client_options2actions.super)
 
 extern const struct argp client_argp;
 

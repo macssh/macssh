@@ -67,9 +67,6 @@ struct alist;
      (ALIST_CLASS(alist)->set((alist), (atom), (value)))
 
 struct alist *alist_addv(struct alist *a, unsigned n, va_list args);
-#if 0
-struct alist *alist_add(struct alist *a, unsigned n, ...);
-#endif
 
 /* n is the number of pairs. The argument list should be terminated
  * with -1, for sanity checks. */

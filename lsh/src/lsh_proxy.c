@@ -66,17 +66,17 @@
 #include "lsh_argp.h"
 
 /* Forward declarations */
-struct command_simple options2local;
-#define OPTIONS2LOCAL (&options2local.super.super)
+struct command options2local;
+#define OPTIONS2LOCAL (&options2local.super)
 
-static struct command options2keyfile;
+struct command options2keyfile;
 #define OPTIONS2KEYFILE (&options2keyfile.super)
 
-struct command_simple options2signature_algorithms;
+struct command options2signature_algorithms;
 #define OPTIONS2SIGNATURE_ALGORITHMS \
-  (&options2signature_algorithms.super.super)
+  (&options2signature_algorithms.super)
 
-struct command_simple proxy_destination;
+struct command_2 proxy_destination;
 #define PROXY_DESTINATION (&proxy_destination.super.super)
 
 
@@ -181,23 +181,32 @@ make_lsh_proxy_options(struct io_backend *backend,
   return self;
 }
 
+/* NOTE: Copied from lshd.c */
 /* Port to listen on */
-DEFINE_COMMAND_SIMPLE(options2local, a)
+DEFINE_COMMAND(options2local)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(lsh_proxy_options, options, a);
-  return &options->local->super;
+  COMMAND_RETURN(c, options->local);
 }
 
 /* alist of signature algorithms */
-DEFINE_COMMAND_SIMPLE(options2signature_algorithms, a)
+DEFINE_COMMAND(options2signature_algorithms)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(lsh_proxy_options, options, a);
-  return &options->signature_algorithms->super;
+  COMMAND_RETURN(c, options->signature_algorithms);
 }
 
 /* Read server's private key */
-static void
-do_options2keyfile(struct command *ignored UNUSED,
+DEFINE_COMMAND(options2keyfile)
+     (struct command *ignored UNUSED,
 		   struct lsh_object *a,
 		   struct command_continuation *c,
 		   struct exception_handler *e)
@@ -217,9 +226,6 @@ do_options2keyfile(struct command *ignored UNUSED,
       EXCEPTION_RAISE(e, make_io_exception(EXC_IO_OPEN_READ, NULL, errno, NULL));
     }
 }
-
-static struct command options2keyfile =
-STATIC_COMMAND(do_options2keyfile);
 
 static const struct argp_option
 main_options[] =
@@ -431,25 +437,18 @@ make_fake_host_db(void)
   return &res->super;
 }
 
-/* GABA:
-   (class
-     (name proxy_destination)
-     (super command)
-     (vars
-       (options object lsh_proxy_options)))
-*/
-
-static void
-do_proxy_destination(struct command *s,
-		     struct lsh_object *x,
-		     struct command_continuation *c,
-		     struct exception_handler *e)
+DEFINE_COMMAND2(proxy_destination)
+     (struct command_2 *s UNUSED,
+      struct lsh_object *a1,
+      struct lsh_object *a2,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
-  CAST(proxy_destination, closure, s);
-  CAST(listen_value, client_addr, x);
+  CAST(lsh_proxy_options, options, a1);
+  CAST(listen_value, client_addr, a2);
 
-  if (closure->options->destination)
-    COMMAND_RETURN(c, closure->options->destination);
+  if (options->destination)
+    COMMAND_RETURN(c, options->destination);
   else
     {
       /* FIXME: Why not use client_addr->peer? /nisse*/
@@ -472,22 +471,6 @@ do_proxy_destination(struct command *s,
 	  EXCEPTION_RAISE(e, ex);
 	}
     }
-}
-
-static struct command *
-make_proxy_destination_command(struct lsh_proxy_options *options)
-{
-  NEW(proxy_destination, self);
-
-  self->super.call = do_proxy_destination;
-  self->options = options;
-  return &self->super;
-}
-
-DEFINE_COMMAND_SIMPLE(proxy_destination, a)
-{
-  CAST(lsh_proxy_options, options, a);
-  return &make_proxy_destination_command(options)->super;
 }
 
 /* GABA:

@@ -26,7 +26,7 @@
 #include "werror.h"
 #include "xalloc.h"
 
-#include "arcfour.h"
+#include "nettle/arcfour.h"
 
 #include "arcfour.c.x"
 
@@ -46,7 +46,7 @@ static void do_crypt_arcfour(struct crypto_instance *s,
   if (length % 8)
     fatal("Internal error\n");
 
-  arcfour_crypt(&self->ctx, dst, length, src);
+  arcfour_crypt(&self->ctx, length, dst, src);
 }
 
 static struct crypto_instance *

@@ -25,7 +25,7 @@
 
 #include "xalloc.h"
 
-#include "md5.h"
+#include "nettle/md5.h"
 
 #include "md5.c.x"
 
@@ -44,7 +44,7 @@ do_md5_update(struct hash_instance *s,
 {
   CAST(md5_instance, self, s);
 
-  md5_update(&self->ctx, data, length);
+  md5_update(&self->ctx, length, data);
 }
 
 static void
@@ -54,7 +54,7 @@ do_md5_digest(struct hash_instance *s,
   CAST(md5_instance, self, s);
 
   md5_final(&self->ctx);
-  md5_digest(&self->ctx, dst);
+  md5_digest(&self->ctx, MD5_DIGEST_SIZE, dst);
   md5_init(&self->ctx);
 }
 
@@ -81,5 +81,5 @@ make_md5_instance(struct hash_algorithm *ignored UNUSED)
 
 struct hash_algorithm md5_algorithm =
 { STATIC_HEADER,
-  MD5_DATASIZE, MD5_DIGESTSIZE, make_md5_instance };
+  MD5_DATA_SIZE, MD5_DIGEST_SIZE, make_md5_instance };
 

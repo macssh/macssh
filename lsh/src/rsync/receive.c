@@ -14,7 +14,7 @@ static void
 rsync_update(struct rsync_receive_state *s,
 	     UINT32 length)
 {
-  md5_update(&s->sum_md5, s->next_out, length);
+  md5_update(&s->sum_md5, length, s->next_out);
   s->next_out += length;
   s->avail_out -= length;
 }
@@ -123,7 +123,7 @@ rsync_receive(struct rsync_receive_state *s)
 	/* i is number of octets read */
 	s->i = 0;
 	md5_final(&s->sum_md5);
-	md5_digest(&s->sum_md5, s->buf);
+	md5_digest(&s->sum_md5, MD5_DIGEST_SIZE, s->buf);
 	s->state = RSYNC_READ_CHECKSUM;
       case RSYNC_READ_CHECKSUM:
 	if (!s->avail_in)

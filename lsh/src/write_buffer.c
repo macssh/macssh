@@ -160,7 +160,8 @@ void write_buffer_close(struct write_buffer *buffer)
   buffer->closed = 1;
 }
 
-struct write_buffer *write_buffer_alloc(UINT32 size)
+struct write_buffer *
+make_write_buffer(UINT32 size)
 {
   NEW(write_buffer, res);
   

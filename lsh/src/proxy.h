@@ -27,8 +27,8 @@
 #include "alist.h"
 #include "command.h"
 
-extern struct collect_info_1 chain_connections;
-#define CHAIN_CONNECTIONS (&chain_connections.super.super.super)
+extern struct command_3 chain_connections;
+#define CHAIN_CONNECTIONS (&chain_connections.super.super)
 
 struct command *
 make_proxy_connection_service(struct object_list *server_hooks,

@@ -28,7 +28,7 @@ dry_run=no
 force=no
 
 function werror () {
-  if [ $verbose == yes ] ; then
+  if [ "x$verbose" = xyes ] ; then
     echo 1>&2 "$@"
   fi
 }
@@ -84,13 +84,13 @@ function read_src () {
 
   if [ -z "$host" ]; then
     werror "From: cat "`quote "$file"`
-    if [ $dry_run == no ] ; then
+    if [ "x$dry_run" = xno ] ; then
       cat "$file"
     fi
   else
     file=`quote "$file"`
     werror "From: " ${LCP_SSH:-lsh} $user "$host" cat "$file"
-    if [ $dry_run == no ] ; then
+    if [ "x$dry_run" = no ] ; then
       ${LCP_SSH:-lsh} $user "$host" cat "$file"
     fi
   fi
@@ -105,7 +105,7 @@ function write_dst () {
 
   if [ -z "$host" ]; then
     werror "To: cat >"`quote "$file"`
-    if [ $dry_run == no ] ; then
+    if [ "x$dry_run" = xno ] ; then
       cat > "$file"
     fi
   else
@@ -114,7 +114,7 @@ function write_dst () {
 
     werror "To: " ${LCP_SSH:-lsh} $user "$host" "bash -c '$command'"
 
-    if [ $dry_run == no ] ; then
+    if [ $dry_run = no ] ; then
       ${LCP_SSH:-lsh} $user "$host" bash -c "'$command'"
     fi
   fi
@@ -182,7 +182,7 @@ dst_file="$file"
 # echo dry_run: $dry_run
 # echo verbose: $verbose
 
-if [ $force == yes ] ; then
+if [ "x$force" = xyes ] ; then
   set_clobber='set +C'
 else
   # noclobber
@@ -191,7 +191,7 @@ fi
 
 $set_clobber
 
-if [ $dry_run == yes ] ; then
+if [ "x$dry_run" = xyes ] ; then
   read_src "$src_user" "$src_host" "$src_file" 
   write_dst "$dst_user" "$dst_host" "$dst_file" "$src_file"
 else

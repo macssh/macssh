@@ -47,6 +47,7 @@ struct env_value;
        (reply string)))
 */
 
+/* FIXME: Perhaps it's better to use a const char * for the value? */
 struct env_value
 {
   const char *name;
@@ -56,6 +57,16 @@ struct env_value
 struct exception *
 make_userauth_special_exception(struct lsh_string *reply,
 				const char *msg);
+
+/* GABA:
+   (class
+     (name lsh_process)
+     (super resource)
+     (vars
+       (signal method int int)))
+*/
+
+#define SIGNAL_PROCESS(p, s) ((p)->signal((p), (s)))
 
 /* GABA:
    (class
@@ -94,8 +105,10 @@ make_userauth_special_exception(struct lsh_string *reply,
        ; an object containing the stdin file objects and perhaps some
        ; other info.
 
+       ; This function also returns the pid.
+
        ; The tty argument is for utmp/wtmp logging
-       (fork_process method int "struct resource **child"
+       (fork_process method int "struct lsh_process **child"
                      "struct exit_callback *c"
                      "struct address_info * peer" "struct lsh_string *tty")
 
@@ -104,7 +117,7 @@ make_userauth_special_exception(struct lsh_string *reply,
        ; (argv[0], NULL). 
 
        (exec_shell method void "int login"
-                   "char **argv"
+                   "const char **argv"
 		   "unsigned env_length"
 		   "const struct env_value *env")))
 */

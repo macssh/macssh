@@ -227,6 +227,8 @@ do_handle_kexinit(struct packet_handler *c,
   
   int i;
 
+  verbose("Received KEXINIT message. Key exchange initated.\n");
+  
   if (connection->kex_state != KEX_STATE_INIT)
     {
       PROTOCOL_ERROR(connection->e, "Unexpected KEXINIT message.");
@@ -250,7 +252,7 @@ do_handle_kexinit(struct packet_handler *c,
 #if 0
   debug("do_handle_kexinit: Storing literal_kexinits[%i]\n", !mode);
 #endif
-  connection->literal_kexinits[!mode] = packet;
+  connection->literal_kexinits[!mode] = lsh_string_dup(packet);
   
   connection->kexinits[!mode] = msg;
   
@@ -592,6 +594,8 @@ do_handle_newkeys(struct packet_handler *c,
 
   simple_buffer_init(&buffer, packet->length, packet->data);
 
+  verbose("Received NEWKEYS. Key exchange finished.\n");
+  
   if (parse_uint8(&buffer, &msg_number)
       && (msg_number == SSH_MSG_NEWKEYS)
       && (parse_eod(&buffer)))
@@ -617,7 +621,6 @@ do_handle_newkeys(struct packet_handler *c,
     }
   else
     PROTOCOL_ERROR(connection->e, "Invalid NEWKEYS message");
-  lsh_string_free(packet);
 }
 
 struct packet_handler *
@@ -709,46 +712,28 @@ make_simple_kexinit(struct randomness *r,
  * Destructively modifies the simple_kexinit to include only hostkey
  * algorithms that have keys in alist. */
 
-/* GABA:
-   (class
-     (name kexinit_filter_command)
-     (super command)
-     (vars
-       (init object simple_kexinit)))
-*/
-
-static void
-do_kexinit_filter(struct command *s,
-		  struct lsh_object *x,
+DEFINE_COMMAND2(kexinit_filter)
+     (struct command_2 *s UNUSED,
+      struct lsh_object *a1,
+      struct lsh_object *a2,
 		  struct command_continuation *c,
 		  struct exception_handler *e UNUSED)
 {
-  CAST(kexinit_filter_command, self, s);
-  CAST_SUBTYPE(alist, keys, x);
+  CAST(simple_kexinit, init, a1);
+  CAST_SUBTYPE(alist, keys, a2);
 
-  self->init->hostkey_algorithms
-    = filter_algorithms(keys, self->init->hostkey_algorithms);
+  init->hostkey_algorithms
+    = filter_algorithms(keys, init->hostkey_algorithms);
 
-  if (!self->init->hostkey_algorithms)
+  if (!init->hostkey_algorithms)
     {
       werror("No hostkey algorithms advertised.\n");
-      self->init->hostkey_algorithms = make_int_list(1, ATOM_NONE, -1);
+      init->hostkey_algorithms = make_int_list(1, ATOM_NONE, -1);
     }
 
-  assert(LIST_LENGTH(self->init->hostkey_algorithms));
+  assert(LIST_LENGTH(init->hostkey_algorithms));
 
-  COMMAND_RETURN(c, self->init);
-}
-
-DEFINE_COMMAND_SIMPLE(kexinit_filter, a)
-{
-  CAST(simple_kexinit, init, a);
-  NEW(kexinit_filter_command, self);
-
-  self->super.call = do_kexinit_filter;
-  self->init = init;
-
-  return &self->super.super;
+  COMMAND_RETURN(c, init);
 }
 
 

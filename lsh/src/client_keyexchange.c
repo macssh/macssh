@@ -74,7 +74,7 @@ do_handle_dh_reply(struct packet_handler *c,
   trace("handle_dh_reply\n");
 
   server_key = dh_process_server_msg(&closure->dh, &signature, packet);
-  lsh_string_free(packet);
+
   if (!server_key)
     {
       disconnect_kex_failed(connection, "Bad dh-reply\r\n");
@@ -204,7 +204,6 @@ do_srp_client_proof_handler(struct packet_handler *s,
 
   int res = srp_process_server_proof(self->srp->m2,
 				     packet);
-  lsh_string_free(packet);
 
   connection->dispatch[SSH_MSG_KEXSRP_PROOF] = &connection_fail_handler;
   

@@ -28,12 +28,19 @@
 
 #include <termios.h>
 
+struct terminal_dimensions
+{
+  UINT32 char_width;
+  UINT32 char_height;
+  UINT32 pixel_width;
+  UINT32 pixel_height;
+};
+
 int tty_getattr(int fd, struct termios *ios);
 int tty_setattr(int fd, struct termios *ios);
 
-int tty_getwinsize(int fd, UINT32 *w, UINT32 *h, UINT32 *wp, UINT32 *hp);
-int tty_setwinsize(int fd, UINT32 w, UINT32 h, UINT32 wp, UINT32 hp);
-
+int tty_getwinsize(int fd, struct terminal_dimensions *dims);
+int tty_setwinsize(int fd, const struct terminal_dimensions *dims);
 
 struct lsh_string *
 tty_encode_term_mode(struct termios *ios);

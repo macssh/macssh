@@ -118,10 +118,22 @@ mac_string(struct mac_algorithm *a,
 
 struct lsh_string *
 crypt_string(struct crypto_instance *c,
-	     struct lsh_string *in,
+	     const struct lsh_string *in,
 	     int free)
 {
-  struct lsh_string *out = (free ? in : lsh_string_alloc(in->length));
+  struct lsh_string *out;
+
+  if (free)
+    {
+      /* Do the encryption in place. The type cast is permissible
+       * because we're conceptually freeing the string and reusing the
+       * storage. */
+      out = (struct lsh_string *) in;
+    }
+  else
+    /* Allocate fresh storage. */
+    out = lsh_string_alloc(in->length);
+  
   CRYPT(c, in->length, in->data, out->data);
   
   return out;
@@ -131,7 +143,7 @@ crypt_string(struct crypto_instance *c,
  * keys */
 struct lsh_string *
 crypt_string_pad(struct crypto_instance *c,
-		 struct lsh_string *in,
+		 const struct lsh_string *in,
 		 int free)
 {
   struct lsh_string *s;
@@ -150,7 +162,7 @@ crypt_string_pad(struct crypto_instance *c,
 
 struct lsh_string *
 crypt_string_unpad(struct crypto_instance *c,
-		   struct lsh_string *in,
+		   const struct lsh_string *in,
 		   int free)
 {
   struct lsh_string *out;

@@ -26,7 +26,7 @@
 #include "werror.h"
 #include "xalloc.h"
 
-#include "des.h"
+#include "nettle/des.h"
 
 #include <assert.h>
 
@@ -37,7 +37,7 @@
      (name des_instance)
      (super crypto_instance)
      (vars
-       (ctx array UINT32 DES_EXPANDED_KEYLEN)))
+       (ctx . "struct des_ctx")))
 */
 
 static void do_des_encrypt(struct crypto_instance *s,
@@ -45,8 +45,7 @@ static void do_des_encrypt(struct crypto_instance *s,
 {
   CAST(des_instance, self, s);
 
-  FOR_BLOCKS(length, src, dst, DES_BLOCKSIZE)
-    DesSmallFipsEncrypt(dst, self->ctx, src);
+  des_encrypt(&self->ctx, length, dst, src);
 }
 
 static void do_des_decrypt(struct crypto_instance *s,
@@ -54,8 +53,7 @@ static void do_des_decrypt(struct crypto_instance *s,
 {
   CAST(des_instance, self, s);
 
-  FOR_BLOCKS(length, src, dst, DES_BLOCKSIZE)
-    DesSmallFipsDecrypt(dst, self->ctx, src);
+  des_decrypt(&self->ctx, length, dst, src);
 }
 
 static struct crypto_instance *
@@ -63,11 +61,11 @@ make_des_instance(struct crypto_algorithm *algorithm UNUSED, int mode,
 		  const UINT8 *key, const UINT8 *iv UNUSED)
 {
   NEW(des_instance, self);
-  UINT8 pkey[DES_KEYSIZE];
+  UINT8 pkey[DES_KEY_SIZE];
   unsigned i;
 
   /* Fix odd parity */
-  for (i=0; i<DES_KEYSIZE; i++)
+  for (i=0; i<DES_KEY_SIZE; i++)
     {
       UINT8 p = key[i];
       p ^= (p >> 4);
@@ -82,18 +80,19 @@ make_des_instance(struct crypto_algorithm *algorithm UNUSED, int mode,
 #endif
     }
 
-  self->super.block_size = DES_BLOCKSIZE;
+  self->super.block_size = DES_BLOCK_SIZE;
   self->super.crypt = ( (mode == CRYPTO_ENCRYPT)
 			? do_des_encrypt
 			: do_des_decrypt);
   
-  switch (DesMethod(self->ctx, pkey))
-    {
-    case 0:
+  if (des_set_key(&self->ctx, pkey))
       return &self->super;
-    case -1:
+  
+  switch(self->ctx.status)
+    {
+    case DES_BAD_PARITY:
       fatal("Internal error! Bad parity in make_des_instance.\n");
-    case -2:
+    case DES_WEAK_KEY:
       werror("Detected weak DES key.\n");
       KILL(self);
       return NULL;
@@ -104,7 +103,7 @@ make_des_instance(struct crypto_algorithm *algorithm UNUSED, int mode,
 
 struct crypto_algorithm crypto_des_algorithm =
 { STATIC_HEADER,
-  DES_BLOCKSIZE, DES_KEYSIZE, 0, make_des_instance };
+  DES_BLOCK_SIZE, DES_KEY_SIZE, 0, make_des_instance };
 
 struct crypto_algorithm *make_des3(void)
 {

@@ -78,6 +78,9 @@ extern struct lsh_class io_backend_class;
        (next object lsh_fd)
        (fd . int)
 
+       ; For debugging purposes
+       (label . "const char *")
+       
        ;; (backend object io_backend)
        ;; (next_closed object lsh_fd)
        
@@ -226,6 +229,9 @@ make_io_backend(void);
 int io_iter(struct io_backend *b);
 void io_run(struct io_backend *b);
 
+void
+io_final(struct io_backend *b);
+
 struct resource *
 io_signal_handler(struct io_backend *b,
 		  volatile sig_atomic_t *flag,
@@ -269,11 +275,13 @@ const struct exception *
 read_raw(int fd, UINT32 length, UINT8 *data);
 
 void io_set_nonblocking(int fd);
+void io_set_blocking(int fd);
 void io_set_close_on_exec(int fd);
 void io_init_fd(int fd);
 
-struct lsh_fd *make_lsh_fd(struct io_backend *b,
-			   int fd,
+struct lsh_fd *
+make_lsh_fd(struct io_backend *b,
+	    int fd, const char *label,
 			   struct exception_handler *e);
 
 struct exception_handler *
@@ -312,13 +320,6 @@ make_listen_callback(struct io_backend *backend,
 		     struct command_continuation *c,
 		     struct exception_handler *e);
 
-/* NONO */
-struct lsh_fd *fwd_io_read_write(struct lsh_fd *fd,
-			     struct io_callback *read,
-			     UINT32 block_size,
-			     struct lsh_callback *close_callback);
-/* NONO */
-
 struct lsh_fd *io_read_write(struct lsh_fd *fd,
 			     struct io_callback *read,
 			     UINT32 block_size,
@@ -331,8 +332,6 @@ struct lsh_fd *io_read(struct lsh_fd *fd,
 struct lsh_fd *io_write(struct lsh_fd *fd,
 			UINT32 block_size,
 			struct lsh_callback *close_callback);
-
-void kill_fd(struct lsh_fd *fd);
 
 void close_fd(struct lsh_fd *fd);
 

@@ -37,20 +37,20 @@
 #include <assert.h>
 
 /* Forward declarations */
-struct command_simple spki_add_acl_command;
-#define SPKI_ADD_ACL (&spki_add_acl_command.super.super)
+struct command spki_add_acl_command;
+#define SPKI_ADD_ACL (&spki_add_acl_command.super)
 
-struct command_simple spki_return_hostkeys;
-#define RETURN_HOSTKEYS (&spki_return_hostkeys.super.super)
+struct command spki_return_hostkeys;
+#define RETURN_HOSTKEYS (&spki_return_hostkeys.super)
 
-struct command_simple spki_add_hostkey_command;
-#define SPKI_ADD_HOSTKEY (&spki_add_hostkey_command.super.super)
+struct command spki_add_hostkey_command;
+#define SPKI_ADD_HOSTKEY (&spki_add_hostkey_command.super)
 
-struct command_simple spki_return_userkeys;
-#define RETURN_USERKEYS (&spki_return_userkeys.super.super)
+struct command spki_return_userkeys;
+#define RETURN_USERKEYS (&spki_return_userkeys.super)
 
-struct command_simple spki_add_userkey_command;
-#define SPKI_ADD_USERKEY (&spki_add_userkey_command.super.super)
+struct command spki_add_userkey_command;
+#define SPKI_ADD_USERKEY (&spki_add_userkey_command.super)
 
 
 #include "spki_commands.c.x"
@@ -63,16 +63,24 @@ EXCEPTION_RAISE((e), make_spki_exception(EXC_SPKI_TYPE, (msg), (expr)))
 
 /* Various conversion functions */
 
-DEFINE_COMMAND_SIMPLE(spki_signer2verifier, a)
+DEFINE_COMMAND(spki_signer2verifier)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST_SUBTYPE(signer, private, a);
-  return &SIGNER_GET_VERIFIER(private)->super;
+  COMMAND_RETURN(c, SIGNER_GET_VERIFIER(private));
 }
 
-DEFINE_COMMAND_SIMPLE(spki_verifier2public, a)
+DEFINE_COMMAND(spki_verifier2public)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST_SUBTYPE(verifier, v, a);
-  return &spki_make_public_key(v)->super;
+  COMMAND_RETURN(c, spki_make_public_key(v));
 }
 
 /* Create an SPKI hash from an s-expression. */
@@ -125,7 +133,7 @@ const struct spki_hash spki_hash_sha1 =
 /* Reading keys */
   
 /* Used for both sexp2keypair and sexp2signer. */
-
+/* FIXME: Use DEFINE_COMMAND2 instead? */
 /* GABA:
    (class
      (name spki_parse_key)
@@ -167,14 +175,18 @@ do_spki_sexp2signer(struct command *s,
 }
 
 /* (parse algorithms sexp) -> signer */
-DEFINE_COMMAND_SIMPLE(spki_sexp2signer_command, a)
+DEFINE_COMMAND(spki_sexp2signer_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST_SUBTYPE(alist, algorithms, a);
   NEW(spki_parse_key, self);
   
   self->super.call = do_spki_sexp2signer;
   self->algorithms = algorithms;
-  return &self->super.super;
+  COMMAND_RETURN(c, self);
 }
 
 
@@ -271,14 +283,18 @@ do_spki_sexp2keypair(struct command *s,
 
 
 /* (parse algorithms sexp) -> one or more keypairs */
-DEFINE_COMMAND_SIMPLE(spki_sexp2keypair_command, a)
+DEFINE_COMMAND(spki_sexp2keypair_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST_SUBTYPE(alist, algorithms, a);
   NEW(spki_parse_key, self);
   
   self->super.call = do_spki_sexp2keypair;
   self->algorithms = algorithms;
-  return &self->super.super;
+  COMMAND_RETURN(c, self);
 }
 
 /* GABA:
@@ -309,7 +325,11 @@ do_spki_add_acl(struct command *s,
   COMMAND_RETURN(c, self->ctx);
 }
 
-DEFINE_COMMAND_SIMPLE(spki_add_acl_command, a)
+DEFINE_COMMAND(spki_add_acl_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST_SUBTYPE(spki_context, ctx, a);
 
@@ -319,15 +339,19 @@ DEFINE_COMMAND_SIMPLE(spki_add_acl_command, a)
 
   trace("spki_add_acl_command\n");
 
-  return &self->super.super;
+  COMMAND_RETURN(c, self);
 }
 
-DEFINE_COMMAND_SIMPLE(spki_make_context_command, a)
+DEFINE_COMMAND(spki_make_context_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST_SUBTYPE(alist, algorithms, a);
   trace("spki_make_context_command\n");
   
-  return &make_spki_context(algorithms)->super;
+  COMMAND_RETURN(c, make_spki_context(algorithms));
 }
 
 /* Reads a file of ACL:s, and returns an spki_context. */
@@ -392,25 +416,31 @@ do_spki_add_hostkey(struct command *s,
 }
 
 /* Ignores its argument */
-DEFINE_COMMAND_SIMPLE(spki_add_hostkey_command, a)
+DEFINE_COMMAND(spki_add_hostkey_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a UNUSED,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   NEW(spki_read_hostkey_context, self);
 
   trace("spki_add_hostkey_command\n");
 
-  (void) a;
-  
   self->super.call = do_spki_add_hostkey;
   self->keys = make_alist(0, -1);
 
-  return &self->super.super;
+  COMMAND_RETURN(c, self);
 }     
 
-DEFINE_COMMAND_SIMPLE(spki_return_hostkeys, a)
+DEFINE_COMMAND(spki_return_hostkeys)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(spki_read_hostkey_context, self, a);
   trace("spki_return_hostkeys\n");
-  return &self->keys->super;
+  COMMAND_RETURN(c, self->keys);
 }
 
 /* GABA:
@@ -430,14 +460,18 @@ DEFINE_COMMAND_SIMPLE(spki_return_hostkeys, a)
 		     file)))))
 */
 
-DEFINE_COMMAND_SIMPLE(spki_read_hostkeys_command, a)
+DEFINE_COMMAND(spki_read_hostkeys_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST_SUBTYPE(alist, algorithms, a);
   CAST_SUBTYPE(command, res, spki_read_hostkeys(algorithms));
 
   trace("spki_read_hostkeys_command\n");
   
-  return &res->super;
+  COMMAND_RETURN(c, res);
 }
 
 /* Reading of private user-keys
@@ -468,24 +502,31 @@ do_spki_add_userkey(struct command *s,
 }
 
 /* Ignores its argument */
-DEFINE_COMMAND_SIMPLE(spki_add_userkey_command, a)
+DEFINE_COMMAND(spki_add_userkey_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a UNUSED,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   NEW(spki_read_userkey_context, self);
-  (void) a;
 
   trace("spki_add_userkey_command\n");
   self->super.call = do_spki_add_userkey;
   object_queue_init(&self->keys);
 
-  return &self->super.super;
+  COMMAND_RETURN(c, self);
 }     
 
-DEFINE_COMMAND_SIMPLE(spki_return_userkeys, a)
+DEFINE_COMMAND(spki_return_userkeys)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(spki_read_userkey_context, self, a);
   trace("spki_return_userkeys\n");
   
-  return &queue_to_list(&self->keys)->super.super;
+  COMMAND_RETURN(c,queue_to_list(&self->keys));
 }
 
 /* GABA:
@@ -527,7 +568,7 @@ make_spki_read_userkeys(struct alist *algorithms,
       decrypt = make_pkcs5_decrypt(mac, crypto, tty);
     }
   else
-    decrypt = &command_I.super;
+    decrypt = &command_I;
 
   {
     CAST_SUBTYPE(command, res,
@@ -676,16 +717,16 @@ do_spki_decrypt(struct command *s,
 
   else
     {
-      struct lsh_string *label;
+      const struct lsh_string *label;
       struct sexp *key_info;
       struct sexp *payload;
 
       struct crypto_algorithm *crypto;
       struct mac_algorithm *mac;
       
-      struct lsh_string *salt;
-      struct lsh_string *iv;
-      struct lsh_string *data;
+      const struct lsh_string *salt;
+      const struct lsh_string *iv;
+      const struct lsh_string *data;
       UINT32 iterations;
       
       if (SEXP_LEFT(i) != 3)

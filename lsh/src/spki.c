@@ -248,7 +248,7 @@ make_spki_subject(struct sexp *key,
 static int
 subject_match_hash(struct spki_subject *self,
 		   int method,
-		   struct lsh_string *h1)
+		   const struct lsh_string *h1)
 {
   struct lsh_string *h2;
 
@@ -455,8 +455,8 @@ do_spki_tag_prefix_match(struct spki_tag *s,
 			 struct sexp *e)
 {
   CAST(spki_tag_prefix, self, s);
-  struct lsh_string *ed;
-  struct lsh_string *pd;
+  const struct lsh_string *ed;
+  const struct lsh_string *pd;
 
   assert(sexp_atomp(self->prefix));
   
@@ -731,7 +731,8 @@ spki_add_acl(struct spki_context *ctx,
 
 static struct spki_subject *
 spki_subject_by_hash(struct spki_state *self,
-		     int algorithm, struct lsh_string *hash)
+		     int algorithm,
+		     const struct lsh_string *hash)
 {
   FOR_OBJECT_QUEUE(&self->keys, n)
     {
@@ -758,7 +759,7 @@ do_spki_lookup(struct spki_context *s,
       {
 	/* Syntax: (hash <hash-alg-name> <hash-value> <uris>) */
 	struct spki_subject *subject;
-	struct lsh_string *hash;
+	const struct lsh_string *hash;
 
 	int method = sexp2atom(SEXP_GET(i));
 	if (!method)

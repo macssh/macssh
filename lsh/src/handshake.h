@@ -61,7 +61,7 @@ make_handshake_info(UINT32 flags,
 		    struct alist *algorithms,
 		    struct ssh1_fallback *fallback);
 
-extern struct collect_info_1 handshake_command;
-#define CONNECTION_HANDSHAKE (&handshake_command.super.super.super)
+extern struct command_4 handshake_command;
+#define CONNECTION_HANDSHAKE (&handshake_command.super.super)
 
 #endif /* HANDSHAKE_H_INCLUDED */

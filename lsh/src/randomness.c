@@ -27,10 +27,11 @@
 
 #include "werror.h"
 
-#include "arcfour.h"
 #include "crypto.h"
 #include "exception.h"
 #include "xalloc.h"
+
+#include "nettle/arcfour.h"
 
 #include <errno.h>
 

@@ -44,6 +44,7 @@
 
 #include "io_commands.c.x"
 
+/* Used only by lsh-writekey */
 /* GABA:
    (class
      (name backend_command)
@@ -79,7 +80,11 @@ do_io_write_file(struct command *s,
     EXCEPTION_RAISE(e, make_io_exception(EXC_IO_OPEN_WRITE, NULL, errno, NULL));
 }
 
-DEFINE_COMMAND_SIMPLE(io_write_file_command, a)
+DEFINE_COMMAND(io_write_file_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(io_backend, backend, a);
 
@@ -87,7 +92,7 @@ DEFINE_COMMAND_SIMPLE(io_write_file_command, a)
   self->super.call = do_io_write_file;
   self->backend = backend;
 
-  return &self->super.super;
+  COMMAND_RETURN(c, self);
 }
 
 struct io_write_file_info *
@@ -102,6 +107,7 @@ make_io_write_file_info(const char *name, int flags, int mode, UINT32 block_size
   return self;
 }
 
+/* FIXME: Used only by lsh-writekey. Delete? */
 void do_io_read_fd(struct command *s,
 		   struct lsh_object *a,
 		   struct command_continuation *c,
@@ -110,7 +116,8 @@ void do_io_read_fd(struct command *s,
   CAST(io_read_fd, self, s);
   CAST(io_backend, backend, a);
 
-  COMMAND_RETURN(c, make_lsh_fd(backend, self->fd, e));
+  COMMAND_RETURN(c, make_lsh_fd(backend,
+				self->fd, "io_read_stdin", e));
 }
 
 struct io_read_fd io_read_stdin
@@ -162,61 +169,24 @@ do_listen(struct io_backend *backend,
  * Suitable for handling forwarding requests. NOTE: The calling
  * function has to do all remembering of the fd:s. */
 
-/* GABA:
-   (class
-     (name listen_with_callback)
-     (super command)
-     (vars
-       (callback object command)
-       (backend object io_backend)))
-*/
-
-static void
-do_listen_with_callback(struct command *s,
-			struct lsh_object *x,
-			struct command_continuation *c,
-			struct exception_handler *e)
+DEFINE_COMMAND3(listen_with_callback)
+     (struct lsh_object *a1,
+      struct lsh_object *a2,
+      struct lsh_object *a3,
+      struct command_continuation *c,
+      struct exception_handler *e)
 {
-  CAST(listen_with_callback, self, s);
-  CAST(address_info, address, x);
+  CAST_SUBTYPE(command, callback, a1);
+  CAST(io_backend, backend, a2);
+  CAST(address_info, address, a3);
 
   /* No dns lookups */
-  do_listen(self->backend, address,
+  do_listen(backend, address,
 	    c,
-	    make_apply(self->callback,
+	    make_apply(callback,
 		       &discard_continuation, e), e);
 }
 
-struct command *
-make_listen_with_callback(struct command *callback,
-			  struct io_backend *backend)
-{
-  NEW(listen_with_callback, self);
-  self->callback = callback;
-  self->backend = backend;
-
-  self->super.call = do_listen_with_callback;
-
-  return &self->super;
-}
-
-static struct lsh_object *
-collect_listen_callback(struct collect_info_2 *info,
-			struct lsh_object *a,
-			struct lsh_object *b)
-{
-  CAST_SUBTYPE(command, callback, a);
-  CAST(io_backend, backend, b);
-  assert(!info->next);
-
-  return &make_listen_with_callback(callback, backend)->super;
-}
-
-static struct collect_info_2 collect_info_listen_callback_2 =
-STATIC_COLLECT_2_FINAL(collect_listen_callback);
-
-struct collect_info_1 listen_with_callback =
-STATIC_COLLECT_1(&collect_info_listen_callback_2);
 
 /* GABA:
    (class
@@ -481,24 +451,32 @@ make_connect_local(struct io_backend *backend)
   return &self->super;
 }
 
-DEFINE_COMMAND_SIMPLE(connect_local_command, a)
+DEFINE_COMMAND(connect_local_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(io_backend, backend, a);
-  return &make_connect_local(backend)->super;
+  COMMAND_RETURN(c, make_connect_local(backend));
 }
 
 
 /* Takes a listen_value as argument, logs the peer address, and
  * returns the fd object. */
 
-DEFINE_COMMAND_SIMPLE(io_log_peer_command, a)
+DEFINE_COMMAND(io_log_peer_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(listen_value, lv, a);
 
   verbose("Accepting connection from %S, port %i\n",
 	  lv->peer->ip, lv->peer->port);
 
-  return &lv->super;
+  COMMAND_RETURN(c, lv);
 }
 
 

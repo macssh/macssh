@@ -43,8 +43,8 @@
 #include "lsh_argp.h"
 
 /* Forward declarations */
-struct command_simple options2info;
-#define OPTIONS2INFO (&options2info.super.super)
+struct command options2info;
+#define OPTIONS2INFO (&options2info.super)
 
 
 #include "lshg.c.x"
@@ -63,19 +63,22 @@ make_options(struct io_backend *backend,
 	     int *exit_code) 
 {
   NEW(lshg_options, self);
-  init_client_options(&self->super, backend, handler, exit_code);
+  init_client_options(&self->super, backend, NULL, handler, exit_code);
 
   self->gateway = NULL;
 
   return self;
 }
 
-DEFINE_COMMAND_SIMPLE(options2info, a)
+DEFINE_COMMAND(options2info)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(lshg_options, self, a);
-  return &make_gateway_address(self->super.local_user,
-			       self->super.user,
-			       self->super.remote)->super;
+
+  COMMAND_RETURN(c, self->gateway);
 }
 
 
@@ -206,6 +209,12 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 					   self->super.user,
 					   self->super.remote);
 
+      if (!self->gateway)
+	{
+	  argp_error(state, "Local or remote user name, or the target host name, are too "
+		     "strange for the gateway socket name construction.");
+	  break;
+	}
       break;
 
     case 'D':
@@ -234,7 +243,7 @@ static void
 do_exc_lshg_handler(struct exception_handler *s UNUSED,
 		    const struct exception *e)
 {
-  werror(e->msg);
+  werror("Exiting: %z\n", e->msg);
   exit(EXIT_FAILURE);
 }
 
@@ -279,6 +288,9 @@ main(int argc, char **argv)
 
   io_run(backend);
   
+  /* Close all files and other resources associated with the backend. */
+  io_final(backend);
+
   gc_final();
   
   return exit_code;

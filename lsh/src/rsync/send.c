@@ -16,26 +16,26 @@
 struct rsync_node
 {
   struct rsync_node *next;
-  UINT32 index;
-  UINT32 length;
+  uint32_t index;
+  uint32_t length;
   
-  UINT32 sum_weak; /* a | b << 16*/
+  uint32_t sum_weak; /* a | b << 16*/
 
-  UINT8 sum_md5[MD5_DIGESTSIZE];
+  uint8_t sum_md5[MD5_DIGEST_SIZE];
 };
 
 struct rsync_table
 {
   struct rsync_node *hash[HASH_SIZE];
-  UINT32 alloc_size;
-  UINT32 size;
-  UINT32 block_size;
+  uint32_t alloc_size;
+  uint32_t size;
+  uint32_t block_size;
 
   struct rsync_node all_nodes[1];
 };
 
 static struct rsync_table *
-make_rsync_table(UINT32 count, UINT32 block_size)
+make_rsync_table(uint32_t count, uint32_t block_size)
 {
   unsigned i;
   
@@ -59,7 +59,7 @@ make_rsync_table(UINT32 count, UINT32 block_size)
 
 static struct rsync_node *
 rsync_add_entry(struct rsync_table *table,
-		UINT8 *input)
+		uint8_t *input)
 {
   struct rsync_node *node;
   unsigned a, b;
@@ -86,7 +86,7 @@ rsync_add_entry(struct rsync_table *table,
 }
 
 static struct rsync_node *
-rsync_lookup_1(struct rsync_node *n, UINT32 weak)
+rsync_lookup_1(struct rsync_node *n, uint32_t weak)
 {
   while (n && (n->sum_weak != weak))
     n = n->next;
@@ -95,8 +95,8 @@ rsync_lookup_1(struct rsync_node *n, UINT32 weak)
 }
 
 static struct rsync_node *
-rsync_lookup_2(struct rsync_node *n, UINT32 weak,
-	       const UINT8 *digest)
+rsync_lookup_2(struct rsync_node *n, uint32_t weak,
+	       const uint8_t *digest)
 {
   /* FIXME: This could be speeded up slightly if the hash lists were
    * kept sorted on weak_sum. */
@@ -109,7 +109,7 @@ rsync_lookup_2(struct rsync_node *n, UINT32 weak,
 
 static struct rsync_node *
 rsync_lookup_block(struct rsync_send_state *s,
-		   UINT32 start, UINT32 size)
+		   uint32_t start, uint32_t size)
 
 {
   struct rsync_node *n;
@@ -122,17 +122,17 @@ rsync_lookup_block(struct rsync_send_state *s,
       if (n)
 	{
 	  /* The first block might match. */
-	  UINT32 weak = COMBINE_SUM(s->sum_a, s->sum_b);
+	  uint32_t weak = COMBINE_SUM(s->sum_a, s->sum_b);
 	  struct md5_ctx m;
-	  UINT8 digest[MD5_DIGESTSIZE];
+	  uint8_t digest[MD5_DIGEST_SIZE];
 
 	  /* First check our guess. */
 	  if (s->guess && (s->guess->sum_weak == weak))
 	    {
 	      md5_init(&m);
-	      md5_update(&m, s->buf + start, s->table->block_size);
+	      md5_update(&m, s->table->block_size, s->buf + start);
 	      md5_final(&m);
-	      md5_digest(&m, digest);
+	      md5_digest(&m, MD5_DIGEST_SIZE, digest);
 
 	      if (!memcmp(s->guess->sum_md5, digest, RSYNC_SUM_SIZE))
 		{
@@ -148,9 +148,9 @@ rsync_lookup_block(struct rsync_send_state *s,
 	      if (n)
 		{
 		  md5_init(&m);
-		  md5_update(&m, s->buf + start, s->table->block_size);
+		  md5_update(&m, s->table->block_size, s->buf + start);
 		  md5_final(&m);
-		  md5_digest(&m, digest);
+		  md5_digest(&m, MD5_DIGEST_SIZE, digest);
 
 		  n = rsync_lookup_2(n, weak, digest);
 		}
@@ -174,17 +174,17 @@ rsync_lookup_block(struct rsync_send_state *s,
       n = s->table->all_nodes + s->table->alloc_size - 1;
       if (size == n->length)
 	{
-	  UINT32 weak = COMBINE_SUM(s->sum_a, s->sum_b);
+	  uint32_t weak = COMBINE_SUM(s->sum_a, s->sum_b);
 
 	  if (weak == n->sum_weak)
 	    {
 	      struct md5_ctx m;
-	      UINT8 digest[MD5_DIGESTSIZE];
+	      uint8_t digest[MD5_DIGEST_SIZE];
 
 	      md5_init(&m);
-	      md5_update(&m, s->buf + start, size);
+	      md5_update(&m, size, s->buf + start);
 	      md5_final(&m);
-	      md5_digest(&m, digest);
+	      md5_digest(&m, MD5_DIGEST_SIZE, digest);
 
 	      if (!memcmp(n->sum_md5, digest, RSYNC_SUM_SIZE))
 		return n;
@@ -197,12 +197,12 @@ rsync_lookup_block(struct rsync_send_state *s,
 
 enum rsync_result_t
 rsync_read_table(struct rsync_read_table_state *s,
-		 UINT32 length, UINT8 *input)
+		 uint32_t length, uint8_t *input)
 {
   while (length)
     if (!s->table)
       {
-	UINT32 left = RSYNC_HEADER_SIZE - s->pos;
+	uint32_t left = RSYNC_HEADER_SIZE - s->pos;
 	if (length < left)
 	  {
 	    memcpy(s->buf + s->pos, input, length);
@@ -211,7 +211,7 @@ rsync_read_table(struct rsync_read_table_state *s,
 	  }
 	else
 	  {
-	    UINT32 block_size;
+	    uint32_t block_size;
 	    
 	    memcpy(s->buf + s->pos, input, left);
 	    input += left;
@@ -239,7 +239,7 @@ rsync_read_table(struct rsync_read_table_state *s,
 	if (s->pos)
 	  {
 	    /* Do partial entries */
-	    UINT32 left = RSYNC_ENTRY_SIZE - s->pos;
+	    uint32_t left = RSYNC_ENTRY_SIZE - s->pos;
 	    if (length < left)
 	      {
 		memcpy(s->buf + s->pos, input, length);
@@ -325,7 +325,7 @@ static void
 rsync_send_eof(struct rsync_send_state *s)
 {
   /* FIXME: Try matching the final block. */
-  UINT32 end = 0;
+  uint32_t end = 0;
 
   /* If buffer is non-empty, add a literal. */  
   if (s->size)
@@ -341,7 +341,7 @@ rsync_send_eof(struct rsync_send_state *s)
 
   /* And final hash of the entire file */
   md5_final(&s->sum_md5);
-  md5_digest(&s->sum_md5, s->buf + end);
+  md5_digest(&s->sum_md5, MD5_DIGEST_SIZE, s->buf + end);
 
   end += RSYNC_SUM_SIZE;
 
@@ -358,11 +358,11 @@ rsync_send_eof(struct rsync_send_state *s)
 /* Copy from input buffer, and update md5 sum. */
 static void
 rsync_send_copy_in(struct rsync_send_state *s,
-		   UINT32 length)
+		   uint32_t length)
 {
   assert(length <= s->avail_in);
 
-  md5_update(&s->sum_md5, s->next_in, length);
+  md5_update(&s->sum_md5, length, s->next_in);
   memcpy(BUF + s->size, s->next_in, length);
   s->next_in += length;
   s->avail_in -= length;
@@ -370,11 +370,11 @@ rsync_send_copy_in(struct rsync_send_state *s,
 }
 
 static void
-rsync_send_read(struct rsync_send_state *s, UINT32 left)
+rsync_send_read(struct rsync_send_state *s, uint32_t left)
 {
   /* The current hash does not include a complete block. We need more data. */
   struct rsync_node *n;
-  UINT32 avail = MIN(left, s->avail_in);
+  uint32_t avail = MIN(left, s->avail_in);
 
   assert(avail);
   
@@ -391,7 +391,7 @@ rsync_send_read(struct rsync_send_state *s, UINT32 left)
   if (n)
     {
       /* We have a match! */
-      UINT32 token = ~(n - s->table->all_nodes);
+      uint32_t token = ~(n - s->table->all_nodes);
       
       WRITE_UINT32(s->buf, token);
 
@@ -405,8 +405,8 @@ rsync_send_read(struct rsync_send_state *s, UINT32 left)
 static void
 rsync_send_search(struct rsync_send_state *s)
 {
-  UINT32 avail;
-  UINT32 done;
+  uint32_t avail;
+  uint32_t done;
   struct rsync_node *n;
   
   assert(s->size >= s->table->block_size);
@@ -431,26 +431,27 @@ rsync_send_search(struct rsync_send_state *s)
        *
        * might match */
       
-      UINT32 weak = COMBINE_SUM(s->sum_a, s->sum_b);
+      uint32_t weak = COMBINE_SUM(s->sum_a, s->sum_b);
             
       n = rsync_lookup_1(n, weak);
 
       if (n)
 	{
 	  struct md5_ctx m;
-	  UINT8 digest[MD5_DIGESTSIZE];
-	  UINT32 start = s->size + done - s->table->block_size;
+	  uint8_t digest[MD5_DIGEST_SIZE];
+	  uint32_t start = s->size + done - s->table->block_size;
 
 	  assert(start);
 	  
 	  /* NOTE: Don't bother examining our guess. */
 
 	  md5_init(&m);
-	  md5_update(&m, BUF + start,
-		     s->table->block_size - done);
-	  md5_update(&m, s->next_in, done);
+	  md5_update(&m,
+		     s->table->block_size - done,
+                     BUF + start);
+	  md5_update(&m, done, s->next_in);
 	  md5_final(&m);
-	  md5_digest(&m, digest);
+	  md5_digest(&m, MD5_DIGEST_SIZE, digest);
 
 	  n = rsync_lookup_2(n, weak, digest);
 
@@ -459,10 +460,10 @@ rsync_send_search(struct rsync_send_state *s)
 	      /* Match found! */
 
 	      /* Token is one-complement of the index */
-	      UINT32 token = ~(n - s->table->all_nodes);
+	      uint32_t token = ~(n - s->table->all_nodes);
 	      
 	      /* Hash input before we discard it */
-	      md5_update(&s->sum_md5, s->next_in, done);
+	      md5_update(&s->sum_md5, done, s->next_in);
 	      s->next_in += done;
 	      s->avail_in -= done;
 	      
@@ -493,7 +494,7 @@ rsync_send_flush(struct rsync_send_state *s)
   /* Entire buffer filled, but no match. Make a literal
    * out of all but the last block in the buffer */
 
-  UINT32 length = s->size - s->table->block_size;
+  uint32_t length = s->size - s->table->block_size;
   WRITE_UINT32(s->buf, length);
 
   s->size = s->table->block_size;
@@ -507,7 +508,7 @@ rsync_send_write(struct rsync_send_state *s)
 {
   /* Trassmits octets between I and OUT_END */
 
-  UINT32 left = s->out_end - s->i;
+  uint32_t left = s->out_end - s->i;
   if (left <= s->avail_out)
     {
       memcpy(s->next_out, s->buf + s->i, left);

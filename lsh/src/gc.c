@@ -206,13 +206,20 @@ void gc_kill(struct lsh_object *o)
 
 void gc(struct lsh_object *root)
 {
-  unsigned before = number_of_objects;
+  unsigned objects_before = number_of_objects;
+#if DEBUG_ALLOC
+  unsigned strings_before = number_of_strings;
+#endif
 
   gc_mark(root);  
   gc_sweep();
   
-  verbose("Objects alive: %i, garbage collected: %i\n", live_objects,
-	  before - live_objects);
+  verbose("Objects alive: %i, garbage collected: %i\n",
+	  live_objects, objects_before - live_objects);
+#if DEBUG_ALLOC
+  verbose("Used strings:  %i, garbage collected: %i\n",
+	  number_of_strings, strings_before - number_of_strings);
+#endif
 }
 
 void gc_maybe(struct lsh_object *root, int busy)
@@ -228,8 +235,23 @@ void gc_maybe(struct lsh_object *root, int busy)
 
 #if DEBUG_ALLOC
 /* Deallocate all objects. */
+
+int gc_final_p = 0;
+
 void gc_final(void)
 {
+  gc_final_p = 1;
+  
   gc_sweep();
+  assert(!number_of_objects);
+
+  if (number_of_strings)
+    {
+      struct lsh_string *s;
+      werror("gc_final: %i strings leaked!\n", number_of_strings);
+      for (s = all_strings; s; s = s->header.next)
+	werror("  clue: %z\n", s->header.clue);
+      fatal("gc_final: Internal error!\n");
+    }
 }
 #endif /* DEBUG_ALLOC */

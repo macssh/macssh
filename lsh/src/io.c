@@ -67,13 +67,6 @@
 
 #include "io.c.x"
 
-#if MACOS
-#define TRACKFTP 1
-#if TRACKFTP
-#include "lsh_context.h"
-#endif
-#endif
-
 /* Calls trigged by a signal handler. */
 /* GABA:
    (class
@@ -99,6 +92,7 @@
 /* GABA:
    (class
      (name io_backend)
+     (super resource)
      (vars
        ; Linked list of fds. 
        (files object lsh_fd)
@@ -171,75 +165,37 @@ int io_iter(struct io_backend *b)
 	  }
     }
       
+  /* Prepare fds. */
   {
     struct lsh_fd *fd;
-    int need_close;
-    
-    /* Prepare fd:s. This phase calls the prepare-methods, also closes
-     * and unlinks any fd:s that should be closed, and also counts how
-     * many fd:s there are. */
 
     for (fd = b->files; fd; fd = fd->next)
-      {
+      /* NOTE: The prepare callback is allowed to close files. */
 	if (fd->super.alive && fd->prepare)
 	  FD_PREPARE(fd);
       }
     
-    /* Note that calling a close callback might cause other files to
-     * be closed as well, so we need a double loop.
-     *
-     * FIXME: How can we improve this? We could keep a stack of closed
-     * files, but that will require backpointers from the fd:s to the
-     * backend (so that kill_fd can find the top of the stack). */
-
-    do
-      {
+  /* This phase unlinks any closed fd:s, and also counts how many
+   * fd:s there are. */
+  {
+    struct lsh_fd *fd;
 	struct lsh_fd **fd_p;
-	need_close = 0;
 	nfds = 0;
 	
 	for(fd_p = &b->files; (fd = *fd_p); )
 	  {
 	    if (!fd->super.alive)
-	      {
-		if (fd->fd < 0)
-		  /* Unlink the file object, but don't close any
-		   * underlying file. */
-		  ;
-		else
-		  {
-		    /* Used by write fd:s to make sure that writing to its
-		     * buffer fails. */
-		    if (fd->write_close)
-		      FD_WRITE_CLOSE(fd);
-		
-		    if (fd->close_callback)
-		      {
-			LSH_CALLBACK(fd->close_callback);
-			need_close = 1;
-		      }
-		    trace("io.c: Closing fd %i.\n", fd->fd);
-		
-		    if (close(fd->fd) < 0)
-		      {
-			werror("io.c: close failed, (errno = %i): %z\n",
-			       errno, STRERROR(errno));
-			EXCEPTION_RAISE(fd->e,
-					make_io_exception(EXC_IO_CLOSE, fd,
-							  errno, NULL));
-		      }
-		  }
-		/* Unlink this fd */
-		*fd_p = fd->next;
-		continue;
-	      }
-
+	  /* Unlink this fd */
+	  *fd_p = fd->next;
+	    
+	else
+	  {
 	    if (fd->want_read || fd->want_write)
 	      nfds++;
 
 	    fd_p = &fd->next;
 	  }
-      } while (need_close);
+      }
   }
 
   if (!nfds)
@@ -288,11 +244,11 @@ int io_iter(struct io_backend *b)
 
   if (!res)
     {
-      gc_maybe(&b->super, 0);
+      gc_maybe(&b->super.super, 0);
       res = poll(fds, nfds, -1);
     }
   else
-    gc_maybe(&b->super, 1);
+    gc_maybe(&b->super.super, 1);
   
   if (!res)
     {
@@ -339,7 +295,7 @@ int io_iter(struct io_backend *b)
 	    werror("io.c: poll request on fd %i, for events of type %xi\n"
 		   "      return POLLNVAL, revents = %xi\n",
 		   fds[i].fd, fds[i].events, fds[i].revents);
-	    kill_fd(fd);
+	    close_fd(fd);
 	    continue;
 	  }
 #endif /* POLLNVAL */
@@ -435,7 +391,6 @@ int io_iter(struct io_backend *b)
   return 1;
 }
 
-  
 void
 io_run(struct io_backend *b)
 {
@@ -453,16 +408,49 @@ io_run(struct io_backend *b)
     ;
 }
 
+static void
+do_kill_io_backend(struct resource *s)
+{
+  CAST(io_backend, backend, s);
+
+  if (backend->super.alive)
+    {
+      struct lsh_fd *fd;
+      struct lsh_signal_handler *signal;
+  
+      for (fd = backend->files, backend->files = NULL;
+	   fd; fd = fd->next)
+	close_fd(fd);
+
+      /* Check that no callback has opened new files. */
+      assert(!backend->files);
+
+      for (signal = backend->signals, backend->signals = NULL;
+	   signal; signal = signal->next)
+	signal->super.alive = 0;
+
+      backend->super.alive = 0;
+    }
+}
+
 struct io_backend *
 make_io_backend(void)
 {
   NEW(io_backend, b);
 
+  init_resource(&b->super, do_kill_io_backend);
+  
   b->files = NULL;
   b->signals = NULL;
   b->callouts = NULL;
 
   return b;
+}
+
+void
+io_final(struct io_backend *b)
+{
+  KILL_RESOURCE(&b->super);
 }
 
 struct resource *
@@ -471,7 +459,7 @@ io_signal_handler(struct io_backend *b,
 		  struct lsh_callback *action)
 {
   NEW(lsh_signal_handler, handler);
-  resource_init(&handler->super, NULL);
+  init_resource(&handler->super, NULL);
 
   handler->next = b->signals;
   handler->flag = flag;
@@ -489,7 +477,7 @@ io_callout(struct io_backend *b,
 	   struct lsh_callback *action)
 {
   NEW(lsh_callout, callout);
-  resource_init(&callout->super, NULL);
+  init_resource(&callout->super, NULL);
 
   callout->next = b->callouts;
   callout->action = action;
@@ -532,6 +520,9 @@ do_buffered_read(struct io_callback *s,
 	EXCEPTION_RAISE(fd->e, 
 			make_io_exception(EXC_IO_READ, fd,
 					  errno, NULL));
+	/* Close the fd, unless it has a write callback. */
+	close_fd_read(fd);
+	
 	break;
       }
   else if (res > 0)
@@ -619,142 +610,12 @@ make_buffered_read(UINT32 buffer_size,
   return &self->super;
 }
 
-#if MACOS
-#if TRACKFTP
-
-char *strnstr( const char *d, const char *s, int len );
-
-char *strnstr( const char *d, const char *s, int len )
-{
-#if !__POWERPC__
-	unsigned char * e = (unsigned char *) d + len;
-	unsigned char * s1 = (unsigned char *) d;
-	unsigned char * p1 = (unsigned char *) s;
-	unsigned char firstc, c1, c2;
-	
-	if (!(firstc = *p1++))
-		return((char *) d);
-
-	while (s1 < e && (c1 = *s1++) != '\0')
-		if (c1 == firstc)
-		{
-			const unsigned char * s2 = s1;
-			const unsigned char * p2 = p1;
-			
-			while (s2 < e && (c1 = *s2++) == (c2 = *p2++) && c1)
-				;
-			
-			if (!c2)
-				return((char *) s1 - 1);
-		}
-	
-	return nil;
-#else
-	unsigned char * e = (unsigned char *) d + len - 1;
-	unsigned char * s1 = (unsigned char *) d-1;
-	unsigned char * p1 = (unsigned char *) s-1;
-	unsigned long firstc, c1, c2;
-	
-	if (!(firstc = *++p1))
-		return((char *) d);
-
-	while ( s1 < e && (c1 = *++s1) != '\0')
-		if (c1 == firstc)
-		{
-			const unsigned char * s2 = s1-1;
-			const unsigned char * p2 = p1-1;
-			
-			while ( s2 < e && (c1 = *++s2) == (c2 = *++p2) && c1)
-				;
-			
-			if (!c2)
-				return((char *) s1);
-		}
-	
-	return nil;
-#endif
-}
-
-static char *getaddrport(char *s, unsigned long *addr, unsigned short *port)
-{
-	long h1,h2,h3,h4,p1,p2;
-	h1 = strtol(s,&s,10);++s;
-	h2 = strtol(s,&s,10);++s;
-	h3 = strtol(s,&s,10);++s;
-	h4 = strtol(s,&s,10);++s;
-	p1 = strtol(s,&s,10);++s;
-	p2 = strtol(s,&s,10);
-	*addr = (h1<<24) | (h2<<16) | (h3<<8) | (h4);
-	*port = (p1<<8) | p2;
-	return (*addr && *port) ? s : NULL;
-}
-
-static void trackclientport(struct lsh_string *s)
-{
-  unsigned long addr;
-  unsigned short port;
-  char *e;
-
-  if ( s->length >= 16
-    && !memcmp(s->data, "PORT ", 5)
-    && (e = getaddrport((char *)s->data + 5, &addr, &port)) != NULL ) {
-    /*plnt_printf("trackclientport found : %d\n", port);*/
-  }
-}
-
-static void trackserverport(struct write_buffer *buf, UINT32 size)
-{
-  unsigned long addr;
-  unsigned short port;
-  char *s;
-  char *e;
-
-  if ( size >= 34
-    && (s = strnstr((char *)buf->buffer + buf->start, "Entering Passive Mode (", 32)) != NULL
-    && (e = getaddrport(s + 23, &addr, &port)) != NULL ) {
-    /*plnt_printf("trackserverport found : %d\n", port);*/
-
-    /* launch a new thread with forwarded port to the same SSH2 host, */
-    /* forwarded to remote host, dst_port, listening on localhost, dst_port  */
-    /* then replace dst_ip & dst_port in packet with localhost, dst_port */
-
-/*
-(unsigned short)w->localport, w->remotehost, (unsigned short)w->remoteport
-
-    if ( opendynport( addr, port, &port ) ) {
-
-    }
-
-
-	object_queue_add_tail(&self->actions,
-			      &make_forward_local_port
-			      (self->backend,
-			       make_address_info((self->with_remote_peers
-						  ? NULL
-						  : ssh_format("%lz", "127.0.0.1")),
-						 listen_port),
-			       target)->super);
-
-
-*/
-
-  }
-}
-#endif
-#endif
-
-
 static void
 do_consuming_read(struct io_callback *c,
 		  struct lsh_fd *fd)
 {
   CAST_SUBTYPE(io_consuming_read, self, c);
   UINT32 wanted = READ_QUERY(self);
-#if MACOS
-#if TRACKFTP
-  lshcontext *context;
-#endif
-#endif
 
   assert(fd->want_read);
 
@@ -774,6 +635,7 @@ do_consuming_read(struct io_callback *c,
       int res = read(fd->fd, s->data, wanted);
 
       if (res < 0)
+	{
 	switch(errno)
 	  {
 	  case EINTR:
@@ -792,25 +654,20 @@ do_consuming_read(struct io_callback *c,
 					      fd, errno, NULL));
 	    break;
 	  }
+	  lsh_string_free(s);
+	}
       else if (res > 0)
 	{
 	  s->length = res;
-#if MACOS
-#if TRACKFTP
-	  context = pthread_getspecific(ssh2threadkey);
-	  if ( context && context->_forward && context->_localport == 21 ) {
-	    trackclientport(s);
-	  }
-#endif
-#endif
 	  A_WRITE(self->consumer, s);
 	}
       else
 	{
+	  lsh_string_free(s);
 	eof:
 	  /* Close the fd, unless it has a write callback. */
-	  close_fd_read(fd);
 	  A_WRITE(self->consumer, NULL);
+	  close_fd_read(fd);
 	}
     }
 }
@@ -851,8 +708,8 @@ do_write_callback(struct io_callback *s UNUSED,
 	break;
       case EPIPE:
 	debug("io.c: Broken pipe.\n");
-	close_fd(fd);
-	break;
+	
+	/* Fall through */
       default:
 	werror("io.c: write failed, %z\n", STRERROR(errno));
 	EXCEPTION_RAISE(fd->e,
@@ -877,70 +734,6 @@ do_write_prepare(struct lsh_fd *fd)
       && fd->write_buffer->closed)
     close_fd(fd);
 }
-
-/* NONO */
-
-/* Write related callbacks */
-static void
-do_fdw_write_callback(struct io_callback *s UNUSED,
-		  struct lsh_fd *fd)
-{
-  /* CAST(io_write_callback, self, s); */
-  UINT32 size;
-  int res;
-#if MACOS
-#if TRACKFTP
-  lshcontext *context;
-#endif
-#endif
-  
-  size = MIN(fd->write_buffer->end - fd->write_buffer->start,
-	     fd->write_buffer->block_size);
-  assert(size);
-
-#if MACOS
-#if TRACKFTP
-  context = pthread_getspecific(ssh2threadkey);
-  if ( context && context->_forward && context->_localport == 21 ) {
-    trackserverport(fd->write_buffer, size);
-    size = MIN(fd->write_buffer->end - fd->write_buffer->start,
-	       fd->write_buffer->block_size);
-    assert(size);
-  }
-#endif
-#endif
-
-  res = write(fd->fd,
-	      fd->write_buffer->buffer + fd->write_buffer->start,
-	      size);
-  if (!res)
-    fatal("Closed?");
-  if (res < 0)
-    switch(errno)
-      {
-      case EINTR:
-      case EAGAIN:
-	break;
-      case EPIPE:
-	debug("io.c: Broken pipe.\n");
-	close_fd(fd);
-	break;
-      default:
-	werror("io.c: write failed, %z\n", STRERROR(errno));
-	EXCEPTION_RAISE(fd->e,
-			make_io_exception(EXC_IO_WRITE, fd, errno, NULL));
-	close_fd(fd);
-	
-	break;
-      }
-  else
-    write_buffer_consume(fd->write_buffer, res);
-}  
-
-static struct io_callback io_fwd_write_callback =
-{ STATIC_HEADER, do_fdw_write_callback };
-
-/* NONO */
 
 static void
 do_write_close(struct lsh_fd *fd)
@@ -1002,7 +795,7 @@ do_listen_callback(struct io_callback *s,
   trace("io.c: accept on fd %i\n", conn);
   COMMAND_RETURN(self->c,
 		 make_listen_value(make_lsh_fd(self->backend,
-					       conn, self->e),
+					       conn, "accepted socket", self->e),
 				   sockaddr2info(addr_len,
 						 (struct sockaddr *) &peer)));
 }
@@ -1020,41 +813,6 @@ make_listen_callback(struct io_backend *backend,
   
   return &self->super;
 }
-
-#if 0
-
-static void
-do_listen_callback_no_peer(struct io_callback *s,
-			   struct lsh_fd *fd)
-{
-  CAST(io_listen_callback, self, s);
-
-  int conn;
-
-  conn = accept(fd->fd,
-		(struct sockaddr *) &peer, &addr_len);
-  if (conn < 0)
-    {
-      werror("io.c: accept failed, %z", STRERROR(errno));
-      return;
-    }
-  trace("io.c: accept on fd %i\n", conn);
-  COMMAND_RETURN(self->c, make_lsh_fd(self->backend,
-				      conn, self->e));
-}
-
-struct io_callback *
-make_listen_callback_no_peer(struct io_backend *backend,
-			     struct command_continuation *c)
-{
-  NEW(io_listen_callback, self);
-  self->super.f = do_listen_callback_no_peer;
-  self->backend = backend;
-  self->c = c;
-  
-  return &self->super;
-}
-#endif
 
 /* Connect callback */
 
@@ -1082,12 +840,13 @@ do_connect_callback(struct io_callback *s,
       debug("io.c: connect_callback: Connect failed.\n");
       EXCEPTION_RAISE(fd->e,
 		      make_io_exception(EXC_IO_CONNECT, fd, 0, "connect failed."));
-      kill_fd(fd);
+      close_fd(fd);
     }
   else
     {
       fd->write = NULL;
       fd->want_write = 0;
+      fd->label = "connected socket";
       COMMAND_RETURN(self->c, fd);
     }
 }
@@ -1139,11 +898,13 @@ do_exc_io_handler(struct exception_handler *self,
 /* Initializes a file structure, and adds it to the backend's list. */
 static void
 init_file(struct io_backend *b, struct lsh_fd *f, int fd,
+	  const char *label,
 	  struct exception_handler *e)
 {
-  resource_init(&f->super, do_kill_fd);
+  init_resource(&f->super, do_kill_fd);
 
   f->fd = fd;
+  f->label = label;
 
   f->e = make_exception_handler(do_exc_io_handler, e, HANDLER_CONTEXT);
   
@@ -1443,7 +1204,7 @@ address_info2sockaddr(socklen_t *length,
     int err;
     /* FIXME: It seems ugly to have to convert the port number to a
      * string. */
-    struct lsh_string *service = ssh_cformat("%di", a->port);
+    struct lsh_string *service = ssh_format("%di", a->port);
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = PF_UNSPEC;
@@ -1453,7 +1214,7 @@ address_info2sockaddr(socklen_t *length,
     if (!lookup)
       hints.ai_flags |= AI_NUMERICHOST;
     
-    err = getaddrinfo(host, service->data, &hints, &list);
+    err = getaddrinfo(host, lsh_get_cstring(service), &hints, &list);
     lsh_string_free(service);
 
     if (err)
@@ -1577,6 +1338,22 @@ void io_set_nonblocking(int fd)
 #endif
 }
 
+void io_set_blocking(int fd)
+{
+#ifndef MACOS
+  int old = fcntl(fd, F_GETFL);
+
+  if (old < 0)
+    fatal("io_set_blocking: fcntl(F_GETFL) failed, %z", STRERROR(errno));
+  
+  if (fcntl(fd, F_SETFL, old & ~O_NONBLOCK) < 0)
+    fatal("io_set_blocking: fcntl(F_SETFL) failed, %z", STRERROR(errno));
+#else
+    /*printf("io_set_blocking: fd : %d\n", fd);
+    fflush(stdout);*/
+#endif
+}
+
 void io_set_close_on_exec(int fd)
 {
 #ifndef MACOS
@@ -1609,13 +1386,13 @@ void io_init_fd(int fd)
 
 struct lsh_fd *
 make_lsh_fd(struct io_backend *b,
-	    int fd,
+	    int fd, const char *label,
 	    struct exception_handler *e)
 {
   NEW(lsh_fd, f);
 
   io_init_fd(fd);
-  init_file(b, f, fd, e);
+  init_file(b, f, fd, label, e);
 
   return f;
 }
@@ -1657,7 +1434,7 @@ io_connect(struct io_backend *b,
       return NULL;
     }
 
-  fd = make_lsh_fd(b, s, e);
+  fd = make_lsh_fd(b, s, "connecting socket", e);
   
   fd->want_write = 1;
   fd->write = make_connect_callback(c);
@@ -1701,7 +1478,7 @@ io_listen(struct io_backend *b,
       return NULL;
     }
 
-  fd = make_lsh_fd(b, s, e);
+  fd = make_lsh_fd(b, s, "listening socket", e);
 
   fd->want_read = 1;
   fd->read = callback;
@@ -1721,8 +1498,8 @@ make_local_info(struct lsh_string *directory,
   if (!directory || !name || memchr(name->data, '/', name->length))
     return NULL;
 
-  assert(NUL_TERMINATED(directory));
-  assert(NUL_TERMINATED(name));
+  assert(lsh_get_cstring(directory));
+  assert(lsh_get_cstring(name));
   
   {
     NEW(local_info, self);
@@ -1841,14 +1618,17 @@ io_listen_local(struct io_backend *b,
 
   struct lsh_fd *fd;
   
-  assert(info->directory && NUL_TERMINATED(info->directory));
-  assert(info->name && NUL_TERMINATED(info->name));
+  const char *cdir = lsh_get_cstring(info->directory);
+  const char *cname = lsh_get_cstring(info->name);
+  
+  assert(cdir);
+  assert(cname);
 
   /* NAME should not be a plain filename, with no directory separators.
    * In particular, it should not be an absolute filename. */
   assert(!memchr(info->name->data, '/', info->name->length));
 
-  local_length = OFFSETOF(struct sockaddr_un, sun_path) + info->name->length;
+  local_length = offsetof(struct sockaddr_un, sun_path) + info->name->length;
   local = alloca(local_length);
 
   local->sun_family = AF_UNIX;
@@ -1856,7 +1636,7 @@ io_listen_local(struct io_backend *b,
 
   /* cd to it, but first save old cwd */
 
-  old_cd = safe_pushd(info->directory->data, 1);
+  old_cd = safe_pushd(cdir, 1);
   if (old_cd < 0)
     {
 #if ALLOCA_68K_BUG
@@ -1869,12 +1649,12 @@ io_listen_local(struct io_backend *b,
    * creating a socket. */
 
   /* Try unlinking any existing file. */
-  if ( (unlink(info->name->data) < 0)
+  if ( (unlink(cname) < 0)
        && (errno != ENOENT))
     {
       werror("io.c: unlink '%S'/'%S' failed (errno = %i): %z\n",
 	     info->directory, info->name, errno, STRERROR(errno));
-      safe_popd(old_cd, info->directory->data);
+      safe_popd(old_cd, cdir);
 #if ALLOCA_68K_BUG
       ALLOCA_FREE(alloca_ref);
 #endif
@@ -1882,10 +1662,12 @@ io_listen_local(struct io_backend *b,
     }
 
   /* We have to change the umask, as that's the only way to control
-   * the permissions that bind() uses. */
+   * the permissions that bind uses. */
+
 #ifndef MACOS
-  old_umask = umask(0770);
+  old_umask = umask(0077);
 #endif
+
   /* Bind and listen */
   fd = io_listen(b, (struct sockaddr *) local, local_length, callback, e);
   
@@ -1893,6 +1675,7 @@ io_listen_local(struct io_backend *b,
 #ifndef MACOS
   umask(old_umask);
 #endif
+
   safe_popd(old_cd, info->directory->data);
 
 #if ALLOCA_68K_BUG
@@ -1918,14 +1701,16 @@ io_connect_local(struct io_backend *b,
 
   struct lsh_fd *fd;
   
-  assert(info->directory && NUL_TERMINATED(info->directory));
-  assert(info->name && NUL_TERMINATED(info->name));
+  const char *cdir = lsh_get_cstring(info->directory);
+  
+  assert(cdir);
+  assert(lsh_get_cstring(info->name));
 
   /* NAME should not be a plain filename, with no directory separators.
    * In particular, it should not be an absolute filename. */
   assert(!memchr(info->name->data, '/', info->name->length));
 
-  addr_length = OFFSETOF(struct sockaddr_un, sun_path) + info->name->length;
+  addr_length = offsetof(struct sockaddr_un, sun_path) + info->name->length;
   addr = alloca(addr_length);
 
   addr->sun_family = AF_UNIX;
@@ -1933,7 +1718,7 @@ io_connect_local(struct io_backend *b,
 
   /* cd to it, but first save old cwd */
 
-  old_cd = safe_pushd(info->directory->data, 0);
+  old_cd = safe_pushd(cdir, 0);
   if (old_cd < 0)
     {
 #if ALLOCA_68K_BUG
@@ -1944,7 +1729,7 @@ io_connect_local(struct io_backend *b,
   
   fd = io_connect(b, (struct sockaddr *) addr, addr_length, c, e);
 
-  safe_popd(old_cd, info->directory->data);
+  safe_popd(old_cd, cdir);
 
 #if ALLOCA_68K_BUG
   ALLOCA_FREE(alloca_ref);
@@ -1953,34 +1738,6 @@ io_connect_local(struct io_backend *b,
 }
 
 /* Constructors */
-
-/* NONO */
-struct lsh_fd *
-fwd_io_read_write(struct lsh_fd *fd,
-	      struct io_callback *read,
-	      UINT32 block_size,
-	      struct lsh_callback *close_callback)
-{
-  trace("io.c: Preparing fd %i for reading and writing\n",
-	fd->fd);
-  
-  /* Reading */
-  fd->read = read;
-  fd->want_read = !!read;
-  
-  /* Writing */
-  fd->write_buffer = write_buffer_alloc(block_size);
-  fd->write = &io_fwd_write_callback;
-
-  fd->prepare = do_write_prepare;
-  fd->write_close = do_write_close;
-  
-  /* Closing */
-  fd->close_callback = close_callback;
-
-  return fd;
-}
-/* NONO */
 
 struct lsh_fd *
 io_read_write(struct lsh_fd *fd,
@@ -1996,7 +1753,7 @@ io_read_write(struct lsh_fd *fd,
   fd->want_read = !!read;
   
   /* Writing */
-  fd->write_buffer = write_buffer_alloc(block_size);
+  fd->write_buffer = make_write_buffer(block_size);
   fd->write = &io_write_callback;
 
   fd->prepare = do_write_prepare;
@@ -2032,7 +1789,7 @@ io_write(struct lsh_fd *fd,
   trace("io.c: Preparing fd %i for writing\n", fd->fd);
   
   /* Writing */
-  fd->write_buffer = write_buffer_alloc(block_size);
+  fd->write_buffer = make_write_buffer(block_size);
   fd->write = &io_write_callback;
 
   fd->prepare = do_write_prepare;
@@ -2054,7 +1811,8 @@ io_write_file(struct io_backend *backend,
   if (fd < 0)
     return NULL;
 
-  return io_write(make_lsh_fd(backend, fd, e), block_size, c);
+  return io_write(make_lsh_fd(backend, fd, "write-only file", e),
+		  block_size, c);
 }
 
 struct lsh_fd *
@@ -2066,24 +1824,51 @@ io_read_file(struct io_backend *backend,
   if (fd < 0)
     return NULL;
 
-  return make_lsh_fd(backend, fd, e);
-}
-
-void kill_fd(struct lsh_fd *fd)
-{
-  fd->super.alive = 0;
+  return make_lsh_fd(backend, fd, "read-only file", e);
 }
 
 void close_fd(struct lsh_fd *fd)
 {
-  trace("io.c: Marking fd %i for closing.\n", fd->fd);
-  kill_fd(fd);
+  trace("io.c: Closing fd %i: %z.\n",
+	fd->fd, fd->label);
+
+  if (fd->super.alive)
+    {
+      fd->super.alive = 0;
+  
+      if (fd->fd < 0)
+	/* Unlink the file object, but don't close any
+	 * underlying file. */
+	return;
+  
+      /* Used by write fd:s to make sure that writing to its
+       * buffer fails. */
+      if (fd->write_close)
+	FD_WRITE_CLOSE(fd);
+  
+      if (fd->close_callback)
+	LSH_CALLBACK(fd->close_callback);
+  
+      if (close(fd->fd) < 0)
+	{
+	  werror("io.c: close failed, (errno = %i): %z\n",
+		 errno, STRERROR(errno));
+	  EXCEPTION_RAISE(fd->e,
+			  make_io_exception(EXC_IO_CLOSE, fd,
+					    errno, NULL));
+	}
+    }
+  else
+    werror("Closed already.\n");
 }
 
 void close_fd_nicely(struct lsh_fd *fd)
 {
   /* Don't attempt to read any further. */
 
+  trace("io.c: close_fd_nicely called on fd %i: %z\n",
+	fd->fd, fd->label);
+  
   fd->want_read = 0;
   fd->read = NULL;
   
@@ -2092,7 +1877,7 @@ void close_fd_nicely(struct lsh_fd *fd)
     FD_WRITE_CLOSE(fd);
   else
     /* There's no data buffered for write. */
-    kill_fd(fd);
+    close_fd(fd);
 }
 
 /* Stop reading, but if the fd has a write callback, keep it open. */
@@ -2103,7 +1888,7 @@ void close_fd_read(struct lsh_fd *fd)
   
   if (!fd->write)
     /* We won't be writing anything on this fd, so close it. */
-    kill_fd(fd);
+    close_fd(fd);
 }
 
 /* Responsible for handling the EXC_FINISH_READ exception. It should
@@ -2129,6 +1914,7 @@ do_exc_finish_read_handler(struct exception_handler *s,
       close_fd_nicely(self->fd);
       break;
     case EXC_FINISH_IO:
+      close_fd(self->fd);
       break;
     case EXC_PAUSE_READ:
       self->fd->want_read = 0;

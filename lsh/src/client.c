@@ -21,6 +21,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#if MACOS
+#include "lsh_context.h"
+#endif
+
 #include "client.h"
 
 #include "abstract_io.h"
@@ -33,6 +37,7 @@
 #include "pad.h"
 #include "parse.h"
 #include "ssh.h"
+#include "suspend.h"
 #include "tcpforward_commands.h"
 #include "translate_signal.h"
 #include "werror.h"
@@ -51,6 +56,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#if MACOS
+extern int strcasecmp(const char * str1, const char * str2);
+#endif
+
 #include "lsh_argp.h"
 
 #define GABA_DEFINE
@@ -58,6 +67,8 @@
 #undef GABA_DEFINE
 
 #include "client.c.x"
+
+#define DEFAULT_ESCAPE_CHAR '~'
 
 static struct lsh_string *
 format_service_request(int name)
@@ -104,16 +115,12 @@ do_accept_service(struct packet_handler *c,
 	      && (name == closure->service)))
       && parse_eod(&buffer))
     {
-      lsh_string_free(packet);
       connection->dispatch[SSH_MSG_SERVICE_ACCEPT] = &connection_fail_handler;
       
       COMMAND_RETURN(closure->c, connection);
     }
   else
-    {
-      lsh_string_free(packet);
       PROTOCOL_ERROR(closure->e, "Invalid SSH_MSG_SERVICE_ACCEPT message");
-    }
 }
 
 struct packet_handler *
@@ -170,7 +177,6 @@ make_request_service(int service)
 static void
 do_exit_status(struct channel_request *c,
 	       struct ssh_channel *channel,
-	       struct ssh_connection *connection UNUSED,
 	       struct channel_request_info *info,
 	       struct simple_buffer *args,
 	       struct command_continuation *s,
@@ -191,14 +197,6 @@ do_exit_status(struct channel_request *c,
       ALIST_SET(channel->request_types, ATOM_EXIT_STATUS, NULL);
       ALIST_SET(channel->request_types, ATOM_EXIT_SIGNAL, NULL);
 
-#if 0
-      /* Send EOF, if we haven't done that already. */
-      /* FIXME: Make this behaviour configurable, there may be some
-       * child process alive that we could talk to. */
-
-      channel_eof(channel);
-#endif
-      
       COMMAND_RETURN(s, NULL);
     }
   else
@@ -209,7 +207,6 @@ do_exit_status(struct channel_request *c,
 static void
 do_exit_signal(struct channel_request *c,
 	       struct ssh_channel *channel,
-	       struct ssh_connection *connection UNUSED,
 	       struct channel_request_info *info,
 	       struct simple_buffer *args,
 	       struct command_continuation *s,
@@ -227,7 +224,7 @@ do_exit_signal(struct channel_request *c,
   UINT32 language_length;
   
   if (!info->want_reply
-      && parse_uint32(args, &signal)
+      && parse_atom(args, &signal)
       && parse_boolean(args, &core)
       && parse_string(args, &length, &msg)
       && parse_string(args, &language_length, &language)
@@ -238,11 +235,6 @@ do_exit_signal(struct channel_request *c,
 
       *closure->exit_status = 7;
 
-#if 0
-      signal = signal_network_to_local(signal);
-
-      werror("%ups", length, msg);
-#endif
       werror("Remote process was killed by signal: %ups %z\n",
 	     length, msg,
 	     core ? "(core dumped remotely)\n": "");
@@ -250,13 +242,6 @@ do_exit_signal(struct channel_request *c,
       ALIST_SET(channel->request_types, ATOM_EXIT_STATUS, NULL);
       ALIST_SET(channel->request_types, ATOM_EXIT_SIGNAL, NULL);
 
-#if 0
-      /* Send EOF, if we haven't done that already. */
-      /* FIXME: Make this behaviour configurable, there may be some
-       * child process alive that we could talk to. */
-
-      channel_eof(channel);
-#endif
       COMMAND_RETURN(s, NULL);
     }
   else
@@ -307,7 +292,7 @@ new_session(struct channel_open_command *s,
   CAST(session_open_command, self, s);
   struct ssh_channel *res;
 
-  self->session->write = connection->write;
+  self->session->connection = connection;
   
   *request = format_channel_open(ATOM_SESSION,
 				 local_channel_number,
@@ -406,11 +391,16 @@ make_client_session(struct client_options *options);
 void
 init_client_options(struct client_options *self,
 		    struct io_backend *backend,
+		    struct randomness_with_poll *random,
 		    struct exception_handler *handler,
 		    int *exit_code)			 
 {
   self->backend = backend;
+  self->random = random;
+  
   self->tty = make_unix_interact(backend);
+  self->escape = -1;
+  
   self->handler = handler;
 
   self->exit_code = exit_code;
@@ -423,6 +413,7 @@ init_client_options(struct client_options *self,
 
   self->with_remote_peers = 0; 
   self->with_pty = -1;
+  self->with_x11 = 0;
 
   self->stdin_file = NULL;
   self->stdout_file = NULL;
@@ -437,6 +428,7 @@ init_client_options(struct client_options *self,
 #endif
   self->used_stdin = 0;
   self->used_pty = 0;
+  self->used_x11 = 0;
 
   self->start_shell = 1;
   self->remote_forward = 0;
@@ -445,23 +437,31 @@ init_client_options(struct client_options *self,
 }
 
 /* Host to connect to */
-DEFINE_COMMAND_SIMPLE(client_options2remote, a)
+DEFINE_COMMAND(client_options2remote)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST_SUBTYPE(client_options, options, a);
   trace("client.c: client_options2remote\n");
   
-  return &options->remote->super;
+  COMMAND_RETURN(c, options->remote);
 }
 
 /* Host to connect to */
-DEFINE_COMMAND_SIMPLE(client_options2actions, a)
+DEFINE_COMMAND(client_options2actions)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST_SUBTYPE(client_options, options, a);
 
   trace("client.c: client_options2actions, %i actions\n",
 	options->actions.length);
   
-  return &queue_to_list(&options->actions)->super.super;
+  COMMAND_RETURN(c, queue_to_list(&options->actions));
 }
 
 static const struct argp_option
@@ -478,6 +478,9 @@ client_options[] =
 #endif
   { "nop", 'N', NULL, 0, "No operation (suppresses the default action, "
     "which is to spawn a remote shell)", 0 },
+#if !MACOS
+  { "background", 'B', NULL, 0, "Put process into the background. Implies -N.", 0 },
+#endif
   { "execute", 'E', "command", 0, "Execute a command on the remote machine", 0 },
   { "shell", 'S', "command", 0, "Spawn a remote shell", 0 },
   /* { "gateway", 'G', NULL, 0, "Setup a local gateway", 0 }, */
@@ -510,6 +513,8 @@ client_options[] =
   { "pty", 't', NULL, 0, "Request a remote pty (default).", 0 },
   { "no-pty", 't' | ARG_NOT, NULL, 0, "Don't request a remote pty.", 0 },
 #endif /* WITH_PTY_SUPPORT */
+  { "escape-char", 'e', "Character", 0, "Escape char. `none' means disable. "
+    "Default is to use `~' if we have a tty, otherwise none.", 0 },
   { NULL, 0, NULL, 0, NULL, 0 }
 };
 
@@ -544,19 +549,10 @@ make_client_start_session(struct command *request)
   return r;
 }
 
-/* Create an interactive session */
-static struct command *
-client_shell_session(struct client_options *options)
+static void
+client_maybe_pty(struct client_options *options,
+		 struct object_queue *q)
 {
-  struct command *get_pty = NULL;
-  struct command *get_shell;
-  
-  struct object_list *session_requests;
-  struct ssh_channel *session = make_client_session(options);
-
-  if (!session)
-    return NULL;
-  
 #if WITH_PTY_SUPPORT
   if (options->with_pty && !options->used_pty)
     {
@@ -564,40 +560,75 @@ client_shell_session(struct client_options *options)
       
       if (options->tty && INTERACT_IS_TTY(options->tty))
 	{
-	  get_pty = make_pty_request(options->tty);
-	  if (!get_pty)
-	    {
+	  struct command *get_pty = make_pty_request(options->tty);
+
+	  if (get_pty)
+	    object_queue_add_tail(q,
+				  /* Ignore EXC_CHANNEL_REQUEST for the pty allocation call. */
+				  &make_catch_apply
+				  (make_catch_handler_info(EXC_ALL, EXC_CHANNEL_REQUEST,
+							   0, NULL),
+				   get_pty)->super);
+	  else
 	      werror("lsh: Can't use tty (probably getattr or atexit failed).\n");
 	    }
-	}
       else
-	{
 	  werror("lsh: No tty available.\n");
 	}
+#endif
+}
+
+static void
+client_maybe_x11(struct client_options *options,
+		 struct object_queue *q)
+{
+  if (options->with_x11)
+    {
+      char *display = getenv("DISPLAY");
+      struct command *request = NULL;
+      
+      assert(options->random);
+      if (display)
+	request = make_forward_x11(display, &options->random->super);
+	  
+      if (request)
+	{
+	  object_queue_add_tail(q, &request->super);
+	  options->used_x11 = 1;
+	}
+      else
+	werror("Can't find any local X11 display to forward.\n");
     }
+}
 
-  get_shell = make_client_start_session(&request_shell.super);
+/* Create an interactive session */
+static struct command *
+client_shell_session(struct client_options *options)
+{
+  struct ssh_channel *session = make_client_session(options);
   
-  /* FIXME: We need a non-varargs constructor for lists. */
-  if (get_pty)
-    session_requests
-      = make_object_list(2,
-			 /* Ignore EXC_CHANNEL_REQUEST for the pty allocation call. */
-			 make_catch_apply
-			 (make_catch_handler_info(EXC_ALL, EXC_CHANNEL_REQUEST,
-						  0, NULL),
-			  get_pty),
-			 get_shell, -1);
+  if (session)
+    {
+      struct object_queue session_requests;
+    
+      object_queue_init(&session_requests);
+  
+      client_maybe_pty(options, &session_requests);
+      client_maybe_x11(options, &session_requests);
+  
+      object_queue_add_tail(&session_requests,
+			    &make_client_start_session(&request_shell.super)->super);
+  
+      {
+	CAST_SUBTYPE(command, r,
+		     make_start_session
+		     (make_open_session_command(session),
+		      queue_to_list_and_kill(&session_requests)));
+	return r;
+      }
+    }
   else
-#endif /* WITH_PTY_SUPPORT */
-    session_requests = make_object_list(1, get_shell, -1);
-
-  {
-    CAST_SUBTYPE(command, r,
-		 make_start_session
-		 (make_open_session_command(session), session_requests));
-    return r;
-  }
+    return NULL;
 }
 
 /* Create a session executing a command line */
@@ -609,13 +640,25 @@ client_command_session(struct client_options *options,
 
   if (session)
     {
-      CAST_SUBTYPE(command, r,
-		   make_start_session
-		   (make_open_session_command(session),
-		    make_object_list
-		    (1, make_client_start_session(make_exec_request(command)),
-		     -1)));
-      return r;
+      struct object_queue session_requests;
+    
+      object_queue_init(&session_requests);
+  
+      /* NOTE: Doesn't ask for a pty. That's traditional behaviour,
+       * although perhaps not the Right Thing. */
+      
+      client_maybe_pty(options, &session_requests);
+      client_maybe_x11(options, &session_requests);
+
+      object_queue_add_tail(&session_requests,
+			    &make_client_start_session(make_exec_request(command))->super);
+      {
+	CAST_SUBTYPE(command, r,
+		     make_start_session
+		     (make_open_session_command(session),
+		      queue_to_list_and_kill(&session_requests)));
+	return r;
+      }
     }
   
   return NULL;
@@ -742,6 +785,72 @@ fork_output(int out)
 }
 #endif
 
+/* FIXME: Use const? */
+
+#define DEFINE_CALLBACK(name) \
+static void do_##name(struct lsh_callback *self); \
+static struct lsh_callback \
+name = { STATIC_HEADER, do_##name }; \
+static void do_##name(struct lsh_callback *self UNUSED)
+
+/* A callback that exits the process immediately. */
+DEFINE_CALLBACK(exit_callback)
+{
+  exit(EXIT_SUCCESS);
+}
+
+DEFINE_CALLBACK(verbose_callback)
+{
+  verbose_flag = !verbose_flag;
+  if (verbose_flag)
+    verbose("Enabling verbose messages\n");
+}
+
+DEFINE_CALLBACK(debug_callback)
+{
+  debug_flag = !debug_flag;
+  if (debug_flag)
+    debug("Enabling debug messages\n");
+}
+
+DEFINE_CALLBACK(quiet_callback)
+{
+  quiet_flag = !quiet_flag;
+  if (!quiet_flag)
+    werror("Enabling warning messages\n");
+}
+
+DEFINE_COMMAND(background_process)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
+{
+#if MACOS
+  werror("background_process: fork unimplemented\n");
+  COMMAND_RETURN(c, a);
+#else
+  switch (fork())
+    {
+    case 0:
+      /* Child */
+      /* FIXME: Should we create a new process group, close our tty
+       * and stdio, etc? */
+      COMMAND_RETURN(c, a);
+      break;
+    case -1:
+      /* Error */
+      werror("background_process: fork failed (errno = %i): %z\n",
+	     errno, STRERROR(errno));
+      COMMAND_RETURN(c, a);
+      break;
+    default:
+      /* Parent */
+      _exit(EXIT_SUCCESS);
+    }
+#endif
+}
+
 /* Create a session object. stdout and stderr are shared (although
  * with independent lsh_fd objects). stdin can be used by only one
  * session (until something "session-control"/"job-control" is added).
@@ -752,6 +861,9 @@ make_client_session(struct client_options *options)
   int in;
   int out;
   int err;
+  int is_tty = 0;
+  
+  struct escape_info *escape = NULL;
 
   debug("lsh.c: Setting up stdin\n");
 
@@ -768,6 +880,8 @@ make_client_session(struct client_options *options)
       else 
 	{
 	  in = (options->stdin_fork ? fork_input : dup)(STDIN_FILENO);
+	  is_tty = isatty(STDIN_FILENO);
+	  
 	  options->used_stdin = 1;
 	}
     }
@@ -779,6 +893,33 @@ make_client_session(struct client_options *options)
       return NULL;
     }
 
+  /* Attach the escape char handler, if appropriate. */
+  if (options->escape > 0)
+    {
+      verbose("Enabling explicit escape character `%pc'\n",
+	      options->escape);
+      escape = make_escape_info(options->escape);
+    }
+  else if ( (options->escape < 0) && is_tty)
+    {
+      verbose("Enabling default escape character `%pc'\n",
+	      DEFAULT_ESCAPE_CHAR);
+      escape = make_escape_info(DEFAULT_ESCAPE_CHAR);
+    }
+
+  /* Bind ^Z to suspend. */
+  if (escape)
+    {
+      /* Bind ^Z to suspend. */
+      escape->dispatch[26] = &suspend_callback;
+      escape->dispatch['.'] = &exit_callback;
+
+      /* Toggle the verbosity flags */
+      escape->dispatch['d'] = &debug_callback;
+      escape->dispatch['v'] = &verbose_callback;
+      escape->dispatch['q'] = &quiet_callback;      
+    }
+  
   debug("lsh.c: Setting up stdout\n");
 
   if (options->stdout_file)
@@ -806,11 +947,10 @@ make_client_session(struct client_options *options)
     {
       err = dup(STDERR_FILENO);
 #if MACOS
-      /* always log to console */
-      /*set_error_stream(STDERR_FILENO, 1);*/
-      set_error_syslog("lsh");
+//      set_error_syslog("lsh");
+      set_error_nonblocking(STDERR_FILENO);
 #else
-      set_error_stream(STDERR_FILENO, 1);
+      set_error_nonblocking(STDERR_FILENO);
 #endif
     }
 
@@ -826,15 +966,20 @@ make_client_session(struct client_options *options)
   options->stdin_file = options->stdout_file = options->stderr_file = NULL;
   
   return make_client_session_channel
-    (io_read(make_lsh_fd(options->backend, in, options->handler),
+    (io_read(make_lsh_fd(options->backend,
+			 in, "client stdin", options->handler),
 	     NULL, NULL),
-     io_write(make_lsh_fd(options->backend, out, options->handler),
+     io_write(make_lsh_fd(options->backend,
+			  out, "client stdout", options->handler),
 	      BLOCK_SIZE, NULL),
-     io_write(make_lsh_fd(options->backend, err, options->handler),
+     io_write(make_lsh_fd(options->backend,
+			  err, "client stderr", options->handler),
 	      BLOCK_SIZE, NULL),
+     escape,
      WINDOW_SIZE,
      options->exit_code);
 }
+
 
 /* Parse the argument for -R and -L */
 int
@@ -960,6 +1105,14 @@ client_argp_parser(int key, char *arg, struct argp_state *state)
       if (options->start_shell)
 	client_add_action(options, client_shell_session(options));
 
+      if (options->used_x11)
+	client_add_action(options,
+			  make_install_fix_channel_open_handler
+			  (ATOM_X11,
+			   make_channel_open_x11(options->backend)));
+      
+      /* Install suspend-handler */
+      suspend_install_handler();
       break;
 
     case 'p':
@@ -970,6 +1123,16 @@ client_argp_parser(int key, char *arg, struct argp_state *state)
       options->user = arg;
       break;
 
+    case 'e':
+      if (arg[0] && !arg[1])
+	/* A single char argument */
+	options->escape = arg[0];
+      else if (!strcasecmp(arg, "none"))
+	options->escape = 0;
+      else
+	argp_error(state, "Invalid escape char: `%s'. "
+		   "You must use a single character or `none'.", arg);
+      break;
     case 'E':
       client_add_action(options, client_command_session(options, ssh_format("%lz", arg)));
       break;
@@ -1020,6 +1183,13 @@ client_argp_parser(int key, char *arg, struct argp_state *state)
       options->start_shell = 0;
       break;
 
+#if !defined(MACOS)
+    case 'B':
+      options->start_shell = 0;
+      client_add_action(options, &background_process);
+      break;
+#endif
+      
     CASE_FLAG('g', with_remote_peers);
 
 #if WITH_PTY_SUPPORT
@@ -1072,6 +1242,7 @@ client_argp_parser(int key, char *arg, struct argp_state *state)
 		goto loop_done;
 	      }
 	loop_done:
+          ;
 	}
       break;
 #endif

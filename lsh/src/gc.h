@@ -35,6 +35,7 @@ void gc(struct lsh_object *root);
 void gc_maybe(struct lsh_object *root, int busy);
 
 #if DEBUG_ALLOC
+extern int gc_final_p;
 void gc_final(void);
 #else
 #define gc_final()

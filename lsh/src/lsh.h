@@ -80,6 +80,10 @@ struct lsh_class
 struct lsh_string_header
 {
   int magic; /* For a sentinel value */
+  /* Where/how the string was allocated */
+  const char *clue;
+  struct lsh_string *prev;
+  struct lsh_string *next;
 };
 
 #else   /* !DEBUG_ALLOC */
@@ -100,13 +104,12 @@ struct lsh_string
   UINT8 data[1];
 };
 
-/* Strings passed to C library functions must be properly
- * NUL-terminated. */
-#define NUL_TERMINATED(s) (!(s)->data[(s)->length])
-
 /* Forward declarations of various structures */
 
 /* abstract_crypto.h */
+
+/* client_x11.c */
+struct client_x11_display;
 
 /* connection.h */
 struct ssh_connection;

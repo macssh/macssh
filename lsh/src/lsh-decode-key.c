@@ -246,7 +246,8 @@ int main(int argc, char **argv)
 
   argp_parse(&main_argp, argc, argv, 0, NULL, options);
 
-  in = make_lsh_fd(backend, STDIN_FILENO, &exc_handler);
+  in = make_lsh_fd(backend, STDIN_FILENO, "stdin",
+		   &exc_handler);
 
   /* We want an exception handler that deals with EXC_FINISH_IO. */
   e = make_exc_finish_read_handler(in, &exc_handler, HANDLER_CONTEXT);
@@ -256,7 +257,8 @@ int main(int argc, char **argv)
 			O_WRONLY | O_CREAT, 0666,
 			BLOCKSIZE, NULL, e);
   else
-    out = io_write(make_lsh_fd(backend, STDOUT_FILENO, e),
+    out = io_write(make_lsh_fd(backend, STDOUT_FILENO,
+			       "stdout", e),
 		   BLOCKSIZE, NULL);
   io_read
     (in,

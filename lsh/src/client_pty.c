@@ -26,6 +26,7 @@
 #include "channel_commands.h"
 #include "format.h"
 #include "interact.h"
+#include "tty.h"
 #include "werror.h"
 #include "xalloc.h"
 
@@ -66,7 +67,7 @@ make_client_tty_resource(struct interact *tty,
 			 struct terminal_attributes *attr)
 {
   NEW(client_tty_resource, self);
-  resource_init(&self->super, do_kill_client_tty_resource);
+  init_resource(&self->super, do_kill_client_tty_resource);
 
   self->tty = tty;
   self->attr = attr;
@@ -103,7 +104,7 @@ do_client_winch_handler(struct window_change_callback *s,
   if (!INTERACT_WINDOW_SIZE(tty, &dims))
     return;
 
-  A_WRITE(self->channel->write,
+  C_WRITE(self->channel->connection,
 	  format_window_change(self->channel, &dims));
 }
 
@@ -140,7 +141,7 @@ do_pty_continuation(struct command_continuation *s,
   struct terminal_attributes *raw;
   
   assert(x);
-  verbose("lsh: pty request succeeded\n");
+  verbose("pty request succeeded\n");
   
   raw = TERM_MAKE_RAW(self->req->attr);
   if (!INTERACT_SET_ATTRIBUTES(self->req->tty, raw))
@@ -180,7 +181,7 @@ do_format_pty_request(struct channel_request_command *s,
 {
   CAST(pty_request, self, s);
 
-  verbose("lsh: Requesting a remote pty.\n");
+  verbose("Requesting a remote pty.\n");
 
   *c = make_pty_continuation(self, *c);
 
@@ -211,11 +212,11 @@ make_pty_request(struct interact *tty)
     req->dims.char_width = req->dims.char_height
       = req->dims.pixel_width = req->dims.pixel_height = 0;
 
-  req->super.format_request = do_format_pty_request;
   req->super.super.call = do_channel_request_command;
+  req->super.format_request = do_format_pty_request;
   
   req->tty = tty;
-  req->term = term ? format_cstring(term) : ssh_format("");
+  req->term = term ? make_string(term) : ssh_format("");
 
   return &req->super.super;
 }

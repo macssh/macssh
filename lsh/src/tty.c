@@ -51,7 +51,7 @@ tty_setattr(int fd, struct termios *ios)
 }
 
 int
-tty_getwinsize(int fd, UINT32 *w, UINT32 *h, UINT32 *wp, UINT32 *hp)
+tty_getwinsize(int fd, struct terminal_dimensions *dims)
 {
   struct winsize ws;
   int rc;
@@ -59,24 +59,24 @@ tty_getwinsize(int fd, UINT32 *w, UINT32 *h, UINT32 *wp, UINT32 *hp)
   rc = ioctl(fd, TIOCGWINSZ, &ws);
   if (rc != -1)
     {
-      *w = ws.ws_col;
-      *h = ws.ws_row;
-      *wp = ws.ws_xpixel;
-      *hp = ws.ws_ypixel;
+      dims->char_width = ws.ws_col;
+      dims->char_height = ws.ws_row;
+      dims->pixel_width = ws.ws_xpixel;
+      dims->pixel_height = ws.ws_ypixel;
       return 1;
     }
   return 0;
 }
 
 int
-tty_setwinsize(int fd, UINT32 w, UINT32 h, UINT32 wp, UINT32 hp)
+tty_setwinsize(int fd, const struct terminal_dimensions *dims)
 {
   struct winsize ws;
   
-  ws.ws_row = h;
-  ws.ws_col = w;
-  ws.ws_xpixel = wp;
-  ws.ws_ypixel = hp;
+  ws.ws_row = dims->char_width;
+  ws.ws_col = dims->char_height;
+  ws.ws_xpixel = dims->pixel_width;
+  ws.ws_ypixel = dims->pixel_height;
   
   return ioctl(fd, TIOCSWINSZ, &ws) == -1 ? 0 : 1;
 }

@@ -62,15 +62,15 @@
 #include "lsh_argp.h"
 
 /* Forward declarations */
-struct command_simple options2local;
-#define OPTIONS2LOCAL (&options2local.super.super)
+struct command options2local;
+#define OPTIONS2LOCAL (&options2local.super)
 
-static struct command options2keyfile;
+struct command options2keyfile;
 #define OPTIONS2KEYFILE (&options2keyfile.super)
 
-struct command_simple options2signature_algorithms;
+struct command options2signature_algorithms;
 #define OPTIONS2SIGNATURE_ALGORITHMS \
-  (&options2signature_algorithms.super.super)
+  (&options2signature_algorithms.super)
 
 #include "lshd.c.x"
 
@@ -110,12 +110,16 @@ const char *argp_program_bug_address = BUG_ADDRESS;
 #define OPT_NO_TCPIP_FORWARD (OPT_TCPIP_FORWARD | OPT_NO)
 #define OPT_PTY 0x203
 #define OPT_NO_PTY (OPT_PTY | OPT_NO)
+#define OPT_SUBSYSTEMS 0x204
+#define OPT_NO_SUBSYSTEMS (OPT_SUBSYSTEMS | OPT_NO)
 
-#define OPT_DAEMONIC 0x204
+#define OPT_DAEMONIC 0x205
 #define OPT_NO_DAEMONIC (OPT_DAEMONIC | OPT_NO)
-#define OPT_PIDFILE 0x205
+#define OPT_PIDFILE 0x206
 #define OPT_NO_PIDFILE (OPT_PIDFILE | OPT_NO)
 #define OPT_CORE 0x207
+#define OPT_SYSLOG 0x208
+#define OPT_NO_SYSLOG (OPT_SYSLOG | OPT_NO)
 
 #define OPT_SRP 0x210
 #define OPT_NO_SRP (OPT_SRP | OPT_NO)
@@ -169,12 +173,14 @@ const char *argp_program_bug_address = BUG_ADDRESS;
        
        (with_tcpip_forward . int)
        (with_pty . int)
+       (subsystems . "const char **")
        
        (userauth_methods object int_list)
        (userauth_algorithms object alist)
        
        (sshd1 object ssh1_fallback)
        (daemonic . int)
+       (no_syslog . int)
        (corefile . int)
        (pid_file . "const char *")
        ; -1 means use pid file iff we're in daemonic mode
@@ -187,6 +193,7 @@ do_exc_lshd_handler(struct exception_handler *s,
 {
   switch(e->type)
     {
+    case EXC_RESOLVE:
     case EXC_SEXP_SYNTAX:
     case EXC_SPKI_TYPE:
     case EXC_RANDOMNESS_LOW_ENTROPY:
@@ -238,6 +245,8 @@ make_lshd_options(struct io_backend *backend)
   self->with_password = 1;
   self->with_tcpip_forward = 1;
   self->with_pty = 1;
+  self->subsystems = NULL;
+  
   self->allow_root = 0;
   self->pw_helper = NULL;
   self->login_shell = NULL;
@@ -247,6 +256,7 @@ make_lshd_options(struct io_backend *backend)
   
   self->sshd1 = NULL;
   self->daemonic = 0;
+  self->no_syslog = 0;
 
   /* FIXME: Make the default a configure time option? */
   self->pid_file = "/var/run/lshd.pid";
@@ -257,22 +267,31 @@ make_lshd_options(struct io_backend *backend)
 }
 
 /* Port to listen on */
-DEFINE_COMMAND_SIMPLE(options2local, a)
+DEFINE_COMMAND(options2local)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(lshd_options, options, a);
-  return &options->local->super;
+  COMMAND_RETURN(c, options->local);
 }
 
 /* alist of signature algorithms */
-DEFINE_COMMAND_SIMPLE(options2signature_algorithms, a)
+DEFINE_COMMAND(options2signature_algorithms)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST(lshd_options, options, a);
-  return &options->signature_algorithms->super;
+  COMMAND_RETURN(c, options->signature_algorithms);
 }
 
 /* Read server's private key */
-static void
-do_options2keyfile(struct command *ignored UNUSED,
+
+DEFINE_COMMAND(options2keyfile)
+     (struct command *ignored UNUSED,
 		   struct lsh_object *a,
 		   struct command_continuation *c,
 		   struct exception_handler *e)
@@ -292,9 +311,6 @@ do_options2keyfile(struct command *ignored UNUSED,
       EXCEPTION_RAISE(e, make_io_exception(EXC_IO_OPEN_READ, NULL, errno, NULL));
     }
 }
-
-static struct command options2keyfile =
-STATIC_COMMAND(do_options2keyfile);
 
 
 static const struct argp_option
@@ -357,6 +373,10 @@ main_options[] =
   { "no-pty-support", OPT_NO_PTY, NULL, 0, "Disable pty allocation.", 0 },
 #endif /* WITH_PTY_SUPPORT */
   
+  { "subsystems", OPT_SUBSYSTEMS, "List of subsystem names and programs", 0,
+    "For example `sftp=/usr/sbin/sftp-server,foosystem=/usr/bin/foo' "
+    "(experimental).", 0},
+  
   { NULL, 0, NULL, 0, "Daemonic behaviour", 0 },
   { "daemonic", OPT_DAEMONIC, NULL, 0, "Run in the background, redirect stdio to /dev/null, and chdir to /.", 0 },
   { "no-daemonic", OPT_NO_DAEMONIC, NULL, 0, "Run in the foreground, with messages to stderr (default).", 0 },
@@ -364,7 +384,8 @@ main_options[] =
     "the default is /var/run/lshd.pid.", 0 },
   { "no-pid-file", OPT_NO_PIDFILE, NULL, 0, "Don't use any pid file. Default in non-daemonic mode.", 0 },
   { "enable-core", OPT_CORE, NULL, 0, "Dump core on fatal errors (disabled by default).", 0 },
-    
+  { "no-syslog", OPT_NO_SYSLOG, NULL, 0, "Don't use syslog (by default, syslog is used "
+    "when running in daemonic mode).", 0 },
   { NULL, 0, NULL, 0, NULL, 0 }
 };
 
@@ -376,6 +397,55 @@ main_argp_children[] =
   { &werror_argp, 0, "", 0 },
   { NULL, 0, NULL, 0}
 };
+
+/* NOTE: Modifies the argument string. */
+static const char **
+parse_subsystem_list(char *arg)
+{
+  const char **subsystems;
+  char *separator;
+  unsigned length;
+  unsigned i;
+  
+  /* First count the number of elements. */
+  for (length = 1, i = 0; arg[i]; i++)
+    if (arg[i] == ',')
+      length++;
+
+  subsystems = lsh_space_alloc((length * 2 + 1) * sizeof(*subsystems));
+
+  for (i = 0; ; i++)
+    {
+      subsystems[2*i] = arg;
+
+      separator = strchr(arg, '=');
+
+      if (!separator)
+	goto fail;
+
+      *separator = '\0';
+
+      subsystems[2*i+1] = arg = separator + 1;
+      
+      separator = strchr(arg, ',');
+
+      if (i == (length - 1))
+	break;
+      
+      if (!separator)
+	goto fail;
+
+      *separator = '\0';
+      arg = separator + 1;
+    }
+  if (separator)
+    {
+    fail:
+      lsh_space_free(subsystems);
+      return NULL;
+    }
+  return subsystems;
+}
 
 static error_t
 main_argp_parser(int key, char *arg, struct argp_state *state)
@@ -431,9 +501,9 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 	  argp_error(state, "All keyexchange algorithms disabled.");
 
 	if (self->port)
-	  self->local = make_address_info_c(arg, self->port, 0);
+	  self->local = make_address_info_c(self->interface, self->port, 0);
 	else
-	  self->local = make_address_info_c(arg, "ssh", 22);
+	  self->local = make_address_info_c(self->interface, "ssh", 22);
       
 	if (!self->local)
 	  argp_error(state, "Invalid interface, port or service, %s:%s'.",
@@ -477,12 +547,14 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
 			  ->super);
 	      }
 	  }
-	else
+        if (self->with_srp_keyexchange)
+          ALIST_SET(self->userauth_algorithms,
+                    ATOM_NONE,
+                    &server_userauth_none.super);
+
+        if (!self->userauth_algorithms->size)
 	  argp_error(state, "All user authentication methods disabled.");
 
-	/* Start background poll */
-	RANDOM_POLL_BACKGROUND(self->random->poller);
-	
 	break;
       }
     case 'p':
@@ -574,6 +646,16 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
       break;
 #endif /* WITH_PTY_SUPPORT */
 	  
+    case OPT_SUBSYSTEMS:
+      self->subsystems = parse_subsystem_list(arg);
+      if (!self->subsystems)
+	argp_error(state, "Invalid subsystem list.");
+      break;
+
+    case OPT_NO_SUBSYSTEMS:
+      self->subsystems = NULL;
+      break;
+      
     case OPT_DAEMONIC:
       self->daemonic = 1;
       break;
@@ -582,6 +664,10 @@ main_argp_parser(int key, char *arg, struct argp_state *state)
       self->daemonic = 0;
       break;
 
+    case OPT_NO_SYSLOG:
+      self->no_syslog = 1;
+      break;
+      
     case OPT_PIDFILE:
       self->pid_file = arg;
       self->use_pid_file = 1;
@@ -712,7 +798,9 @@ int main(int argc, char **argv)
 
   options = make_lshd_options(backend);
   
+  trace("Parsing options...\n");
   argp_parse(&main_argp, argc, argv, 0, NULL, options);
+  trace("Parsing options...\n");  
 
   if (!options->corefile && !daemon_disable_core())
     {
@@ -720,7 +808,7 @@ int main(int argc, char **argv)
       return EXIT_FAILURE;
     }
   
-  if (options->daemonic)
+  if (options->daemonic && !options->no_syslog)
     {
 #if HAVE_SYSLOG
       set_error_syslog("lshd");
@@ -751,6 +839,13 @@ int main(int argc, char **argv)
       return EXIT_FAILURE;
     }
 
+  /* NOTE: We have to do this *after* forking into the background,
+   * because otherwise we won't be able to waitpid() on the background
+   * process. */
+
+  /* Start background poll */
+  RANDOM_POLL_BACKGROUND(options->random->poller);
+	
   {
     /* Commands to be invoked on the connection */
     struct object_list *connection_hooks;
@@ -769,6 +864,12 @@ int main(int argc, char **argv)
 		ATOM_PTY_REQ, &pty_request_handler.super);
 #endif /* WITH_PTY_SUPPORT */
 
+    if (options->subsystems)
+      ALIST_SET(supported_channel_requests,
+		ATOM_SUBSYSTEM,
+		&make_subsystem_handler(backend,
+					options->subsystems)->super);
+		
     session_setup = make_install_fix_channel_open_handler
       (ATOM_SESSION, make_open_session(supported_channel_requests));
     
@@ -813,7 +914,7 @@ int main(int argc, char **argv)
 		     make_int_list(0, -1)),
 		    make_offer_service
 		    (make_alist
-		     (2, ATOM_SSH_CONNECTION, connection_service,
+		     (1,
 		      ATOM_SSH_USERAUTH,
 		      make_userauth_service(options->userauth_methods,
 					    options->userauth_algorithms,

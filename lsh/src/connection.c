@@ -60,6 +60,7 @@ connection_handle_packet(struct ssh_connection *closure,
     {
       werror("connection.c: Received empty packet!\n");
       PROTOCOL_ERROR(closure->e, "Received empty packet.");
+      lsh_string_free(packet);
       return;
     }
 
@@ -67,6 +68,7 @@ connection_handle_packet(struct ssh_connection *closure,
     {
       werror("connection.c: Packet too large!\n");
       PROTOCOL_ERROR(closure->e, "Packet too large");
+      lsh_string_free(packet);
       return;
     }
     
@@ -82,6 +84,7 @@ connection_handle_packet(struct ssh_connection *closure,
 	{
 	  werror("Unexpected NEWKEYS message!\n");
 	  PROTOCOL_ERROR(closure->e, "Unexpected NEWKEYS message!");
+	  lsh_string_free(packet);
 	  return;
 	}
       break;
@@ -102,16 +105,20 @@ connection_handle_packet(struct ssh_connection *closure,
 	{
 	  werror("Unexpected KEXINIT or NEWKEYS message!\n");
 	  PROTOCOL_ERROR(closure->e, "Unexpected KEXINIT or NEWKEYS message!");
+	  lsh_string_free(packet);
 	  return;
 	}
       break;
     case KEX_STATE_NEWKEYS:
-      if ( (msg != SSH_MSG_NEWKEYS)
-	   && (msg != SSH_MSG_DISCONNECT) )
+      if (! ((msg == SSH_MSG_NEWKEYS)
+	     || (msg == SSH_MSG_DISCONNECT)
+	     || (msg == SSH_MSG_IGNORE)
+	     || (msg == SSH_MSG_DEBUG)))
 	{
 	  werror("Expected NEWKEYS message, but received message %i!\n",
 		 msg);
 	  PROTOCOL_ERROR(closure->e, "Expected NEWKEYS message");
+	  lsh_string_free(packet);
 	  return;
 	}
       break;
@@ -120,6 +127,7 @@ connection_handle_packet(struct ssh_connection *closure,
     }
 
   HANDLE_PACKET(closure->dispatch[msg], closure, packet);
+  lsh_string_free(packet);
 }
 
 static void
@@ -150,15 +158,12 @@ do_handle_connection(struct abstract_write *w,
 }
 
 DEFINE_PACKET_HANDLER(, connection_ignore_handler,
-                      connection UNUSED, packet)
+                      connection UNUSED, packet UNUSED)
 {
-  lsh_string_free(packet);
 }
 
-DEFINE_PACKET_HANDLER(, connection_fail_handler, connection, packet)
+DEFINE_PACKET_HANDLER(, connection_fail_handler, connection, packet UNUSED)
 {
-  lsh_string_free(packet);
-
   PROTOCOL_ERROR(connection->e, NULL);
 }
 
@@ -171,8 +176,6 @@ DEFINE_PACKET_HANDLER(, connection_unimplemented_handler, connection, packet)
 	  ssh_format("%c%i",
 		     SSH_MSG_UNIMPLEMENTED,
 		     packet->sequence_number));
-  
-  lsh_string_free(packet);
 }
 
 DEFINE_PACKET_HANDLER(, connection_forward_handler, connection, packet)
@@ -202,6 +205,9 @@ do_exc_connection_handler(struct exception_handler *s,
     case EXC_PROTOCOL:
       {
 	CAST_SUBTYPE(protocol_exception, exc, e);
+
+        werror("Protocol error: %z\n", e->msg);
+        
 	if (exc->reason)
 	  C_WRITE(self->connection, format_disconnect(exc->reason, exc->super.msg, ""));
 	

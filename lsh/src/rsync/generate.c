@@ -20,12 +20,12 @@ rsync_init_block(struct rsync_generate_state *s)
 
 static void
 rsync_end_block(struct rsync_generate_state *s,
-		UINT8 *dst)
+		uint8_t *dst)
 {
   WRITE_UINT16(dst, s->a_sum);
   WRITE_UINT16(dst + 2, s->c_sum);
   md5_final(&s->block_sum);
-  md5_digest(&s->block_sum, dst + 4);
+  md5_digest(&s->block_sum, MD5_DIGEST_SIZE, dst + 4);
 }
 
 static void
@@ -52,11 +52,11 @@ rsync_output_block(struct rsync_generate_state *s)
 
 static void
 rsync_update(struct rsync_generate_state *s,
-	     UINT32 length)
+	     uint32_t length)
 {
   assert(length <= s->avail_in);
 
-  md5_update(&s->block_sum, s->next_in, length);
+  md5_update(&s->block_sum, length, s->next_in);
   rsync_update_1(&s->a_sum, &s->c_sum, length, s->next_in);
 
   s->offset += length;
@@ -141,8 +141,8 @@ rsync_generate(struct rsync_generate_state *s)
 
 enum rsync_result_t
 rsync_generate_init(struct rsync_generate_state *s,
-		    UINT32 block_size,
-		    UINT32 size)
+		    uint32_t block_size,
+		    uint32_t size)
 {
   /* Number of blocks */
   unsigned count = (size + block_size - 1) / block_size;

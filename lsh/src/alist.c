@@ -57,20 +57,6 @@ alist_addv(struct alist *a, unsigned n, va_list args)
   return a;
 }
 
-#if 0
-struct alist
-*alist_add(struct alist *a, unsigned n, ...)
-{
-  va_list args;
-
-  va_start(args, n);
-  alist_addv(a, n, args);
-  va_end(args);
-
-  return a;
-}
-#endif
-
 struct alist_node
 {
   struct alist_node *next;

@@ -1,0 +1,63 @@
+#! /bin/sh
+
+# Tests the key export programs
+
+if [ -z "$srcdir" ] ; then
+  srcdir=`pwd`
+fi
+
+. $srcdir/functions.sh
+
+# Keep silent unless -v is used.
+
+if [ x$1 != x-v ]; then
+    exec 2>/dev/null
+fi
+
+# All output is diagnostic
+exec 1>&2
+
+echo "export-1-test: Testing lsh-export-key"
+
+(../lsh-export-key -s Test |tee test.out1) <<EOF
+{KDEwOnB1YmxpYy1rZXkoMzpkc2EoMTpwMTI4OoPZ
+p8LOKpF59DzbO//n3g8O7ybdXfrkTVMbwN5FY00s
+B8uSmw2+ENpYAHDmq/u4QVxEv/VwuK13nfZTqtl9
+x73rgV1+iBA+YWBu09iilfv9NA0tSeIggz66zlUR
+4ixPApftNR6ZSPqEjpyPrbe0e8xH3vQlW14dXhAh
+WztVoLhfKSgxOnEyMDqCZuDer0YCC6SNQQylgPOp
+eGKbXSkoMTpnMTI4OjDTS7nzdr7JRxVK/kB2vH01
+nJ0y9Ucd276NapQcR/qdxPMlcxUdu0qlnrmJt0rD
+a7YxCl6LWAUBZV2R85PaoZOuEwMEm4f+uwk9wEBL
+U7TF2iRjMA+cWxVteIxKzo7Lud0AwY2ZU38lWsAl
+0HTYlKYHy+MCOhJ271VpFqM/feVDKSgxOnkxMjg6
+ZEAgSLJ/OfQEpUaoSQnJwOni3RU6hJlGEGKJJZjT
+CvJ64878K3APttB3OQqDvcrXihKZSHyWI7tirwyF
+o9+e8e4sDWZljh/TKDtUB/bNMO5+YVT61Bpqiw9c
+hsWszBEnv3yaXWutywEhgMtipVxeF9bTUozb4ALM
+7hMcG4aGf3opKSk=}
+EOF
+
+cat >test.out2 <<EOF
+---- BEGIN SSH2 PUBLIC KEY ----
+Subject: Test
+
+AAAAB3NzaC1kc3MAAACBAIPZp8LOKpF59DzbO//n
+3g8O7ybdXfrkTVMbwN5FY00sB8uSmw2+ENpYAHDm
+q/u4QVxEv/VwuK13nfZTqtl9x73rgV1+iBA+YWBu
+09iilfv9NA0tSeIggz66zlUR4ixPApftNR6ZSPqE
+jpyPrbe0e8xH3vQlW14dXhAhWztVoLhfAAAAFQCC
+ZuDer0YCC6SNQQylgPOpeGKbXQAAAIAw00u583a+
+yUcVSv5Adrx9NZydMvVHHdu+jWqUHEf6ncTzJXMV
+HbtKpZ65ibdKw2u2MQpei1gFAWVdkfOT2qGTrhMD
+BJuH/rsJPcBAS1O0xdokYzAPnFsVbXiMSs6Oy7nd
+AMGNmVN/JVrAJdB02JSmB8vjAjoSdu9VaRajP33l
+QwAAAIBkQCBIsn859ASlRqhJCcnA6eLdFTqEmUYQ
+YoklmNMK8nrjzvwrcA+20Hc5CoO9yteKEplIfJYj
+u2KvDIWj357x7iwNZmWOH9MoO1QH9s0w7n5hVPrU
+GmqLD1yGxazMESe/fJpda63LASGAy2KlXF4X1tNS
+jNvgAszuExwbhoZ/eg==
+---- END SSH2 PUBLIC KEY ----
+EOF
+
+compare_output "export-1-test"

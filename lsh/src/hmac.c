@@ -30,7 +30,7 @@
 #include "hmac.c.x"
 
 #if !HAVE_MEMXOR
-#include "memxor.h"
+#include "nettle/memxor.h"
 #endif
 
 /* The HMAC (rfc-2104)  construction */

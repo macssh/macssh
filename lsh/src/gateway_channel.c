@@ -65,11 +65,11 @@ do_receive(struct ssh_channel *c,
   switch(type)
     {
     case CHANNEL_DATA:
-      A_WRITE(channel->chain->super.write,
+      C_WRITE(channel->chain->super.connection,
 	      channel_transmit_data(&channel->chain->super, data));
       break;
     case CHANNEL_STDERR_DATA:
-      A_WRITE(channel->chain->super.write,
+      C_WRITE(channel->chain->super.connection,
 	      channel_transmit_extended(&channel->chain->super, CHANNEL_STDERR_DATA, data));
       break;
     default:
@@ -162,7 +162,7 @@ do_gateway_channel_open(struct channel_open_command *c,
 
   target->super.rec_window_size = closure->rec_window_size;
   target->super.rec_max_packet = closure->rec_max_packet;
-  target->super.write = connection->write;
+  target->super.connection = connection;
 
   *request = format_channel_open_s(closure->type,
 				   local_channel_number,
@@ -230,7 +230,6 @@ make_general_channel_request_command(struct lsh_string *request)
 static void 
 do_gateway_channel_request(struct channel_request *s UNUSED,
 			   struct ssh_channel *ch,
-			   struct ssh_connection *connection UNUSED,
 			   struct channel_request_info *info,
 			   struct simple_buffer *args,
 			   struct command_continuation *c,

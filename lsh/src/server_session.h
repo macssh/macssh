@@ -45,6 +45,10 @@ make_shell_handler(struct io_backend *backend);
 struct channel_request *
 make_exec_handler(struct io_backend *backend);
 
+struct channel_request *
+make_subsystem_handler(struct io_backend *backend,
+		       const char **subsystems);
+
 struct lsh_string *
 format_exit_signal(struct ssh_channel *channel,
 		   int core, int signal);

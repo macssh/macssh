@@ -26,7 +26,7 @@
 #include "werror.h"
 #include "xalloc.h"
 
-#include "blowfish.h"
+#include "nettle/blowfish.h"
 
 #include <assert.h>
 
@@ -38,7 +38,7 @@
      (name blowfish_instance)
      (super crypto_instance)
      (vars
-       (ctx . "BLOWFISH_context")))
+       (ctx . "struct blowfish_ctx")))
 */
 
 static void
@@ -47,8 +47,7 @@ do_blowfish_encrypt(struct crypto_instance *s,
 {
   CAST(blowfish_instance, self, s);
 
-  FOR_BLOCKS(length, src, dst, BLOWFISH_BLOCKSIZE)
-    bf_encrypt_block(&self->ctx, dst, src);
+  blowfish_encrypt(&self->ctx, length, dst, src);
 }
 
 static void
@@ -57,8 +56,7 @@ do_blowfish_decrypt(struct crypto_instance *s,
 {
   CAST(blowfish_instance, self, s);
 
-  FOR_BLOCKS(length, src, dst, BLOWFISH_BLOCKSIZE)
-    bf_decrypt_block(&self->ctx, dst, src);
+  blowfish_decrypt(&self->ctx, length, dst, src);
 }
 
 static struct crypto_instance *
@@ -67,16 +65,15 @@ make_blowfish_instance(struct crypto_algorithm *algorithm, int mode,
 {
   NEW(blowfish_instance, self);
 
-  self->super.block_size = BLOWFISH_BLOCKSIZE;
+  self->super.block_size = BLOWFISH_BLOCK_SIZE;
   self->super.crypt = ( (mode == CRYPTO_ENCRYPT)
 			? do_blowfish_encrypt
 			: do_blowfish_decrypt);
   
-  switch (bf_set_key(&self->ctx, key, algorithm->key_size))
-    {
-    case 0:
+  if (blowfish_set_key(&self->ctx, algorithm->key_size, key))
       return &self->super;
-    default:
+  else
+    {
       werror("Detected a weak blowfish key!\n");
       KILL(self);
       return NULL;
@@ -88,10 +85,10 @@ make_blowfish_algorithm(UINT32 key_size)
 {
   NEW(crypto_algorithm, algorithm);
 
-  assert(key_size <= BLOWFISH_MAX_KEYSIZE);
-  assert(key_size >= BLOWFISH_MIN_KEYSIZE);
+  assert(key_size <= BLOWFISH_MAX_KEY_SIZE);
+  assert(key_size >= BLOWFISH_MIN_KEY_SIZE);
   
-  algorithm->block_size = BLOWFISH_BLOCKSIZE;
+  algorithm->block_size = BLOWFISH_BLOCK_SIZE;
   algorithm->key_size = key_size;
   algorithm->iv_size = 0;
   algorithm->make_crypt = make_blowfish_instance;
@@ -100,4 +97,5 @@ make_blowfish_algorithm(UINT32 key_size)
 }
 
 struct crypto_algorithm blowfish_algorithm =
-{ STATIC_HEADER, BLOWFISH_BLOCKSIZE, BLOWFISH_KEYSIZE, 0, make_blowfish_instance};
+{ STATIC_HEADER, BLOWFISH_BLOCK_SIZE, BLOWFISH_KEY_SIZE,
+  0, make_blowfish_instance};

@@ -25,6 +25,7 @@
 #include "tcpforward.h"
 
 #include "channel_commands.h"
+#include "channel_forward.h"
 #include "format.h"
 #include "io_commands.h"
 #include "ssh.h"
@@ -102,116 +103,6 @@ remove_forward(struct object_queue *q, int null_ok,
   return NULL;
 }
 
-/* TCP forwarding channel */
-
-/* GABA:
-   (class
-     (name tcpip_channel)
-     (super ssh_channel)
-     (vars
-       (socket object lsh_fd)))
-*/
-
-static void
-do_tcpip_receive(struct ssh_channel *c,
-		 int type, struct lsh_string *data)
-{
-  CAST(tcpip_channel, closure, c);
-  
-  switch (type)
-    {
-    case CHANNEL_DATA:
-      A_WRITE(&closure->socket->write_buffer->super, data);
-      break;
-    case CHANNEL_STDERR_DATA:
-      werror("Ignoring unexpected stderr data.\n");
-      lsh_string_free(data);
-      break;
-    default:
-      fatal("Internal error. do_tcpip_receive");
-    }
-}
-
-static void
-do_tcpip_send_adjust(struct ssh_channel *s,
-		     UINT32 i UNUSED)
-{
-  CAST(tcpip_channel, self, s);
-  
-  self->socket->want_read = 1;
-}
-
-static void
-do_tcpip_eof(struct ssh_channel *s)
-{
-  CAST(tcpip_channel, self, s);
-
-  if (shutdown (self->socket->fd, SHUT_WR) < 0)
-    werror("do_tcpip_eof, shutdown failed, (errno = %i): %z\n",
-	   errno, STRERROR(errno));
-}
-
-/* NOTE: Adds the socket to the channel's resource list */
-struct ssh_channel *
-make_tcpip_channel(struct lsh_fd *socket, UINT32 initial_window)
-{
-  NEW(tcpip_channel, self);
-  assert(socket);
-  
-  init_channel(&self->super);
-
-  /* The rest of the callbacks are not set up until tcpip_start_io. */
-
-  /* NOTE: We don't need a close handler, as the channel's resource
-   * list is taken care of automatically. */
-  
-  self->super.rec_window_size = initial_window;
-
-  /* FIXME: Make maximum packet size configurable. */
-  self->super.rec_max_packet = SSH_MAX_PACKET - SSH_CHANNEL_MAX_PACKET_FUZZ;
-  
-  self->socket = socket;
-
-  REMEMBER_RESOURCE(self->super.resources, &socket->super);
-  
-  return &self->super;
-}
-
-/* NOTE: Because this function is called by
- * do_open_forwarded_tcpip_continuation, the same restrictions apply.
- * I.e we can not assume that the channel is completely initialized
- * (channel_open_continuation has not yet done its work), and we can't
- * send any packets. */
-
-void
-tcpip_channel_start_io(struct ssh_channel *c)
-{
-  CAST(tcpip_channel, channel, c);
-
-  channel->super.receive = do_tcpip_receive;
-  channel->super.send_adjust = do_tcpip_send_adjust;
-  channel->super.eof = do_tcpip_eof;
-  
-  /* Install callbacks on the local socket.
-   * NOTE: We don't install any channel_io_exception_handler. */
-#if MACOS
-  fwd_io_read_write(channel->socket,
-		make_channel_read_data(&channel->super),
-		/* FIXME: Make this configurable */
-		SSH_MAX_PACKET * 10, /* self->block_size, */
-		make_channel_read_close_callback(&channel->super));
-#else
-  io_read_write(channel->socket,
-		make_channel_read_data(&channel->super),
-		/* FIXME: Make this configurable */
-		SSH_MAX_PACKET * 10, /* self->block_size, */
-		make_channel_read_close_callback(&channel->super));
-#endif
-  
-  /* Flow control */
-  channel->socket->write_buffer->report = &channel->super.super;
-}
-
 
 /* Handle channel open requests */
 
@@ -259,11 +150,11 @@ do_open_forwarded_tcpip_continuation(struct command_continuation *s,
 				     struct lsh_object *x)
 {
   CAST(open_forwarded_tcpip_continuation, self, s);
-  CAST_SUBTYPE(ssh_channel, channel, x);
+  CAST(channel_forward, channel, x);
 
   assert(channel);
 
-  tcpip_channel_start_io(channel);
+  channel_forward_start_io(channel);
 
   COMMAND_RETURN(self->up, channel);
 }

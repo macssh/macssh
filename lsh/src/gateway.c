@@ -85,8 +85,8 @@ make_gateway_address(char *local_user, char *remote_user,
   if (check_string(local_user)
       && check_string(remote_user)
       && check_string_l(target->ip->length, target->ip->data))
-    return make_local_info(ssh_cformat("%lz/x-lsh-%lz", tmp, local_user),
-			   ssh_cformat("%lS:%lz", target->ip, remote_user));
+    return make_local_info(ssh_format("%lz/x-lsh-%lz", tmp, local_user),
+			   ssh_format("%lS:%lz", target->ip, remote_user));
   else
     return NULL;
 }

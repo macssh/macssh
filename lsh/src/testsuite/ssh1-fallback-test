@@ -1,0 +1,14 @@
+#! /bin/sh
+
+# Tests the ssh-1 fallback mechanism
+
+if [ -z "$srcdir" ] ; then
+  srcdir=`pwd`
+fi
+
+. $srcdir/functions.sh
+
+spawn_lshd --ssh1-fallback=$srcdir/fake-sshd1 \
+  && echo "SSH-1.5-ssh1-fallback-test" \
+     | tcpconnect localhost $PORT \
+     | grep -q a-packet && test_success

@@ -37,6 +37,7 @@
 #include "xalloc.h"
 
 #include <assert.h>
+#include <string.h>
 
 #include "gateway_commands.c.x"
 
@@ -140,7 +141,11 @@ gateway_make_connection(struct listen_value *lv,
   return connection;
 }
 
-DEFINE_COMMAND(gateway_init, a, c, e)
+DEFINE_COMMAND(gateway_init)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e)
 {
   CAST(listen_value, lv, a);
 
@@ -149,34 +154,24 @@ DEFINE_COMMAND(gateway_init, a, c, e)
 
 
 /* (gateway_accept main-connection gateway-connection) */
-
-static void
-do_gateway_accept(struct command *s,
-		 struct lsh_object *x,
-		 struct command_continuation *c,
-		 struct exception_handler *e)
+DEFINE_COMMAND2(gateway_accept)
+     (struct command_2 *s UNUSED,
+      struct lsh_object *a1,
+      struct lsh_object *a2,
+      struct command_continuation *c,
+      struct exception_handler *e)
 {
-  CAST(connection_command, self, s);
-  CAST(listen_value, lv, x);
+  CAST(ssh_connection, connection, a1);
+  CAST(listen_value, lv, a2);
 
   struct ssh_connection *gateway = gateway_make_connection(lv, e);
   
   /* Kill gateway connection if the main connection goes down. */
-  REMEMBER_RESOURCE(self->connection->resources, &lv->fd->super);
+  REMEMBER_RESOURCE(connection->resources, &lv->fd->super);
   
-  gateway->chain = self->connection;
+  gateway->chain = connection;
 
   COMMAND_RETURN(c, gateway);
-}
-
-DEFINE_COMMAND_SIMPLE(gateway_accept, a)
-{
-  CAST(ssh_connection, connection, a);
-  NEW(connection_command, self);
-  self->connection = connection;
-  self->super.call = do_gateway_accept;
-
-  return &self->super.super;
 }
 
 
@@ -204,11 +199,15 @@ make_gateway_setup(struct command *listen)
   return res;
 }
 
-DEFINE_COMMAND_SIMPLE(gateway_setup_command, a)
+DEFINE_COMMAND(gateway_setup_command)
+     (struct command *s UNUSED,
+      struct lsh_object *a,
+      struct command_continuation *c,
+      struct exception_handler *e UNUSED)
 {
   CAST_SUBTYPE(command, listen, a);
   CAST_SUBTYPE(command, res,
 	       gateway_setup(listen));
 
-  return &res->super;
+  COMMAND_RETURN(c, res);
 }

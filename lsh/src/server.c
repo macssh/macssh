@@ -90,8 +90,6 @@ do_service_request(struct packet_handler *c,
       && parse_atom(&buffer, &name)
       && parse_eod(&buffer))
     {
-      lsh_string_free(packet);
-      
       if (name)
 	{
 	  CAST_SUBTYPE(command, service, ALIST_GET(closure->services, name));
@@ -119,10 +117,7 @@ do_service_request(struct packet_handler *c,
       
     }
   else
-    {
-      lsh_string_free(packet);
       PROTOCOL_ERROR(connection->e, "Invalid SERVICE_REQUEST message");
-    }
 }
 
 static struct packet_handler *

@@ -25,7 +25,7 @@
 
 #include "xalloc.h"
 
-#include "sha.h"
+#include "nettle/sha1.h"
 
 #include "sha.c.x"
 
@@ -36,7 +36,7 @@
      (name sha_instance)
      (super hash_instance)
      (vars
-       (ctx . "struct sha_ctx")))
+       (ctx . "struct sha1_ctx")))
 */
 
 static void
@@ -45,7 +45,7 @@ do_sha_update(struct hash_instance *s,
 {
   CAST(sha_instance, self, s);
 
-  sha_update(&self->ctx, data, length);
+  sha1_update(&self->ctx, length, data);
 }
 
 static void
@@ -54,9 +54,9 @@ do_sha_digest(struct hash_instance *s,
 {
   CAST(sha_instance, self, s);
 
-  sha_final(&self->ctx);
-  sha_digest(&self->ctx, dst);
-  sha_init(&self->ctx);
+  sha1_final(&self->ctx);
+  sha1_digest(&self->ctx, SHA1_DIGEST_SIZE, dst);
+  sha1_init(&self->ctx);
 }
 
 static struct hash_instance *
@@ -70,17 +70,17 @@ make_sha_instance(struct hash_algorithm *ignored UNUSED)
 {
   NEW(sha_instance, res);
 
-  res->super.hash_size = 20;
+  res->super.hash_size = SHA1_DIGEST_SIZE;
   res->super.update = do_sha_update;
   res->super.digest = do_sha_digest;
   res->super.copy = do_sha_copy;
 
-  sha_init(&res->ctx);
+  sha1_init(&res->ctx);
 
   return &res->super;
 }
 
 struct hash_algorithm sha1_algorithm =
 { STATIC_HEADER,
-  SHA_DATASIZE, SHA_DIGESTSIZE, make_sha_instance };
+  SHA1_DATA_SIZE, SHA1_DIGEST_SIZE, make_sha_instance };
 
