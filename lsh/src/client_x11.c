@@ -234,11 +234,13 @@ do_client_channel_x11_receive(struct ssh_channel *s,
             switch (self->buffer->data[0])
               {
               case 'B': /* Big endian */
+              case 'b': /* Big endian */
                 self->little_endian = 0;
                 self->name_length = READ_UINT16(self->buffer->data + 6);
                 self->auth_length = READ_UINT16(self->buffer->data + 8);
                 break;
               case 'L': /* Little endian */
+              case 'l': /* Little endian */
                 self->little_endian = 1;
                 self->name_length = LE_READ_UINT16(self->buffer->data + 6);
                 self->auth_length = LE_READ_UINT16(self->buffer->data + 8);
