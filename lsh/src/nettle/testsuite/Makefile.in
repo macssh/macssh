@@ -1,0 +1,358 @@
+# Makefile.in generated automatically by automake 1.4 from Makefile.am
+
+# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+
+SHELL = @SHELL@
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+DESTDIR =
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = ..
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@ $(AM_INSTALL_PROGRAM_FLAGS)
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+CC = @CC@
+M4 = @M4@
+MAKEINFO = @MAKEINFO@
+PACKAGE = @PACKAGE@
+RANLIB = @RANLIB@
+VERSION = @VERSION@
+
+CFLAGS = -I$(top_srcdir) @CFLAGS@ -O0
+CPPFLAGS = @CPPFLAGS@
+
+TS_PROGS = aes-test arcfour-test blowfish-test cast128-test des-test 	   md5-test sha1-test 	   serpent-test twofish-test
+
+
+noinst_PROGRAMS = $(TS_PROGS)
+
+LDADD = testutils.o ../libnettle.a
+EXTRA_DIST = $(SOURCES:.c=.m4) testutils.c testutils.h run-tests
+
+M4FLAGS = -P -s
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = ../config.h
+CONFIG_CLEAN_FILES = 
+PROGRAMS =  $(noinst_PROGRAMS)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I..
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+aes_test_SOURCES = aes-test.c
+aes_test_OBJECTS =  aes-test.o
+aes_test_LDADD = $(LDADD)
+aes_test_DEPENDENCIES =  testutils.o ../libnettle.a
+aes_test_LDFLAGS = 
+arcfour_test_SOURCES = arcfour-test.c
+arcfour_test_OBJECTS =  arcfour-test.o
+arcfour_test_LDADD = $(LDADD)
+arcfour_test_DEPENDENCIES =  testutils.o ../libnettle.a
+arcfour_test_LDFLAGS = 
+blowfish_test_SOURCES = blowfish-test.c
+blowfish_test_OBJECTS =  blowfish-test.o
+blowfish_test_LDADD = $(LDADD)
+blowfish_test_DEPENDENCIES =  testutils.o ../libnettle.a
+blowfish_test_LDFLAGS = 
+cast128_test_SOURCES = cast128-test.c
+cast128_test_OBJECTS =  cast128-test.o
+cast128_test_LDADD = $(LDADD)
+cast128_test_DEPENDENCIES =  testutils.o ../libnettle.a
+cast128_test_LDFLAGS = 
+des_test_SOURCES = des-test.c
+des_test_OBJECTS =  des-test.o
+des_test_LDADD = $(LDADD)
+des_test_DEPENDENCIES =  testutils.o ../libnettle.a
+des_test_LDFLAGS = 
+md5_test_SOURCES = md5-test.c
+md5_test_OBJECTS =  md5-test.o
+md5_test_LDADD = $(LDADD)
+md5_test_DEPENDENCIES =  testutils.o ../libnettle.a
+md5_test_LDFLAGS = 
+sha1_test_SOURCES = sha1-test.c
+sha1_test_OBJECTS =  sha1-test.o
+sha1_test_LDADD = $(LDADD)
+sha1_test_DEPENDENCIES =  testutils.o ../libnettle.a
+sha1_test_LDFLAGS = 
+serpent_test_SOURCES = serpent-test.c
+serpent_test_OBJECTS =  serpent-test.o
+serpent_test_LDADD = $(LDADD)
+serpent_test_DEPENDENCIES =  testutils.o ../libnettle.a
+serpent_test_LDFLAGS = 
+twofish_test_SOURCES = twofish-test.c
+twofish_test_OBJECTS =  twofish-test.o
+twofish_test_LDADD = $(LDADD)
+twofish_test_DEPENDENCIES =  testutils.o ../libnettle.a
+twofish_test_LDFLAGS = 
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
+DIST_COMMON =  Makefile.am Makefile.in
+
+
+DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+
+TAR = tar
+GZIP_ENV = --best
+SOURCES = aes-test.c arcfour-test.c blowfish-test.c cast128-test.c des-test.c md5-test.c sha1-test.c serpent-test.c twofish-test.c
+OBJECTS = aes-test.o arcfour-test.o blowfish-test.o cast128-test.o des-test.o md5-test.o sha1-test.o serpent-test.o twofish-test.o
+
+all: all-redirect
+.SUFFIXES:
+.SUFFIXES: .S .c .o .s
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps testsuite/Makefile
+
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+
+mostlyclean-noinstPROGRAMS:
+
+clean-noinstPROGRAMS:
+	-test -z "$(noinst_PROGRAMS)" || rm -f $(noinst_PROGRAMS)
+
+distclean-noinstPROGRAMS:
+
+maintainer-clean-noinstPROGRAMS:
+
+.c.o:
+	$(COMPILE) -c $<
+
+.s.o:
+	$(COMPILE) -c $<
+
+.S.o:
+	$(COMPILE) -c $<
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+
+clean-compile:
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+aes-test: $(aes_test_OBJECTS) $(aes_test_DEPENDENCIES)
+	@rm -f aes-test
+	$(LINK) $(aes_test_LDFLAGS) $(aes_test_OBJECTS) $(aes_test_LDADD) $(LIBS)
+
+arcfour-test: $(arcfour_test_OBJECTS) $(arcfour_test_DEPENDENCIES)
+	@rm -f arcfour-test
+	$(LINK) $(arcfour_test_LDFLAGS) $(arcfour_test_OBJECTS) $(arcfour_test_LDADD) $(LIBS)
+
+blowfish-test: $(blowfish_test_OBJECTS) $(blowfish_test_DEPENDENCIES)
+	@rm -f blowfish-test
+	$(LINK) $(blowfish_test_LDFLAGS) $(blowfish_test_OBJECTS) $(blowfish_test_LDADD) $(LIBS)
+
+cast128-test: $(cast128_test_OBJECTS) $(cast128_test_DEPENDENCIES)
+	@rm -f cast128-test
+	$(LINK) $(cast128_test_LDFLAGS) $(cast128_test_OBJECTS) $(cast128_test_LDADD) $(LIBS)
+
+des-test: $(des_test_OBJECTS) $(des_test_DEPENDENCIES)
+	@rm -f des-test
+	$(LINK) $(des_test_LDFLAGS) $(des_test_OBJECTS) $(des_test_LDADD) $(LIBS)
+
+md5-test: $(md5_test_OBJECTS) $(md5_test_DEPENDENCIES)
+	@rm -f md5-test
+	$(LINK) $(md5_test_LDFLAGS) $(md5_test_OBJECTS) $(md5_test_LDADD) $(LIBS)
+
+sha1-test: $(sha1_test_OBJECTS) $(sha1_test_DEPENDENCIES)
+	@rm -f sha1-test
+	$(LINK) $(sha1_test_LDFLAGS) $(sha1_test_OBJECTS) $(sha1_test_LDADD) $(LIBS)
+
+serpent-test: $(serpent_test_OBJECTS) $(serpent_test_DEPENDENCIES)
+	@rm -f serpent-test
+	$(LINK) $(serpent_test_LDFLAGS) $(serpent_test_OBJECTS) $(serpent_test_LDADD) $(LIBS)
+
+twofish-test: $(twofish_test_OBJECTS) $(twofish_test_DEPENDENCIES)
+	@rm -f twofish-test
+	$(LINK) $(twofish_test_LDFLAGS) $(twofish_test_OBJECTS) $(twofish_test_LDADD) $(LIBS)
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP)
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	here=`pwd` && cd $(srcdir) \
+	  && mkid -f$$here/ID $$unique $(LISP)
+
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
+	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags  $$unique $(LISP) -o $$here/TAGS)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
+
+subdir = testsuite
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pr $$d/$$file $(distdir)/$$file; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	  fi; \
+	done
+aes-test.o: aes-test.c ../aes.h testutils.h
+arcfour-test.o: arcfour-test.c ../arcfour.h testutils.h
+blowfish-test.o: blowfish-test.c ../blowfish.h testutils.h
+cast128-test.o: cast128-test.c ../cast128.h testutils.h
+des-test.o: des-test.c ../des.h testutils.h
+md5-test.o: md5-test.c ../md5.h testutils.h
+serpent-test.o: serpent-test.c ../serpent.h testutils.h
+sha1-test.o: sha1-test.c ../sha1.h testutils.h
+testutils.o: testutils.c testutils.h
+twofish-test.o: twofish-test.c ../twofish.h testutils.h
+
+info-am:
+info: info-am
+dvi-am:
+dvi: dvi-am
+check-am: all-am
+check: check-am
+installcheck-am:
+installcheck: installcheck-am
+install-exec-am:
+install-exec: install-exec-am
+
+install-data-am:
+install-data: install-data-am
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+install: install-am
+uninstall-am:
+uninstall: uninstall-am
+all-am: Makefile $(PROGRAMS)
+all-redirect: all-am
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
+installdirs:
+
+
+mostlyclean-generic:
+
+clean-generic:
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+
+maintainer-clean-generic:
+mostlyclean-am:  mostlyclean-noinstPROGRAMS mostlyclean-compile \
+		mostlyclean-tags mostlyclean-generic
+
+mostlyclean: mostlyclean-am
+
+clean-am:  clean-noinstPROGRAMS clean-compile clean-tags clean-generic \
+		mostlyclean-am
+
+clean: clean-am
+
+distclean-am:  distclean-noinstPROGRAMS distclean-compile distclean-tags \
+		distclean-generic clean-am
+
+distclean: distclean-am
+
+maintainer-clean-am:  maintainer-clean-noinstPROGRAMS \
+		maintainer-clean-compile maintainer-clean-tags \
+		maintainer-clean-generic distclean-am
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+maintainer-clean: maintainer-clean-am
+
+.PHONY: mostlyclean-noinstPROGRAMS distclean-noinstPROGRAMS \
+clean-noinstPROGRAMS maintainer-clean-noinstPROGRAMS \
+mostlyclean-compile distclean-compile clean-compile \
+maintainer-clean-compile tags mostlyclean-tags distclean-tags \
+clean-tags maintainer-clean-tags distdir info-am info dvi-am dvi check \
+check-am installcheck-am installcheck install-exec-am install-exec \
+install-data-am install-data install-am install uninstall-am uninstall \
+all-redirect all-am all installdirs mostlyclean-generic \
+distclean-generic clean-generic maintainer-clean-generic clean \
+mostlyclean distclean maintainer-clean
+
+%.c: macros.m4 %.m4
+	$(M4) $(M4FLAGS) $^ > $@T
+	test -s $@T && mv -f $@T $@
+
+.PNONY: check run-tests
+
+check: run-tests
+
+run-tests: $(TS_PROGS)
+	$(srcdir)/run-tests $^
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

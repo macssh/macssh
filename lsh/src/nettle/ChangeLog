@@ -1,0 +1,148 @@
+2001-09-02  Niels Möller  <nisse@cuckoo.hack.org>
+
+	* twofish.c (twofish_decrypt): Fixed for();-bug in the block-loop.
+	Spotted by Jean-Pierre.
+	(twofish_encrypt): Likewise.
+
+2001-07-03  Niels Möller  <nisse@ehand.com>
+
+	* testsuite/testutils.c: Include string.h.
+
+	* twofish.c: Include string.h.
+
+2001-06-17  Niels Möller  <nisse@lysator.liu.se>
+
+	* Makefile.am (des_headers): Dont use $(srcdir)/-prefixes as that
+	seems to break with GNU make 3.79.1.
+
+	* testsuite/testutils.c, testsuite/testutils.h: Use <inttypes.h>,
+	not <stdint.h>.
+	Include <stdlib.h>.
+
+2001-06-17  Niels Möller  <nisse@cuckoo.hack.org>
+
+	* Use <inttypes.h>, not <stdint.h>.
+
+	* blowfish.h (BLOWFISH_MAX_KEY_SIZE): Fixed, should be 56. 
+
+	* Fixed copyright notices.
+
+	* Makefile.am (libnettle_a_SOURCES): Added desinfo.h and
+	desCode.h. 
+	(info_TEXINFOS): Added manual.
+	(EXTRA_DIST): Added nettle.html.
+	(%.html): Added rule for building nettle.html.
+
+	* nettle.texinfo: New manual.
+
+	* configure.in: Bumped version to 0.2.
+
+	* testsuite/Makefile.am (TS_PROGS): Added cast128 test.
+
+	* Added CAST128.
+
+	* testsuite/serpent-test.m4: Added a few rudimentary tests
+	extracted from the serpent package.
+
+	* twofish.c: Adapted to nettle. Made constant tables const.
+	Deleted bytes_to_word and word_to_bytes; use LE_READ_UINT32 and
+	LE_WRITE_UINT32 instead.
+	(twofish_selftest): Deleted. Moved the tests to the external
+	testsuite. 
+	(twofish_set_key): Don't silently truncate too large keys. 
+
+	* sha1.c (sha1_update): Use unsigned for length.
+
+	* serpent.c (serpent_set_key): Read the key backwards. Fixed
+	padding (but there are no test vectors for key_size not a multiple
+	of 4).
+	(serpent_encrypt): Read and write data in the strange order used
+	by the reference implementation.
+	(serpent_decrypt): Likewise.
+
+	* macros.h (FOR_BLOCKS): New macro, taken from lsh.
+
+	* blowfish.h (struct blowfish_ctx): Use a two-dimensional array
+	for s.
+
+	* blowfish.c (initial_ctx): Arrange constants into a struct, to
+	simplify key setup.
+	(F): Deleted all but one definitions of the F function/macro.
+	Added a context argument, and use that to find the subkeys.
+	(R): Added context argument, and use that to find the subkeys.
+	(blowfish_set_key): Some simplification.
+
+	(encrypt): Deleted code for non-standard number of rounds. Deleted
+	a bunch of local variables. Using the context pointer for
+	everything should consume less registers.
+	(decrypt): Likewise.
+
+	* Makefile.am (libnettle_a_SOURCES): Added twofish.
+
+2001-06-16  Niels Möller  <nisse@cuckoo.hack.org>
+
+	* testsuite/blowfish-test.m4: Fixed test.
+
+	* Added twofish implementation.
+
+	* blowfish.h (struct blowfish_ctx): Use the correct size for the p
+	array. 
+
+2001-06-15  Niels Möller  <nisse@ehand.com>
+
+	* testsuite/blowfish-test.m4: Fixed testcase, use correct key
+	length. 
+
+	* Makefile.am (libnettle_a_SOURCES): Added blowfish files.
+	($(des_headers)): Strip directory part when passing file name to
+	desdata. 
+
+	* testsuite/blowfish-test.m4: Added one test, from GNUPG.
+
+	* Created blowfish.c and blowfish.h (from GNUPG via LSH). Needs
+	more work.
+
+	* aes.h: Fixed copyright notice to not mention GNU MP. XXX: Review
+	all nettle copyrights.
+
+	* testsuite/Makefile.am (TS_PROGS): Added tests for twofish and
+	blowfish.
+
+2001-06-13  Niels Möller  <nisse@ehand.com>
+
+	* Makefile.am (libnettle_a_SOURCES): Added serpent files.
+
+2001-06-12  Niels Möller  <nisse@cuckoo.hack.org>
+
+	* des.c (des_encrypt, des_decrypt): Assert that the key setup was
+	successful.
+	
+	* testsuite/Makefile.am (TS_PROGS): Added tests for des and sha1. 
+
+	* testsuite/sha1-test.m4: New file.
+
+	* testsuite/des-test.m4: New file.
+
+	* Added SHA1 files.
+
+	* Added desCore files.
+	
+	* Makefile.am: Added desCore and sha1.
+
+2001-04-17  Niels Möller  <nisse@cuckoo.hack.org>
+
+	* install-sh: Copied the standard install script.
+
+	* testsuite/Makefile.am (CFLAGS): Disable optimization. Add
+	$(top_srcdir) to the include path.
+	(EXTRA_DIST): Added testutils.h, testutils.c and run-tests.
+	(run-tests): Fixed path to run-tests.
+
+	* Makefile.am (EXTRA_DIST): Added memxor.h.
+	(libnettleinclude_HEADERS): Install headers in
+	$(libnettleincludedir). 
+
+2001-04-13  Niels Möller  <nisse@cuckoo.hack.org>
+
+	* Initial checkin.
+

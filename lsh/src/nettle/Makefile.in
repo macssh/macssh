@@ -1,0 +1,655 @@
+# Makefile.in generated automatically by automake 1.4 from Makefile.am
+
+# Copyright (C) 1994, 1995-8, 1999 Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+
+SHELL = @SHELL@
+
+srcdir = @srcdir@
+top_srcdir = @top_srcdir@
+VPATH = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
+infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
+
+DESTDIR =
+
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = .
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@ $(AM_INSTALL_PROGRAM_FLAGS)
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+transform = @program_transform_name@
+
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+CC = @CC@
+M4 = @M4@
+MAKEINFO = @MAKEINFO@
+PACKAGE = @PACKAGE@
+RANLIB = @RANLIB@
+VERSION = @VERSION@
+
+SUBDIRS = . testsuite
+
+noinst_PROGRAMS = desdata
+
+libnettleincludedir = $(includedir)/nettle
+
+lib_LIBRARIES = libnettle.a
+libnettleinclude_HEADERS = aes.h arcfour.h des.h md5.h sha1.h
+
+libnettle_a_SOURCES = aes.c aes.h arcfour.c arcfour.h 		      cast128.c cast128.h cast128_sboxes.h 		      blowfish.h blowfish.c 		      des.c des.h desinfo.h desCode.h 		      md5.c md5.h sha1.c sha1.h 		      serpent.c serpent.h serpent_sboxes.h 		      twofish.c twofish.h
+
+
+libnettle_a_LIBADD = @LIBOBJS@
+
+info_TEXINFOS = nettle.texinfo
+
+EXTRA_DIST = macros.h memxor.h $(des_headers) descore.README nettle.html
+
+# desCore rules
+# It seems using $(srcdir)/ doesn't work with GNU make 3.79.1
+# des_headers = $(srcdir)/parity.h $(srcdir)/rotors.h $(srcdir)/keymap.h 
+des_headers = parity.h rotors.h keymap.h 
+ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = config.h
+CONFIG_CLEAN_FILES = 
+LIBRARIES =  $(lib_LIBRARIES)
+
+
+DEFS = @DEFS@ -I. -I$(srcdir) -I.
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+libnettle_a_DEPENDENCIES =  @LIBOBJS@
+libnettle_a_OBJECTS =  aes.o arcfour.o cast128.o blowfish.o des.o md5.o \
+sha1.o serpent.o twofish.o
+AR = ar
+PROGRAMS =  $(noinst_PROGRAMS)
+
+desdata_SOURCES = desdata.c
+desdata_OBJECTS =  desdata.o
+desdata_LDADD = $(LDADD)
+desdata_DEPENDENCIES = 
+desdata_LDFLAGS = 
+CFLAGS = @CFLAGS@
+COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
+TEXI2DVI = texi2dvi
+INFO_DEPS = nettle.info
+DVIS = nettle.dvi
+TEXINFOS = nettle.texinfo
+HEADERS =  $(libnettleinclude_HEADERS)
+
+DIST_COMMON =  README ./stamp-h.in AUTHORS COPYING ChangeLog INSTALL \
+Makefile.am Makefile.in NEWS aclocal.m4 config.h.in configure \
+configure.in install-sh memxor.c missing mkinstalldirs texinfo.tex
+
+
+DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
+
+TAR = tar
+GZIP_ENV = --best
+SOURCES = $(libnettle_a_SOURCES) desdata.c
+OBJECTS = $(libnettle_a_OBJECTS) desdata.o
+
+all: all-redirect
+.SUFFIXES:
+.SUFFIXES: .S .c .dvi .info .o .ps .s .texi .texinfo .txi
+$(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOMAKE) --gnu --include-deps Makefile
+
+Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
+
+$(ACLOCAL_M4):  configure.in 
+	cd $(srcdir) && $(ACLOCAL)
+
+config.status: $(srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
+	$(SHELL) ./config.status --recheck
+$(srcdir)/configure: $(srcdir)/configure.in $(ACLOCAL_M4) $(CONFIGURE_DEPENDENCIES)
+	cd $(srcdir) && $(AUTOCONF)
+
+config.h: stamp-h
+	@if test ! -f $@; then \
+		rm -f stamp-h; \
+		$(MAKE) stamp-h; \
+	else :; fi
+stamp-h: $(srcdir)/config.h.in $(top_builddir)/config.status
+	cd $(top_builddir) \
+	  && CONFIG_FILES= CONFIG_HEADERS=config.h \
+	     $(SHELL) ./config.status
+	@echo timestamp > stamp-h 2> /dev/null
+$(srcdir)/config.h.in: $(srcdir)/stamp-h.in
+	@if test ! -f $@; then \
+		rm -f $(srcdir)/stamp-h.in; \
+		$(MAKE) $(srcdir)/stamp-h.in; \
+	else :; fi
+$(srcdir)/stamp-h.in: $(top_srcdir)/configure.in $(ACLOCAL_M4) 
+	cd $(top_srcdir) && $(AUTOHEADER)
+	@echo timestamp > $(srcdir)/stamp-h.in 2> /dev/null
+
+mostlyclean-hdr:
+
+clean-hdr:
+
+distclean-hdr:
+	-rm -f config.h
+
+maintainer-clean-hdr:
+
+mostlyclean-libLIBRARIES:
+
+clean-libLIBRARIES:
+	-test -z "$(lib_LIBRARIES)" || rm -f $(lib_LIBRARIES)
+
+distclean-libLIBRARIES:
+
+maintainer-clean-libLIBRARIES:
+
+install-libLIBRARIES: $(lib_LIBRARIES)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(libdir)
+	@list='$(lib_LIBRARIES)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    echo " $(INSTALL_DATA) $$p $(DESTDIR)$(libdir)/$$p"; \
+	    $(INSTALL_DATA) $$p $(DESTDIR)$(libdir)/$$p; \
+	  else :; fi; \
+	done
+	@$(POST_INSTALL)
+	@list='$(lib_LIBRARIES)'; for p in $$list; do \
+	  if test -f $$p; then \
+	    echo " $(RANLIB) $(DESTDIR)$(libdir)/$$p"; \
+	    $(RANLIB) $(DESTDIR)$(libdir)/$$p; \
+	  else :; fi; \
+	done
+
+uninstall-libLIBRARIES:
+	@$(NORMAL_UNINSTALL)
+	list='$(lib_LIBRARIES)'; for p in $$list; do \
+	  rm -f $(DESTDIR)$(libdir)/$$p; \
+	done
+
+.c.o:
+	$(COMPILE) -c $<
+
+.s.o:
+	$(COMPILE) -c $<
+
+.S.o:
+	$(COMPILE) -c $<
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+
+clean-compile:
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+libnettle.a: $(libnettle_a_OBJECTS) $(libnettle_a_DEPENDENCIES)
+	-rm -f libnettle.a
+	$(AR) cru libnettle.a $(libnettle_a_OBJECTS) $(libnettle_a_LIBADD)
+	$(RANLIB) libnettle.a
+
+mostlyclean-noinstPROGRAMS:
+
+clean-noinstPROGRAMS:
+	-test -z "$(noinst_PROGRAMS)" || rm -f $(noinst_PROGRAMS)
+
+distclean-noinstPROGRAMS:
+
+maintainer-clean-noinstPROGRAMS:
+
+desdata: $(desdata_OBJECTS) $(desdata_DEPENDENCIES)
+	@rm -f desdata
+	$(LINK) $(desdata_LDFLAGS) $(desdata_OBJECTS) $(desdata_LDADD) $(LIBS)
+
+nettle.info: nettle.texinfo
+nettle.dvi: nettle.texinfo
+
+
+DVIPS = dvips
+
+.texi.info:
+	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	cd $(srcdir) \
+	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+
+.texi.dvi:
+	TEXINPUTS=.:$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+
+.texi:
+	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	cd $(srcdir) \
+	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+
+.texinfo.info:
+	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	cd $(srcdir) \
+	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+
+.texinfo:
+	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	cd $(srcdir) \
+	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+
+.texinfo.dvi:
+	TEXINPUTS=.:$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+
+.txi.info:
+	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	cd $(srcdir) \
+	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+
+.txi.dvi:
+	TEXINPUTS=.:$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+
+.txi:
+	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	cd $(srcdir) \
+	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+.dvi.ps:
+	$(DVIPS) $< -o $@
+
+install-info-am: $(INFO_DEPS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(infodir)
+	@list='$(INFO_DEPS)'; \
+	for file in $$list; do \
+	  d=$(srcdir); \
+	  for ifile in `cd $$d && echo $$file $$file-[0-9] $$file-[0-9][0-9]`; do \
+	    if test -f $$d/$$ifile; then \
+	      echo " $(INSTALL_DATA) $$d/$$ifile $(DESTDIR)$(infodir)/$$ifile"; \
+	      $(INSTALL_DATA) $$d/$$ifile $(DESTDIR)$(infodir)/$$ifile; \
+	    else : ; fi; \
+	  done; \
+	done
+	@$(POST_INSTALL)
+	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+	  list='$(INFO_DEPS)'; \
+	  for file in $$list; do \
+	    echo " install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/$$file";\
+	    install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/$$file || :;\
+	  done; \
+	else : ; fi
+
+uninstall-info:
+	$(PRE_UNINSTALL)
+	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+	  ii=yes; \
+	else ii=; fi; \
+	list='$(INFO_DEPS)'; \
+	for file in $$list; do \
+	  test -z "$ii" \
+	    || install-info --info-dir=$(DESTDIR)$(infodir) --remove $$file; \
+	done
+	@$(NORMAL_UNINSTALL)
+	list='$(INFO_DEPS)'; \
+	for file in $$list; do \
+	  (cd $(DESTDIR)$(infodir) && rm -f $$file $$file-[0-9] $$file-[0-9][0-9]); \
+	done
+
+dist-info: $(INFO_DEPS)
+	list='$(INFO_DEPS)'; \
+	for base in $$list; do \
+	  d=$(srcdir); \
+	  for file in `cd $$d && eval echo $$base*`; do \
+	    test -f $(distdir)/$$file \
+	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	    || cp -p $$d/$$file $(distdir)/$$file; \
+	  done; \
+	done
+
+mostlyclean-aminfo:
+	-rm -f nettle.aux nettle.cp nettle.cps nettle.dvi nettle.fn nettle.fns \
+	  nettle.ky nettle.kys nettle.ps nettle.log nettle.pg \
+	  nettle.toc nettle.tp nettle.tps nettle.vr nettle.vrs \
+	  nettle.op nettle.tr nettle.cv nettle.cn
+
+clean-aminfo:
+
+distclean-aminfo:
+
+maintainer-clean-aminfo:
+	cd $(srcdir) && for i in $(INFO_DEPS); do \
+	  rm -f $$i; \
+	  if test "`echo $$i-[0-9]*`" != "$$i-[0-9]*"; then \
+	    rm -f $$i-[0-9]*; \
+	  fi; \
+	done
+
+install-libnettleincludeHEADERS: $(libnettleinclude_HEADERS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(libnettleincludedir)
+	@list='$(libnettleinclude_HEADERS)'; for p in $$list; do \
+	  if test -f "$$p"; then d= ; else d="$(srcdir)/"; fi; \
+	  echo " $(INSTALL_DATA) $$d$$p $(DESTDIR)$(libnettleincludedir)/$$p"; \
+	  $(INSTALL_DATA) $$d$$p $(DESTDIR)$(libnettleincludedir)/$$p; \
+	done
+
+uninstall-libnettleincludeHEADERS:
+	@$(NORMAL_UNINSTALL)
+	list='$(libnettleinclude_HEADERS)'; for p in $$list; do \
+	  rm -f $(DESTDIR)$(libnettleincludedir)/$$p; \
+	done
+
+# This directory's subdirectories are mostly independent; you can cd
+# into them and run `make' without going through this Makefile.
+# To change the values of `make' variables: instead of editing Makefiles,
+# (1) if the variable is set in `config.status', edit `config.status'
+#     (which will cause the Makefiles to be regenerated when you run `make');
+# (2) otherwise, pass the desired values on the `make' command line.
+
+@SET_MAKE@
+
+all-recursive install-data-recursive install-exec-recursive \
+installdirs-recursive install-recursive uninstall-recursive  \
+check-recursive installcheck-recursive info-recursive dvi-recursive:
+	@set fnord $(MAKEFLAGS); amf=$$2; \
+	dot_seen=no; \
+	target=`echo $@ | sed s/-recursive//`; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  echo "Making $$target in $$subdir"; \
+	  if test "$$subdir" = "."; then \
+	    dot_seen=yes; \
+	    local_target="$$target-am"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
+	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
+	done; \
+	if test "$$dot_seen" = "no"; then \
+	  $(MAKE) $(AM_MAKEFLAGS) "$$target-am" || exit 1; \
+	fi; test -z "$$fail"
+
+mostlyclean-recursive clean-recursive distclean-recursive \
+maintainer-clean-recursive:
+	@set fnord $(MAKEFLAGS); amf=$$2; \
+	dot_seen=no; \
+	rev=''; list='$(SUBDIRS)'; for subdir in $$list; do \
+	  rev="$$subdir $$rev"; \
+	  test "$$subdir" = "." && dot_seen=yes; \
+	done; \
+	test "$$dot_seen" = "no" && rev=". $$rev"; \
+	target=`echo $@ | sed s/-recursive//`; \
+	for subdir in $$rev; do \
+	  echo "Making $$target in $$subdir"; \
+	  if test "$$subdir" = "."; then \
+	    local_target="$$target-am"; \
+	  else \
+	    local_target="$$target"; \
+	  fi; \
+	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
+	   || case "$$amf" in *=*) exit 1;; *k*) fail=yes;; *) exit 1;; esac; \
+	done && test -z "$$fail"
+tags-recursive:
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+	  test "$$subdir" = . || (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) tags); \
+	done
+
+tags: TAGS
+
+ID: $(HEADERS) $(SOURCES) $(LISP)
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	here=`pwd` && cd $(srcdir) \
+	  && mkid -f$$here/ID $$unique $(LISP)
+
+TAGS: tags-recursive $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) $(LISP)
+	tags=; \
+	here=`pwd`; \
+	list='$(SUBDIRS)'; for subdir in $$list; do \
+   if test "$$subdir" = .; then :; else \
+	    test -f $$subdir/TAGS && tags="$$tags -i $$here/$$subdir/TAGS"; \
+   fi; \
+	done; \
+	list='$(SOURCES) $(HEADERS)'; \
+	unique=`for i in $$list; do echo $$i; done | \
+	  awk '    { files[$$0] = 1; } \
+	       END { for (i in files) print i; }'`; \
+	test -z "$(ETAGS_ARGS)config.h.in$$unique$(LISP)$$tags" \
+	  || (cd $(srcdir) && etags $(ETAGS_ARGS) $$tags config.h.in $$unique $(LISP) -o $$here/TAGS)
+
+mostlyclean-tags:
+
+clean-tags:
+
+distclean-tags:
+	-rm -f TAGS ID
+
+maintainer-clean-tags:
+
+distdir = $(PACKAGE)-$(VERSION)
+top_distdir = $(distdir)
+
+# This target untars the dist file and tries a VPATH configuration.  Then
+# it guarantees that the distribution is self-contained by making another
+# tarfile.
+distcheck: dist
+	-rm -rf $(distdir)
+	GZIP=$(GZIP_ENV) $(TAR) zxf $(distdir).tar.gz
+	mkdir $(distdir)/=build
+	mkdir $(distdir)/=inst
+	dc_install_base=`cd $(distdir)/=inst && pwd`; \
+	cd $(distdir)/=build \
+	  && ../configure --srcdir=.. --prefix=$$dc_install_base \
+	  && $(MAKE) $(AM_MAKEFLAGS) \
+	  && $(MAKE) $(AM_MAKEFLAGS) dvi \
+	  && $(MAKE) $(AM_MAKEFLAGS) check \
+	  && $(MAKE) $(AM_MAKEFLAGS) install \
+	  && $(MAKE) $(AM_MAKEFLAGS) installcheck \
+	  && $(MAKE) $(AM_MAKEFLAGS) dist
+	-rm -rf $(distdir)
+	@banner="$(distdir).tar.gz is ready for distribution"; \
+	dashes=`echo "$$banner" | sed s/./=/g`; \
+	echo "$$dashes"; \
+	echo "$$banner"; \
+	echo "$$dashes"
+dist: distdir
+	-chmod -R a+r $(distdir)
+	GZIP=$(GZIP_ENV) $(TAR) chozf $(distdir).tar.gz $(distdir)
+	-rm -rf $(distdir)
+dist-all: distdir
+	-chmod -R a+r $(distdir)
+	GZIP=$(GZIP_ENV) $(TAR) chozf $(distdir).tar.gz $(distdir)
+	-rm -rf $(distdir)
+distdir: $(DISTFILES)
+	-rm -rf $(distdir)
+	mkdir $(distdir)
+	-chmod 777 $(distdir)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pr $$d/$$file $(distdir)/$$file; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || ln $$d/$$file $(distdir)/$$file 2> /dev/null \
+	    || cp -p $$d/$$file $(distdir)/$$file || :; \
+	  fi; \
+	done
+	for subdir in $(SUBDIRS); do \
+	  if test "$$subdir" = .; then :; else \
+	    test -d $(distdir)/$$subdir \
+	    || mkdir $(distdir)/$$subdir \
+	    || exit 1; \
+	    chmod 777 $(distdir)/$$subdir; \
+	    (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) top_distdir=../$(distdir) distdir=../$(distdir)/$$subdir distdir) \
+	      || exit 1; \
+	  fi; \
+	done
+	$(MAKE) $(AM_MAKEFLAGS) top_distdir="$(top_distdir)" distdir="$(distdir)" dist-info
+aes.o: aes.c aes.h
+arcfour.o: arcfour.c arcfour.h
+blowfish.o: blowfish.c blowfish.h macros.h
+cast128.o: cast128.c cast128.h cast128_sboxes.h macros.h
+des.o: des.c des.h desCode.h keymap.h rotors.h parity.h
+desdata.o: desdata.c desinfo.h desCode.h des.h
+md5.o: md5.c md5.h macros.h
+memxor.o: memxor.c memxor.h
+serpent.o: serpent.c serpent.h serpent_sboxes.h macros.h
+sha1.o: sha1.c sha1.h macros.h
+twofish.o: twofish.c twofish.h macros.h
+
+info-am: $(INFO_DEPS)
+info: info-recursive
+dvi-am: $(DVIS)
+dvi: dvi-recursive
+check-am: all-am
+check: check-recursive
+installcheck-am:
+installcheck: installcheck-recursive
+all-recursive-am: config.h
+	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+
+install-exec-am: install-libLIBRARIES
+install-exec: install-exec-recursive
+
+install-data-am: install-info-am install-libnettleincludeHEADERS
+install-data: install-data-recursive
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+install: install-recursive
+uninstall-am: uninstall-libLIBRARIES uninstall-info \
+		uninstall-libnettleincludeHEADERS
+uninstall: uninstall-recursive
+all-am: Makefile $(INFO_DEPS) $(LIBRARIES) $(PROGRAMS) $(HEADERS) \
+		config.h all-local
+all-redirect: all-recursive-am
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) AM_INSTALL_PROGRAM_FLAGS=-s install
+installdirs: installdirs-recursive
+installdirs-am:
+	$(mkinstalldirs)  $(DESTDIR)$(libdir) $(DESTDIR)$(infodir) \
+		$(DESTDIR)$(libnettleincludedir)
+
+
+mostlyclean-generic:
+
+clean-generic:
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+
+maintainer-clean-generic:
+mostlyclean-am:  mostlyclean-hdr mostlyclean-libLIBRARIES \
+		mostlyclean-compile mostlyclean-noinstPROGRAMS \
+		mostlyclean-aminfo mostlyclean-tags mostlyclean-generic
+
+mostlyclean: mostlyclean-recursive
+
+clean-am:  clean-hdr clean-libLIBRARIES clean-compile \
+		clean-noinstPROGRAMS clean-aminfo clean-tags \
+		clean-generic mostlyclean-am
+
+clean: clean-recursive
+
+distclean-am:  distclean-hdr distclean-libLIBRARIES distclean-compile \
+		distclean-noinstPROGRAMS distclean-aminfo \
+		distclean-tags distclean-generic clean-am
+
+distclean: distclean-recursive
+	-rm -f config.status
+
+maintainer-clean-am:  maintainer-clean-hdr maintainer-clean-libLIBRARIES \
+		maintainer-clean-compile \
+		maintainer-clean-noinstPROGRAMS maintainer-clean-aminfo \
+		maintainer-clean-tags maintainer-clean-generic \
+		distclean-am
+	@echo "This command is intended for maintainers to use;"
+	@echo "it deletes files that may require special tools to rebuild."
+
+maintainer-clean: maintainer-clean-recursive
+	-rm -f config.status
+
+.PHONY: mostlyclean-hdr distclean-hdr clean-hdr maintainer-clean-hdr \
+mostlyclean-libLIBRARIES distclean-libLIBRARIES clean-libLIBRARIES \
+maintainer-clean-libLIBRARIES uninstall-libLIBRARIES \
+install-libLIBRARIES mostlyclean-compile distclean-compile \
+clean-compile maintainer-clean-compile mostlyclean-noinstPROGRAMS \
+distclean-noinstPROGRAMS clean-noinstPROGRAMS \
+maintainer-clean-noinstPROGRAMS install-info-am uninstall-info \
+mostlyclean-aminfo distclean-aminfo clean-aminfo \
+maintainer-clean-aminfo uninstall-libnettleincludeHEADERS \
+install-libnettleincludeHEADERS install-data-recursive \
+uninstall-data-recursive install-exec-recursive \
+uninstall-exec-recursive installdirs-recursive uninstalldirs-recursive \
+all-recursive check-recursive installcheck-recursive info-recursive \
+dvi-recursive mostlyclean-recursive distclean-recursive clean-recursive \
+maintainer-clean-recursive tags tags-recursive mostlyclean-tags \
+distclean-tags clean-tags maintainer-clean-tags distdir info-am info \
+dvi-am dvi check check-am installcheck-am installcheck all-recursive-am \
+install-exec-am install-exec install-data-am install-data install-am \
+install uninstall-am uninstall all-local all-redirect all-am all \
+installdirs-am installdirs mostlyclean-generic distclean-generic \
+clean-generic maintainer-clean-generic clean mostlyclean distclean \
+maintainer-clean
+
+
+all-local: nettle.html
+
+# BUILT_SOURCE = $(des_headers)
+
+%.html : %.texinfo
+	(cd $(srcdir) \
+	 && $(MAKEINFO) --html --no-split --output $@T $(<F) \
+	 ; test -s $@T && mv -f $@T $@)
+
+# Generate DES headers.
+$(des_headers): desdata
+	./desdata $(@F) > $@T
+	test -s $@T && mv -f $@T $@
+
+des.o: des.c des.h $(des_headers)
+
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:
