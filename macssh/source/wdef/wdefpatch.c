@@ -22,7 +22,7 @@
 #include "wdefpatch.proto.h"
 #include "tnae.h"
 
-static void drawicon(short id, Rect *dest);
+void drawicon(short id, Rect *dest);
 
 /* 931112, ragge, NADA, KTH */
 static void drawSize(Rect *wSize, WindowPtr window);
@@ -200,9 +200,6 @@ pascal long MyWDEFPatch (short varCode, WindowPtr window, short message, long pa
  								drawicon(rightcrsr, &ourElementRect);
  							else if (ae->decrypting)
  								drawicon(leftcrsr, &ourElementRect);
- 						} else if (tw->protocol == 4) {
- 							/* ssh */
- 							drawicon(sshcrsr, &ourElementRect);
  						}
 						break;
 						
