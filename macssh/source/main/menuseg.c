@@ -1917,6 +1917,7 @@ void	CheckNational(short choice)
 
 static void adjustwindowcommands()
 {
+/*
 	int i;
 	int count = CountMenuItems(myMenus[Conn]);
 	if (count > FIRST_CNXN_ITEM + 8 )
@@ -1925,6 +1926,7 @@ static void adjustwindowcommands()
 		//SetItemCommand( myMenus[Conn], i, mark);
 		SetItemCmd( myMenus[Conn], i, '1' + i - FIRST_CNXN_ITEM );
 	}
+*/
 }
 
 /*
