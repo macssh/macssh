@@ -317,11 +317,14 @@ typedef	struct {
 
 	Boolean
 		UserCanCWD;				// User is allowed to change directories
+	Boolean
+		usused1;				// User is allowed to change directories
 		
 	short
 		padding[20];			// Some padding for the future
-}	FTPUser;
-#define	FTPUSER					'FTPu'
+}	FTPUserPrefs;
+#define	FTPUSERPREFS_RESTYPE	'FTPu'
+#define FTPUSERPREFS_APPID		1991		// The "<Default>" session seed copy
 
 // >>>> FTP Client Prefs? <<<	
 
