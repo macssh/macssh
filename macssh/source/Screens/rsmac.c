@@ -867,8 +867,7 @@ void RSdellines
 
 
 // attempt to keep current selection
-#if 0
-	if (scrolled)
+	if (scrolled && !RScurrent->keepselection)
 	  {
 		if (RScurrent->selected /*&& scrolled < 0*/)
 		  {
@@ -882,7 +881,6 @@ void RSdellines
 		  } /* if */
 //
 	  } /* if */
-#endif
 
 	if ( RScurrent->selected && scrolled ) {
 		RScurrent->anchor.v += scrolled;
@@ -977,13 +975,12 @@ void RSinslines
 	RSsetattr(0, 0);
 
 // attempt to keep current selection
-#if 0
-	if (RScurrent->selected != 0 && (scrolled < 0))
+	if (RScurrent->selected != 0 && (scrolled < 0) && !RScurrent->keepselection)
 	  {
 	  /* unhighlight and cancel selection */
 	  	UnHiliteSelection(w);
 	  } /* if */
-#endif
+
 	if ( RScurrent->selected && scrolled ) {
 		RScurrent->anchor.v += scrolled;
 		RScurrent->last.v += scrolled;

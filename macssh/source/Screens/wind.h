@@ -271,7 +271,8 @@ TECObjectRef
 Boolean
 	launchurlesc,	// true if we accept to process 'launchurl' escape sequences
 	x11forward,
-	autoreconnect;
+	autoreconnect,
+	keepselection;
 /* NONO */
 
 };

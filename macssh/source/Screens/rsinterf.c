@@ -757,6 +757,7 @@ short RSnewwindow
 	RScurrent->allowBold = flags & RSWallowBold;
 	RScurrent->colorBold = flags & RSWcolorBold;
 	RScurrent->realbold = flags & RSWrealbold;
+	RScurrent->keepselection = flags & RSWKeepSelection;
 	RSTextFont(fnum,fsiz,0);	/* BYU */
 	TextSize(fsiz);
 	RSfontmetrics();
