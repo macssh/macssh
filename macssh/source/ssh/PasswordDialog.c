@@ -413,7 +413,6 @@ static short SSH2SOCDialog(char *fingerprint, int id)
 	SetUpMovableModalMenus();
 	dlog = GetNewMyDialog(id, 0L, (WindowPtr)-1L, NULL);
 	if ( dlog ) {
-
 		SInt16 itemType;
 		Handle itemHandle;
 		Rect itemRect;
@@ -423,14 +422,20 @@ static short SSH2SOCDialog(char *fingerprint, int id)
 		pString[0] = strlen(fingerprint);
 		BlockMoveData(fingerprint, pString+1, pString[0]);
 		SetDialogItemText(itemHandle, pString);
-		SetDialogDefaultItem(dlog, 1);
-		SetDialogCancelItem(dlog, 2);
-
+		if ( id == rSSH2SOC1Dialog ) {
+			SetDialogDefaultItem(dlog, 1);	/* accept & save */
+			//SetDialogCancelItem(dlog, 2);	/* accept once */
+			SetDialogCancelItem(dlog, 3);	/* cancel */
+		} else {
+			/* host key changed: cancel is default */
+			SetDialogDefaultItem(dlog, 3);	/* cancel */
+			SetDialogCancelItem(dlog, 3);	/* cancel */
+		}
 		SetDialogTracksCursor(dlog, 1);
 		ShowWindow(dlog);
 		do {
 			movableModalDialog(NULL, &item);
-		} while (item != 1 && item != 2 && item != 3);	// Until the OK button is hit
+		} while (item != 1 && item != 2 && item != 3);	// Until button is hit
 		DisposeDialog(dlog);
 	}
 	ResetMenus();
