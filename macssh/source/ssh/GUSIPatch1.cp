@@ -324,9 +324,18 @@ inline uint32_t CompleteMask(OTEventCode code)
 	return 1 << (code & 0x1F); 
 }
 
+// I do that cause I'm using my hacked GUSI for recent Universal Headers : GUSI
+// is not yet ready to compile for this target. (alexp)
+#if UNIVERSAL_INTERFACES_VERSION >= 0x0334
+pascal void GUSIOTNetDBNotify(
+	void *contextPtr, OTEventCode code, OTResult result, void *cookie)
+{
+	GUSIOTNetDB * netdb = static_cast<GUSIOTNetDB *>(contextPtr);
+#else
 pascal void GUSIOTNetDBNotify(
 	GUSIOTNetDB * netdb, OTEventCode code, OTResult result, void *cookie)
 {
+#endif
 	GUSI_MESSAGE(("GUSIOTNetDBNotify %08x %d\n", code, result));
 	GUSIContext *	context = netdb->fCreationContext;
 	
