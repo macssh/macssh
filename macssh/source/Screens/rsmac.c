@@ -119,6 +119,7 @@ extern WindRec *screens;
 #include <CodeFragments.h>
 
 short MaxRS;
+short gNCSAFontID;
 
 RSdata *RSlocal, *RScurrent;
 Rect	noConst;
@@ -165,6 +166,8 @@ void RSinitall(short max) //max windows to allow
 		gHasSetWindowContentColor = (FindSymbol( connID, "\pSetWindowContentColor", NULL, NULL ) == noErr);
 	}
 #endif
+	GetFNum("\p%NCSA VT", &gNCSAFontID);
+
 } // RSinitall
 
 void RSsetConst
@@ -308,18 +311,18 @@ void RSsetattr(short a)
 	RSa = a;				
 
 	if (VSisgrph(a)) {
-		GetFNum("\p%NCSA VT", &tempFontID); // RAB BetterTelnet 1.0fc4
-        TextFont(tempFontID); /* use "NCSA VT" (74) font for special graphics */
-    }
-	else
+		//GetFNum("\p%NCSA VT", &tempFontID); // RAB BetterTelnet 1.0fc4
+        //TextFont(tempFontID); /* use "NCSA VT" (74) font for special graphics */
+        TextFont(gNCSAFontID);
+    } else {
 		RSTextFont(RScurrent->fnum,RScurrent->fsiz,VSisbold(a) && RScurrent->allowBold); 	/* BYU - use user-selected text font */
-
+	}
 	TextSize(RScurrent->fsiz);
 
 	face = VSisundl(a) ? underline : 0;
 	if ( VSisbold(a) && RScurrent->allowBold && RScurrent->realbold ) {
 		face += bold;
-		if (RScurrent->boldislarger) {
+		if (RScurrent->boldislarger || VSisgrph(a)) {
 			face += condense;
 		}
 	}
@@ -543,6 +546,7 @@ void RSdraw
   {
     Rect rect;
 	short ys;
+	RgnHandle oldClip;
 
 	if (RSlocal[w].skip)
 		return;
@@ -578,6 +582,16 @@ void RSdraw
 
 	MoveTo(x * RScurrent->fwidth, ys + RScurrent->fascent);
 
+	oldClip = NewRgn();
+	GetClip(oldClip);
+	ClipRect(&rect);
+
+   	DrawText(ptr, 0, len);
+
+	SetClip(oldClip);
+	DisposeRgn(oldClip);
+
+/*
 	if ( rect.bottom < RScurrent->height || !VSisundl(a) ) {
    		DrawText(ptr, 0, len);
    	} else {
@@ -585,6 +599,7 @@ void RSdraw
 		TETextBox(ptr, len, &rect, teJustLeft);
 		--rect.right;
 	}
+*/
 
 	if (RScurrent->selected) {
 		RSinvText(w, *(Point *) &RScurrent->anchor,
@@ -886,6 +901,7 @@ void RSinsstring
 	inserted text lying within the current selection. */
 {
     Rect rect;
+    RgnHandle oldClip;
 
 	if (RSlocal[w].skip)
 		return;
@@ -911,6 +927,17 @@ void RSinsstring
 		rect.top + RScurrent->fascent
 	  );
 	RSsetattr(a);
+
+	oldClip = NewRgn();
+	GetClip(oldClip);
+	ClipRect(&rect);
+
+   	DrawText(ptr, 0, len);
+
+	SetClip(oldClip);
+	DisposeRgn(oldClip);
+
+/*
 	if ( rect.bottom < RScurrent->height || !VSisundl(a) ) {
    		DrawText(ptr, 0, len);
    	} else {
@@ -918,6 +945,7 @@ void RSinsstring
 		TETextBox(ptr, len, &rect, teJustLeft);
 		--rect.right;
 	}
+*/
 	if (RScurrent->selected)
 		/* highlight any part of selection covering the newly-inserted text */
 		RSinvText(w, *(Point *) &RScurrent->anchor,

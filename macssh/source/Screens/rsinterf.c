@@ -646,6 +646,8 @@ short RSnewwindow
 	WindowPeek	wpeek;
 	CTabHandle	ourColorTableHdl;
 	int			i;
+	WindowPeek	front;
+	WindowPtr	behind;
 
   /* create the virtual screen */
 	w = VSnewscreen(scrollback, (scrollback != 0), /* NCSA 2.5 */
@@ -684,9 +686,17 @@ short RSnewwindow
 	if (!RectInRgn(wDims,TelInfo->greyRegion)) //window would be offscreen
 		calculateWindowPosition(&screens[screenNumber],wDims,lines,width);
 
+	/* leave dialogs in front */
+	behind = kInFront;
+	front = (WindowPeek)LMGetWindowList();
+	while ( front && (!front->visible || RSfindvwind((WindowPtr)front) < 0) ) {
+		behind = (WindowPtr)front;
+		front = front->nextWindow;
+	}
+
   /* create the window */
 	if (!TelInfo->haveColorQuickDraw) {
-		RScurrent->window = NewWindow(0L, wDims, name, showit, 8,kInFront, goaway, (long)w);
+		RScurrent->window = NewWindow(0L, wDims, name, showit, 8,behind, goaway, (long)w);
 		RScurrent->pal = NULL;
 		if (RScurrent->window == NULL) {
 			VSdestroy(w);
@@ -695,7 +705,7 @@ short RSnewwindow
 	} else {
 		RGBColor scratchRGB;
 		
-		RScurrent->window = NewCWindow(0L, wDims, name, showit, (short)8,kInFront, goaway, (long)w);
+		RScurrent->window = NewCWindow(0L, wDims, name, showit, 8,behind, goaway, (long)w);
 		if (RScurrent->window == NULL) {
 			VSdestroy(w);
 			return(-2);
@@ -1538,9 +1548,14 @@ void RSchangefont(short w, short fnum,long fsiz)
 	  {
 		TextSize(fsiz);
 		RScurrent->fsiz = fsiz;
+/* NONO */
+		/* adjust bold size too */
+		RScurrent->bfsiz = fsiz;
+/* NONO */
 	  } /* if */
 	
 	RSfontmetrics();
+
 
 	width = VSmaxwidth(w) + 1;
 	lines = VSgetlines(w);
