@@ -175,9 +175,9 @@ void printPages(TPPrPort prPort, THPrint PrRecHandle, Str255 Title, short column
 	OSErr	sts;
 	long	dummyCount;
 	char	tmp[100];			/* only for debugging */
-	char	stupidarray[160];	/* used in menuseg for finding string widths */
+	char	stupidarray[256];	/* used in menuseg for finding string widths */
 
-	for (v=0; v<150; v++) stupidarray[v]='W';	/* Set up the width array */
+	for (v=0; v<256; v++) stupidarray[v]='W';	/* Set up the width array */
 
 	indent = ((*PrRecHandle)->prInfo.iHRes * 180)/254;	/* 1.8 centimeters left margin */
 	if (-PAPRECT.left > indent)
@@ -252,22 +252,36 @@ void printPages(TPPrPort prPort, THPrint PrRecHandle, Str255 Title, short column
 			lines++;					/* one blank line after title line */
 		}
 
-		if (charh!=NULL) {									/* print from handle */
-			while (lines <= maxlines && count<charlen) {
-				scount=0;
-				while ((count<charlen) && (*charp++!='\r')) { count++; scount++; }
-				MoveTo(indent,lines++*pFheight);
-				if (scount>0)
-					DrawText(start, 0, scount);
-				count++;
-				start=charp;
+		if ( charh != NULL ) {									/* print from handle */
+			while ( lines <= maxlines && count < charlen ) {
+				scount = 0;
+				while ( count < charlen ) {
+					if ( scount > columns ) {
+						// eat next char if CR
+						if (*charp == '\r') {
+							++charp;
+							++count;
+						}
+						break;
+					}
+					++count;
+					if ( *charp++ == '\r' ) {
+						break;
+					}
+					++scount;
+				}
+				MoveTo( indent, lines++ * pFheight );
+				if ( scount > 0 ) {
+					DrawText( start, 0, scount );
+				}
+				start = charp;
 			}
 		} else {											/* print from file */
 			while (lines <= maxlines && count<charlen) {
 				rdy = 0;
 				scount = 0;
-				while ((count<charlen) && (!rdy)) {
-					if (scount > 250)
+				while ( count < charlen && !rdy ) {
+					if ( scount > 250 || scount > columns )
 						nextchar = ascLF;
 					switch (nextchar) {
 						case ascCR:
@@ -280,25 +294,27 @@ void printPages(TPPrPort prPort, THPrint PrRecHandle, Str255 Title, short column
 							rdy=1;
 							break;
 						default:
-							buf[scount++]=nextchar;
+							buf[scount++] = nextchar;
 							count++;
-							dummyCount=1;
-							if ((sts=FSRead (refNum,&dummyCount,&nextchar)) != noErr)
-								{ sprintf(tmp,"FSRead: ERROR %d",sts); putln(tmp); }
+							dummyCount = 1;
+							if ((sts = FSRead (refNum,&dummyCount,&nextchar)) != noErr) {
+								sprintf(tmp,"FSRead: ERROR %d",sts);
+								putln(tmp);
+							}
 							break;
 					}
 				}
-				MoveTo(indent,lines*pFheight);
-				if (scount>0)
+				MoveTo(indent, lines * pFheight);
+				if (scount > 0)
 					DrawText(start, 0, scount);
-				if (nextchar==ascLF)
+				if ( nextchar == ascLF )
 					lines++;						/* LF -> new line */
-				if (nextchar==ascFF)
+				if ( nextchar == ascFF )
 					if (screens[theScreen].ignoreff) // RAB BetterTelnet 1.0fc8
 						lines++;
 					else
 						lines = maxlines+1;				/* FF -> new page */
-				dummyCount=1;
+				dummyCount = 1;
 				if ((sts=FSRead (refNum,&dummyCount,&nextchar)) != noErr)
 					{ sprintf(tmp,"FSRead: ERROR %d",sts); putln(tmp); }
 				count++;
@@ -311,46 +327,76 @@ void printPages(TPPrPort prPort, THPrint PrRecHandle, Str255 Title, short column
 		HUnlock(charh);
 }
 
-
-
 /*	printText -	Print the text selected on the screen 
  *		vs - which vs to print from */
 void printText
   (
-	short vs,				/* Which screen to print */
+	short vs,			/* screen to use for window size */
+	Handle charh,		/* text to display */
 	Str255 Title,		/* The title string */
-  	short scrn
+  	short scrn			/* screen to use for fonts etc... */
   )
 {
-	char		**charh;		/* The character handle */
 	TPrStatus	prStatus;		/* Status record */
 	TPPrPort	prPort;			/* the Printer port */
 	THPrint		PrRecHandle;	/* our print record handle */
-
-
-	charh = RSGetTextSel(vs,0);				/* Get the characters to print */
-
-	if ( charh==0L)
-		return;								/* don't print anything.... */
 
 	PrRecHandle = PrintSetupRecord();
 
 	setLastCursor(theCursors[normcurs]);
 	
 	if (PrJobDialog(PrRecHandle)) {			/* Cancel the print if FALSE */
-		prPort=PrOpenDoc(PrRecHandle,0L,0L);
-			if (PrError() == 0)	{
-				printPages( prPort, PrRecHandle, Title, VSmaxwidth(vs), charh, (short) -1, TRUE,scrn);
-				}
-			PrCloseDoc(prPort);
-
-		if (((*PrRecHandle)->prJob.bJDocLoop == bSpoolLoop) && (PrError()==0))
-			PrPicFile(PrRecHandle,0L,0L,0L,&prStatus); /* Spool the print */
+		prPort = PrOpenDoc(PrRecHandle, 0L, 0L);
+		if (PrError() == 0)	{
+			printPages( prPort, PrRecHandle, Title, VSmaxwidth(vs), charh, (short) -1, TRUE, scrn);
 		}
-	HPurge(charh);							/* Kill the printed chars */
+		if ( prPort ) {
+			PrCloseDoc(prPort);
+			if (((*PrRecHandle)->prJob.bJDocLoop == bSpoolLoop) && (PrError()==0))
+				PrPicFile(PrRecHandle,0L,0L,0L,&prStatus); /* Spool the print */
+		}
+	}
 	updateCursor(1);
 	DisposeHandle((Handle)PrRecHandle);
 }
+
+
+/*	printScreen -	Print the current screen */
+void printScreen
+  (
+	short vs,			/* Which screen to print */
+	Str255 Title,		/* The title string */
+  	short scrn
+  )
+{
+	char **charh;
+
+	charh = RSGetTextScreen(vs, 0, 0); /* Get the characters to print, including spaces */
+	if ( charh ) {
+		printText(vs, charh, Title, scrn);
+		DisposeHandle(charh);
+	}
+}
+
+
+/*	printText -	Print the text selected on the screen 
+ *		vs - which vs to print from */
+void printSel
+  (
+	short vs,			/* Which screen to print */
+	Str255 Title,		/* The title string */
+  	short scrn
+  )
+{
+	char		**charh;
+
+	charh = RSGetTextSel(vs, 0, 0);	/* Get the characters to print, including spaces */
+	if ( charh ) {
+		printText(vs, charh, Title, scrn);
+		DisposeHandle(charh);
+	}
+}
+
 
 void PrintPageSetup(void)
 {
@@ -377,6 +423,25 @@ void PrintPageSetup(void)
 	PrClose();
 }
 
+void PrintScreen(void)
+{
+		short	i;
+
+		PrOpen();
+			
+		i=RGgetdnum(FrontWindow());
+		if (i>-1) 		
+			printGraph( i);						/* Print Graphics */
+		else 
+			if ( (i=RSfindvwind(FrontWindow())) >-1 ) {
+				Str255 Title;
+
+				GetWTitle( FrontWindow(), Title);
+				printScreen(i, Title,scrn);	/* Print Text selection */
+				}
+		PrClose();
+}
+
 void PrintSelection(void)
 {
 		short	i;
@@ -391,7 +456,7 @@ void PrintSelection(void)
 				Str255 Title;
 
 				GetWTitle( FrontWindow(), Title);
-				printText(i, Title,scrn);	/* Print Text selection */
+				printSel(i, Title,scrn);	/* Print Text selection */
 				}
 		PrClose();
 }
