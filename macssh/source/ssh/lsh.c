@@ -448,13 +448,14 @@ do_lsh_lookup(struct lookup_verifier *c,
     }
   else
     {
+      struct sexp *acl;
       verbose("SPKI authorization failed.\n");
       if (!self->sloppy)
 	{
 	  werror("lsh: Server's hostkey is not trusted. Disconnecting.\n");
 	  return NULL;
 	}
-      
+
       /* Ok, let's see if we want to use this untrusted key. */
 #if MACOS
       if (!quiet_flag)
@@ -500,21 +501,25 @@ do_lsh_lookup(struct lookup_verifier *c,
 
 	  if ( soc == 3 )
 	    return NULL;
+
+      acl = sexp_l(2, sexp_a(ATOM_ACL),
+                  sexp_l(3, sexp_a(ATOM_ENTRY),
+                         subject->key,
+                         sexp_l(2, sexp_a(ATOM_TAG),
+                                self->access,
+                                -1),
+                         -1),
+                  -1);
+
+      /* Remember this key. We don't want to ask again for key re-exchange */
+      spki_add_acl(self->db, acl);
+
 	  if ( soc == 1 ) {
 	    /* Write an ACL to disk. */
 	    if (self->file)
 	      {
 		A_WRITE(self->file, ssh_format("\n; ACL for host %lS\n", self->host->ip));
-		A_WRITE(self->file,
-			sexp_format(sexp_l(2, sexp_a(ATOM_ACL),
-					   sexp_l(3, sexp_a(ATOM_ENTRY),
-						  subject->key,
-						  sexp_l(2, sexp_a(ATOM_TAG),
-							 self->access,
-							 -1),
-						  -1),
-					   -1),
-				    SEXP_TRANSPORT, 0));
+		A_WRITE(self->file, sexp_format(acl, SEXP_TRANSPORT, 0));
 		A_WRITE(self->file, ssh_format("\n"));
 	      }
 	  }
@@ -538,20 +543,24 @@ do_lsh_lookup(struct lookup_verifier *c,
 	    return NULL;
 	}
       
+      acl = sexp_l(2, sexp_a(ATOM_ACL),
+                  sexp_l(3, sexp_a(ATOM_ENTRY),
+                         subject->key,
+                         sexp_l(2, sexp_a(ATOM_TAG),
+                                self->access,
+                                -1),
+                         -1),
+                  -1);
+
+      /* Remember this key. We don't want to ask again for key re-exchange */
+      spki_add_acl(self->db, acl);
+
       /* Write an ACL to disk. */
       if (self->file)
 	{
 	  A_WRITE(self->file, ssh_format("\n; ACL for host %lS\n", self->host->ip));
 	  A_WRITE(self->file,
-		  sexp_format(sexp_l(2, sexp_a(ATOM_ACL),
-				     sexp_l(3, sexp_a(ATOM_ENTRY),
-					    subject->key,
-					    sexp_l(2, sexp_a(ATOM_TAG),
-						   self->access,
-						   -1),
-					    -1),
-				     -1),
-			      SEXP_TRANSPORT, 0));
+		  sexp_format(acl, SEXP_TRANSPORT, 0));
 	  A_WRITE(self->file, ssh_format("\n"));
 	}
 #endif
