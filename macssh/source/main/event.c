@@ -383,7 +383,7 @@ Boolean CheckPageKeys(short code)											/* NCSA: SB */
 
 
 /*  translatekey --
-		returns ascii code for input code, using only the shift modifier.	*/	
+		returns ascii code for input code, using the input modifiers.	*/	
 
 static unsigned char translatekey(unsigned char code, long modifiers)
 {
