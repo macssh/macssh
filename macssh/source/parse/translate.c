@@ -309,9 +309,13 @@ void switchintranslation(WindRec *tw, short national, short charset)
 	if (gVSemlogging)
 		return;
 
+	if ( national < 0 ) {
+		national = gTableCount - national;
+	}
+	if ( charset < 0 ) {
+		charset = 0;
+	}
 	table = GetTranslationIndex(national);
-
-	//VSprintf("switchintranslation : %d, %d\n", table, charset);
 
 	if ( tw->innational != national ) {
 		switch ( table ) {
@@ -391,8 +395,8 @@ void switchintranslation(WindRec *tw, short national, short charset)
 			if ( tw->incharset != charset ) {
 				tw->incharset = charset;
 				if ( tw->fromconverter ) {
-					short srclen;
-					short dstlen;
+					ByteCount srclen;
+					ByteCount dstlen;
 					unsigned char buf[4];
 					dstlen = 4;
 					res = TECFlushText(tw->fromconverter, buf, dstlen, &dstlen);
@@ -436,6 +440,7 @@ void switchintranslation(WindRec *tw, short national, short charset)
 						default:
 							return;
 					}
+
 					srclen = 3;
 					dstlen = 4;
 					res = TECConvertText(tw->fromconverter, buf, srclen, &srclen, buf, dstlen, &dstlen);
@@ -469,18 +474,10 @@ void switchouttranslation(WindRec *tw, short national, short charset)
 	if (gVSemlogging)
 		return;
 
+	if ( national < 0 ) {
+		national = gTableCount - national;
+	}
 	table = GetTranslationIndex(national);
-
-	//VSprintf("switchouttranslation : %d, %d\n", table, charset);
-
-/*
-if (table > 0) {
-	VSprintf("switchouttranslation, in:\n");
-	VSdump(ReturnTablePtr(table, FALSE), 256);
-	VSprintf("switchouttranslation, out:\n");
-	VSdump(ReturnTablePtr(table, TRUE), 256);
-}
-*/
 
 	if ( tw->outnational != national ) {
 		switch ( table ) {
@@ -549,7 +546,12 @@ if (table > 0) {
 		else if ( national == kTRJISX0208_1983 )
 			charset = kJISX0208_1983;
 	}
+
 /*
+	if ( charset < 0 ) {
+		charset = 0;
+	}
+
 	switch ( table ) {
 		case kTRJIS:
 		case kTRJISX0208_1978:
@@ -557,8 +559,8 @@ if (table > 0) {
 			if ( tw->outcharset != charset ) {
 				tw->outcharset = charset;
 				if ( tw->toconverter ) {
-					short srclen;
-					short dstlen;
+					ByteCount srclen;
+					ByteCount dstlen;
 					unsigned char buf[4];
 					dstlen = 4;
 					res = TECFlushText(tw->toconverter, buf, dstlen, &dstlen);
@@ -639,9 +641,11 @@ int trflush_nat_mac(WindRec *tw)
 		if ( tw->fromconverter ) {
 			len = sizeof(buf);
 			res = TECFlushText(tw->fromconverter, buf, len, &len);
+/*
 			charset = tw->incharset;
 			tw->incharset = -1;
 			switchintranslation(tw, tw->innational, charset);
+*/
 		}
 	}
 #endif
@@ -664,9 +668,11 @@ int trflush_mac_nat(WindRec *tw)
 		if ( tw->toconverter ) {
 			len = sizeof(buf);
 			res = TECFlushText(tw->toconverter, buf, len, &len);
+/*
 			charset = tw->outcharset;
 			tw->outcharset = -1;
-			switchintranslation(tw, tw->outnational, charset);
+			switchouttranslation(tw, tw->outnational, charset);
+*/
 		}
 	}
 #endif
