@@ -331,15 +331,44 @@ char * strsignal(int signo)
 
 
 /*
+ * setexitbuf
+ */
+
+void setexitbuf(jmp_buf *exitbuf)
+{
+	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+
+	if ( context ) {
+		context->_pexitbuf = exitbuf;
+	}
+}
+
+/*
+ * getexitbuf
+ */
+
+jmp_buf *getexitbuf()
+{
+	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+
+	if ( context ) {
+		return context->_pexitbuf;
+	}
+	return NULL;
+}
+
+/*
  * exit
  */
 
 void exit(int result UNUSED)
 {
-	lshcontext *context = pthread_getspecific(ssh2threadkey);
+	jmp_buf *exitbuf;
 
-	if ( context )
-		longjmp( context->_exitbuf, 0 );
+	if (exitbuf = getexitbuf()) {
+		longjmp( *exitbuf, 1 );
+	}
+	/* should never go here... */
 	Debugger();
 }
 
@@ -809,6 +838,20 @@ void ssh2_doevent(long sleepTime)
 	}
 }
 
+/*
+ * get_context_listener
+ */
+
+int get_context_listener()
+{
+	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
+	if ( context ) {
+		return context->_listener;
+	}
+	return -1;
+}
+
+
 #pragma mark -
 
 
@@ -991,6 +1034,7 @@ void *lsh_thread(lshctx *ctx)
 
 	make_env( context );
 
+	context->_pexitbuf = &context->_exitbuf;
 	if ( !setjmp(context->_exitbuf) ) {
 		/* we need to intercept SIGINT to fake 'exit' */
 		struct sigaction interrupt;
