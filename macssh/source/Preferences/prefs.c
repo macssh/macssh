@@ -89,6 +89,8 @@ OSErr OpenPreferencesFile( void)
 
 OSErr NewPreferences(void)
 {
+	short				sessPrefsID;
+	short				termPrefsID;
 	ApplicationPrefs	**AppPrefsHdl;
 	FTPServerPrefs		**FTPPrefsHdl;
 	SessionPrefs		**sessPrefs;
@@ -96,6 +98,14 @@ OSErr NewPreferences(void)
 		
 	// Get the master copies from the application's resource fork
 	
+	if ( GetScriptManagerVariable(smRegionCode) == verJapan ) {
+		sessPrefsID = SESSIONPREFS_APPID;
+		termPrefsID = TERMINALPREFS_APPID;
+	} else {
+		sessPrefsID = SESSIONPREFS_APPID;
+		termPrefsID = TERMINALPREFS_APPID;
+	}
+
 	AppPrefsHdl = (ApplicationPrefs **)GetResource(APPLICATIONPREFS_RESTYPE, APPLICATIONPREFS_APPID);
 	if ((ResError() != noErr) || (AppPrefsHdl == NULL)) return(ResError());
 	DetachResource((Handle)AppPrefsHdl);
@@ -104,34 +114,13 @@ OSErr NewPreferences(void)
 	if ((ResError() != noErr) || (FTPPrefsHdl == NULL)) return(ResError());
 	DetachResource((Handle)FTPPrefsHdl);
 
-	sessPrefs = (SessionPrefs **)GetResource(SESSIONPREFS_RESTYPE, SESSIONPREFS_APPID);
+	sessPrefs = (SessionPrefs **)GetResource(SESSIONPREFS_RESTYPE, sessPrefsID);
 	if ((ResError() != noErr) || (sessPrefs == NULL)) return(ResError());
 	DetachResource((Handle)sessPrefs);
 	
-	termPrefs = (TerminalPrefs **)GetResource(TERMINALPREFS_RESTYPE, TERMINALPREFS_APPID);
+	termPrefs = (TerminalPrefs **)GetResource(TERMINALPREFS_RESTYPE, termPrefsID);
 	if ((ResError() != noErr) || (termPrefs == NULL)) return(ResError());
 	DetachResource((Handle)termPrefs);
-
-	// update a few settings
-	HLock((Handle)sessPrefs);
-	HLock((Handle)termPrefs);
-	if ( GetScriptManagerVariable(smRegionCode) == verJapan ) {
-		short familyID;
-		unsigned char *jpfont = "\posaka";
-		GetFNum( jpfont, &familyID );
-		if ( familyID ) {
-			(**termPrefs).fontsize = 12;
-			(**termPrefs).boldFontSize = 12;
-			pstrcpy( (**termPrefs).DisplayFont, jpfont );
-			pstrcpy( (**termPrefs).BoldFont, jpfont );
-		}
-#if GENERATINGPOWERPC
-		// WARNING: this string  must match the one in BuildTranslateMenu
-		pstrcpy( (**sessPrefs).TranslationTable, "\pJIS (ISO-2022-JP)" );
-#endif
-	}
-	HUnlock((Handle)sessPrefs);
-	HUnlock((Handle)termPrefs);
 
 	// Add them to the Preferences file
 	
