@@ -459,7 +459,11 @@ static void AddPassToKeychain(const char *prompt, StringPtr password)
 		theStatus = KCAddGenericPassword(phost, puser,
 			*password, password + 1, &theItem);
 		if (theStatus == noErr) {
-			unsigned char *theDescriptionText = "\pMacSSH password";
+			unsigned char *theDescriptionText;
+			if (strstr(prompt, "assword for"))
+				theDescriptionText = "\pMacSSH password";
+			else
+				theDescriptionText = "\pMacSSH passphrase";
 			theAttribute.tag = kDescriptionKCItemAttr;
 			theAttribute.length = *theDescriptionText;
 			theAttribute.data = theDescriptionText + 1;
