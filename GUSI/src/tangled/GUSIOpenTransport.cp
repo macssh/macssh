@@ -36,8 +36,12 @@ pascal void GUSIOTNotify(
 			sock->fEndpoint = static_cast<EndpointRef>(cookie);
 		break;
 	default:
-		if (code != kOTProviderWillClose)
+		if (code != kOTProviderWillClose
+		 && code != kOTProviderWillClose)
 			result = 0;
+		else if (!result) {
+			result = kENETDOWNErr;
+		}
 	}
 	sock->SetAsyncMacError(result);
 	sock->Wakeup();
