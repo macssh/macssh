@@ -49,7 +49,7 @@
 		<p>I did not write (yet?) any manual for this software, but here's some help (you can also find some more help from The Ohio State University server, at this location: <a href="http://www.math.ohio-state.edu/support/ssh/mac/macssh/">Using MacSSH</a>)</p>
 		<p>- key pair:<br>
 			<br>
-			To create your key pair, go to the Favorites settings (Menu &quot;Favorites&quot;, option &quot;Edit Favorites&#133;&quot;), click on &quot;Change&quot;, and in the SSH2 tab, click &quot;Initialize SSH&quot;. This is to be done only once for all SSH2 connections, and creates a couple of files named &quot;identity&quot; and &quot;identity.pub&quot; in MacSSH Prefs folder in MacOS Preferences folder.<br>
+			To create your key pair, go to the Favorites settings (Menu &quot;Favorites&quot;, option &quot;Edit Favorites&#133;&quot;), click on &quot;Edit&quot;, and in the SSH2 tab, click &quot;Initialize SSH&quot;. This is to be done only once for all SSH2 connections, and creates a couple of files named &quot;identity&quot; and &quot;identity.pub&quot; in MacSSH Prefs folder in MacOS Preferences folder.<br>
 			identity is your private key file. don't give it to anyone.<br>
 			identity.pub is the corresponding public key, which you give to SSH2 admins whose servers require a public key to accept connections.<br>
 			If you intend to connect to OpenSSH/SSH2 servers using public key userauth, you will have to convert your public key to OpenSSH/SSH2 format by clicking on &quot;Export public key&#133;&quot; and send the resulting file to the admin.<br>
@@ -88,9 +88,17 @@
 		<p></p>
 		<p><a name="PUBK"></a><br>
 			<b>How do I use my Public Key with OpenSSH ?</b></p>
-		<p>Export your public key in SSH2 format. Copy this file's content on your SSH2 host in a text file, for instance 'ssh2.pub', and execute the command:<br>ssh-keygen -i -f ssh2.pub &gt;&gt; ~/.ssh/authorized_keys2<br>
-			you're done.</p>
-		<p></p>
+		
+<p>Export your public key in SSH2 format. Copy this file's content on your SSH2 
+  host in a text file, for instance 'ssh2.pub', and execute the command:<br>
+  ssh-keygen -i -f ssh2.pub &gt;&gt; ~/.ssh/authorized_keys2<br>
+  you're done.<br>
+  <br>
+  A more detailed 'howto' on public key management in MacSSH is available on Dartmouth 
+  College's web server at this location: <a href="http://www.ists.dartmouth.edu/IRIA/knowledge_base/keyxchange.htm">MacSSH 
+  SSH2 Key Exchange How-to</a><br>
+  Thanks to Marion Bates for this contribution.
+<p></p>
 		<p><a name="CVS"></a><br>
 			<b>How do I setup CVS in MacSSH ?</b></p>
 		<p>Let's say you need to access the project CVSPROJECT, on the sourceforge cvs server, as user CVSUSER, with password CVSPASS:<br>
@@ -166,10 +174,16 @@
 		<p></p>
 		<p><a name="SFTP"></a><br>
 			<b>Will you add SFTP (SCP) support ?</b></p>
-		<p>well, I would love to, especially since I already wrote quite some file-transfer apps for the Mac. The user interface doesn't really frightens me, but...<br>
-			there's no sftp client yet in lsh.<br>
-			If you want to contribute, you're welcome !</p>
-		<p></p>
+		
+<p>The bad news is that I finally won't add SFTP to MacSSH.<br>
+  The good news is that after working more than one year for free on MacSSH, I 
+  decided I deserved some return, so I have made a port of OpenSSH to MacOS8/9 
+  to get rid of the restrictive GPL License and make a shareware. Try this version 
+  of <a href="/download/MacSFTP_Carbon.sit">MacSFTP Carbon</a> or this <a href="/download/MacSFTP_Classic.sit">MacSFTP 
+  Classic</a> for people not using CarbonLib.<br>
+  Note that this version is limited to a 15 days trial when not registered.<br>
+</p>
+<p></p>
 		<p><a name="OSX"></a><br>
 			<b>Will you make a MacOSX version ?</b></p>
 		<p>no. this is way too much work. Kevin Grant is already working on <a href="http://www.mactelnet.com">MacTelnet3</a>, a carbon version of NCSA Telnet, and I've been told he's adding SSH2 support too. now, if you want to carbonize MacSSH, then get the sources as explained below, and carbonize it...</p>

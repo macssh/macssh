@@ -2,41 +2,30 @@
 
 	<head>
 		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
-		<meta name="keywords" content="ssh, ssh2, secsh, secure shell, telnet, mac, macintosh, macos">
+		
+<meta name="keywords" content="ssh, ssh2, sftp, secsh, secure shell, secure file transfer,telnet, file transfer, mac, macintosh, macos">
 		<title>MacSSH - MacOS Secure Shell</title>
 	</head>
 
 	<body bgcolor="white" text="black" link="#4682b4" alink="#ff6347" vlink="#6495ed">
+
+		<!-- estat javascript debut -->
+		<script language="javascript">
+		function sp(_serial,_page) {
+		document.write('<a href="http://www.wanadoo.fr/pages_per'+
+		'so/estat/bin/pwpestat_stat.cgi"><img src'+
+		'="http://perso.estat.com/cgi-bin/perso/'
+		+_serial+'?'
+		+'&n='+Math.round (Math.random () * 1000000000000000)
+		+'&page='+escape(_page.length?_page:document.title)
+		+'&referer='+escape(document.referrer)+'" BORDER=0></A>')
+		}
+		sp("308008128560", "NomDeVotrePage")
+		</script>
+		<!-- eStat Javascript Fin -->
+
 		<center>
 			<table border="0" cellpadding="4" cellspacing="4" width="576">
-				<tr>
-					<td width="9">&nbsp;</td>
-					<td><!-- TLDNAMES Affiliate Banner START *** -->
-						<center>
-							<form method="post" action="http://www.tldnames.com/cgi-bin/whois.cgi">
-								<input type="HIDDEN" name="TLDID" value="jps7w"> <input type="HIDDEN" name="lang" value="EN">
-								<table width="468" border="1" cellspacing="0" cellpadding="0" height="60" bgcolor="#FFFFFF">
-									<tr bordercolor="#CC0000">
-										<td height="82">
-											<table width="468" border="0" cellspacing="0" cellpadding="0" height="60">
-												<tr>
-													<td colspan="2" align="CENTER"><img src="http://www.tldnames.com/images/tldnames.gif" width="420" height="60" alt="-"></td>
-													<td align="CENTER">&nbsp;</td>
-												</tr>
-												<tr>
-													<td width="209" align="RIGHT"><font size="2" face="Arial" color="#CC0000">register your domain name!!<br>
-															<font color="#666666">www.<font color="#CC0000"><b>TLD<font color="#000000">names</font></b></font>.com </font></font></td>
-													<td width="259"><input type="text" name="domain1" size="20" maxlength="63"><input type="submit" name="A" value="SEARCH"></td>
-												</tr>
-											</table>
-										</td>
-									</tr>
-								</table>
-							</form>
-						</center>
-						<!-- TLDNAMES Affiliate Banner END *** --></td>
-					<td width="9"></td>
-				</tr>
 				<tr>
 					<td width="9">&nbsp;</td>
 					<td>
@@ -60,7 +49,7 @@
 									with <a href="http://www.ssh.org">SSH2</a> support.</b><br>
 							</font>
 							<p>Based on <a href="http://www.cstone.net/~rbraun/mac/telnet/">BetterTelnet</a>, Copyright &copy; 1997-1998 <a href="mailto:rbraun@cstone.net">Rolf Braun</a><br>
-								Based on <a href="http://www.lysator.liu.se/~nisse/lsh/">lsh</a>, Copyright &copy; 2000 <a href="mailto:nisse@lysator.liu.se">Niels M&ouml;ller</a><br>
+								Based on <a href="http://www.net.lut.ac.uk/psst/index.html">lsh</a>, Copyright &copy; 2000 <a href="mailto:nisse@lysator.liu.se">Niels M&ouml;ller</a><br>
 								Based on <a href="http://www.iis.ee.ethz.ch/~neeri/macintosh.html">GUSI</a>, Copyright &copy; 1992-2000 <a href="mailto:neeri@guest.iis.ee.ethz.ch">Matthias Neeracher</a></p>
 							<table border="0" cellpadding="2" cellspacing="2" width="442">
 								<tr>
@@ -78,9 +67,19 @@
 									</td>
 								</tr>
 							</table>
-							<p>
-							Version <font color="#CC0000"><b>2.1fc2</b></font> is now available. see the <a href="download/ChangeLog">ChangeLog</a> for modifications.</p>
-							<center>
+							
+          <p> Version <font color="#CC0000"><b>2.1fc3</b></font> is now available. 
+            see the <a href="download/ChangeLog1.txt">ChangeLog</a> for modifications.
+          </p>
+          <p><font color="#CC0000"><b>NEW</b></font>: For those needing an SFTP 
+            client for MacOS (from 8.1 to X, both SSH1 and SSH2), download this 
+            version <font color="#CC0000"><b>1.0.2</b></font> of <a href="download/MacSFTP_Carbon.sit">MacSFTP 
+            Carbon</a> (or this same version of <a href="download/MacSFTP_Classic.sit">MacSFTP 
+            Classic</a> if you don't use CarbonLib). Note that this application 
+            is not based on lsh, but on <a href="http://www.openssh.com/">OpenSSH</a>, 
+            and is a $25 shareware with a 15 days trial period. Here's the <a href="download/ChangeLog.txt">ChangeLog</a> 
+            for MacSFTP.</p>
+          <center>
 								<p>If you have any questions, please check this <a href="FAQ.html">FAQ</a> before emailing me.</p>
 							</center>
 							<table border="0" cellpadding="2" cellspacing="2" width="442">
@@ -137,7 +136,7 @@
 							<p><font size="4"><b>Warranty</b></font>:<img height="127" width="131" src="pictures/gnu.gif" align="right"><br>
 								This program is distributed in the hope that it will be useful, but without any warranty; without even the warranty of merchantability or fitness for any purpose. The entire risk of operation this program, as well as the risk of quality and performance, resides solely with you! In no event will any of the program authors be liable for any damage caused by the operation, or non-operation, of this program!</p>
 							<p><img height="131" width="135" src="pictures/imac.gif" align="left"><b>From Niels original docs:</b></p>
-							<p><a href="http://www.lysator.liu.se/~nisse/lsh/">lsh</a> is written by <a href="mailto:nisse@lysator.liu.se">Niels M&ouml;ller</a>, and distributed under the terms and conditions of the GNU General Public License (see the file <a href="download/COPYING">COPYING</a> for details). Several parts of <a href="http://www.lysator.liu.se/~nisse/lsh/">lsh</a>, in particular tcpforwarding, public-key user authentication, and the lsh_proxy program, were contributed by Bal&aacute;zs Scheidler.<br clear="all">
+							<p><a href="http://www.lysator.liu.se/~nisse/lsh/">lsh</a> is written by <a href="mailto:nisse@lysator.liu.se">Niels M&ouml;ller</a>, and distributed under the terms and conditions of the GNU General Public License (see the file <a href="download/COPYING">COPYING.txt</a> for details). Several parts of <a href="http://www.lysator.liu.se/~nisse/lsh/">lsh</a>, in particular tcpforwarding, public-key user authentication, and the lsh_proxy program, were contributed by Bal&aacute;zs Scheidler.<br clear="all">
 							</p>
 						</div>
 						<center>
@@ -304,40 +303,14 @@
 					</td>
 					<td width="9" bgcolor="#4682b4">&nbsp;</td>
 				</tr>
-				<tr>
-					<td width="9" bgcolor="#4682b4"></td>
-					<td><!-- TLDNAMES Affiliate Banner START *** -->
-						<center>
-							<form method="post" action="http://www.tldnames.com/cgi-bin/whois.cgi">
-								<input type="HIDDEN" name="TLDID" value="jps7w"> <input type="HIDDEN" name="lang" value="EN">
-								<table width="468" border="1" cellspacing="0" cellpadding="0" height="60" bgcolor="#FFFFFF">
-									<tr bordercolor="#CC0000">
-										<td height="82">
-											<table width="468" border="0" cellspacing="0" cellpadding="0" height="60">
-												<tr>
-													<td colspan="2" align="CENTER"><img src="http://www.tldnames.com/images/tldnames.gif" width="420" height="60" alt="-"></td>
-													<td align="CENTER">&nbsp;</td>
-												</tr>
-												<tr>
-													<td width="209" align="RIGHT"><font size="2" face="Arial" color="#CC0000">register your domain name!!<br>
-															<font color="#666666">www.<font color="#CC0000"><b>TLD<font color="#000000">names</font></b></font>.com </font></font></td>
-													<td width="259"><input type="text" name="domain1" size="20" maxlength="63"><input type="submit" name="A" value="SEARCH"></td>
-												</tr>
-											</table>
-										</td>
-									</tr>
-								</table>
-							</form>
-						</center>
-						<!-- TLDNAMES Affiliate Banner END *** --></td>
-					<td width="9" bgcolor="#4682b4"></td>
-				</tr>
 			</table>
-			<p>Again, please check this <a href="FAQ.html">FAQ</a> before emailing me. You may find the answer there...<br>
-				<br>
-				Copyright &copy; 2000-2001 <a href="mailto:chombier@mac.com">Jean-Pierre Stierlin</a><br>
-			</p>
-			<p></p>
+			
+  <p>Again, please check this <a href="FAQ.html">FAQ</a> before emailing me. You 
+    may find the answer there...<br>
+    <br>
+    Copyright &copy; 2000-2002 <a href="mailto:jps@macssh.com">Jean-Pierre Stierlin</a><br>
+  </p>
+  <p></p>
 		</center>
 	</body>
 
