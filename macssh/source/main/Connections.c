@@ -187,6 +187,44 @@ static short FindMenuItemText(MenuHandle hMenu, StringPtr itemString)
 }
 
 
+static Str255	sLastHostName;
+
+static void SetCurrentSession(DialogPtr dptr, Str255 scratchPstring)
+{
+	SessionPrefs	**tempSessHdl;
+	Str31			scritchPstring;
+
+	tempSessHdl = (SessionPrefs **)Get1NamedSizedResource(SESSIONPREFS_RESTYPE, scratchPstring, sizeof(SessionPrefs));
+	if (tempSessHdl) {
+		SetTEText(dptr, NCfavoritename, scratchPstring);//update the favoritename
+//						TerminalIndex = findPopupMenuItem(TermPopupHdl,
+//								(**tempSessHdl).TerminalEmulation);
+//						TPopup[0].choice = TerminalIndex;
+//						DrawPopUp(dptr, NCtermpopup); //update popup
+		strcpy((char *)scratchPstring, (char *)(**tempSessHdl).hostname);
+
+		if ((**tempSessHdl).port != getDefaultPort((**tempSessHdl).protocol)) {
+				NumToString((unsigned short)(**tempSessHdl).port, scritchPstring);
+				pstrcat(scratchPstring, "\p:");
+				if ((**tempSessHdl).portNegative)
+					pstrcat(scratchPstring, "\p-");
+				pstrcat(scratchPstring, scritchPstring);
+		}
+		/* recall last hostname seen if none */
+		if ( !scratchPstring[0] && sLastHostName[0] ) {
+			SetTEText(dptr, NChostname, sLastHostName);
+		} else {
+			SetTEText(dptr, NChostname, scratchPstring);//update the hostname
+		}
+		SelectDialogItemText(dptr, NChostname, 0, 32767);
+		SetCntrl(dptr, NCauthenticate, (**tempSessHdl).authenticate);//update the auth status
+		SetCntrl(dptr, NCencrypt, (**tempSessHdl).encrypt);
+		SetCntrl(dptr, NCssh2, (**tempSessHdl).protocol == 4);
+		setSessStates(dptr);//encrypt cant be on w/o authenticate
+		ReleaseResource((Handle)tempSessHdl);
+	}
+}
+
 Boolean PresentOpenConnectionDialog(void)
 {
 	ConnInitParams	**InitParams;
@@ -196,7 +234,7 @@ Boolean PresentOpenConnectionDialog(void)
 	long			scratchlong;
 	Str255			scratchPstring, terminalPopupString, scritchPstring;
 	Handle			ItemHandle;
-	SessionPrefs	**defaultSessHdl,**tempSessHdl;
+	SessionPrefs	**tempSessHdl;
 	short 			numberOfTerms, sessMark, requestPort;
 	MenuHandle		SessPopupHdl;
 //	MenuHandle		TermPopupHdl;
@@ -212,15 +250,12 @@ Boolean PresentOpenConnectionDialog(void)
 	Boolean			typedHost;
 	Boolean			parseAliases;
 
-	
-	SetCursor(theCursors[normcurs]);
+	setLastCursor(theCursors[normcurs]);
 
-	//LockDialog();
 
 	SetUpMovableModalMenus();
 	dptr = GetNewMyDialog(NewCnxnDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
 	if (dptr == NULL) {
-		//UnlockDialog();
 		ResetMenus();
 		OutOfMemory(1000);
 		return;
@@ -236,7 +271,6 @@ Boolean PresentOpenConnectionDialog(void)
 	SessPopupHdl = NewMenu(668, scratchPstring);
 	if (SessPopupHdl == NULL) {
 		DisposeDialog(dptr);
-		//UnlockDialog();
 		ResetMenus();
 		OutOfMemory(1000);
 		return;
@@ -258,7 +292,6 @@ Boolean PresentOpenConnectionDialog(void)
 //	if (TermPopupHdl == NULL) {
 //		DisposeHandle((Handle)SessPopupHdl);
 //		DisposeDialog(dptr);
-//		//UnlockDialog();
 //		ResetMenus();
 //		OutOfMemory(1000);
 //		return;
@@ -273,44 +306,25 @@ Boolean PresentOpenConnectionDialog(void)
 //	TPopup[0].h = TermPopupHdl;
 //	PopupInit(dptr, TPopup);
 	
-	// Get default auth/encrypt settings from default session
-	defaultSessHdl = GetDefaultSession();
-	HLock((Handle)defaultSessHdl);
-
-
-	BlockMoveData("\p<Default>", scratchPstring, 15);
-	SetTEText(dptr, NCfavoritename, scratchPstring);
-
-	GetHostNameFromSession(scratchPstring);
-	if ((**defaultSessHdl).port != getDefaultPort((**defaultSessHdl).protocol)) {
-			NumToString((unsigned short)(**defaultSessHdl).port, scritchPstring);
-			pstrcat(scratchPstring, "\p:");
-			if ((**defaultSessHdl).portNegative)
-				pstrcat(scratchPstring, "\p-");
-			pstrcat(scratchPstring, scritchPstring);
-	}
-	SetTEText(dptr, NChostname, scratchPstring);
-	SelectDialogItemText(dptr, NChostname, 0, 32767);
-
-	SetCntrl(dptr, NCauthenticate, (**defaultSessHdl).authenticate && authOK);
-	SetCntrl(dptr, NCencrypt, (**defaultSessHdl).encrypt && encryptOK);
-
-	SetCntrl(dptr, NCssh2, (**defaultSessHdl).protocol == 4);
-
-	if (!authOK)
-	{
+	if (!authOK) {
 		Hilite( dptr, NCauthenticate, 255);
 		Hilite( dptr, NCencrypt, 255);
+	} else if (!encryptOK) {
+		Hilite( dptr, NCencrypt, 255);
 	}
-		
+
+	BlockMoveData("\p<Default>", scratchPstring, 15);
+	SetCurrentSession(dptr, scratchPstring);
+
 //	TerminalIndex = findPopupMenuItem(TermPopupHdl,(**defaultSessHdl).TerminalEmulation);
 //	TPopup[0].choice = TerminalIndex;
 //	PopupInit(dptr, TPopup);
 
-	DisposeHandle((Handle)defaultSessHdl);
-	setSessStates(dptr);
+	SelectDialogItemText(dptr, NChostname, 0, 32767);
 
 	typedHost = false;
+
+	ShowWindow(dptr);
 
 	while (ditem > NCcancel) {
 		movableModalDialog(POCdlogfilterUPP, &ditem);
@@ -337,41 +351,12 @@ Boolean PresentOpenConnectionDialog(void)
 					typedHost = true;
 					GetTEText(dptr, NChostname, scratchPstring);
 					scratchshort = FindMenuItemText(SessPopupHdl, scratchPstring);
-					/* revert to default if not found */
-					/*if ( !scratchshort ) {
-						scratchshort = 1;
-					}*/
 					if ( scratchshort && sessMark != scratchshort ) {
 						SetItemMark(SessPopupHdl, sessMark, 0);
 						sessMark = scratchshort;
 						SetItemMark(SessPopupHdl, sessMark, 18);
 						GetMenuItemText(SessPopupHdl, scratchshort, scratchPstring);
-						tempSessHdl = (SessionPrefs **)Get1NamedSizedResource(SESSIONPREFS_RESTYPE, scratchPstring, sizeof(SessionPrefs));
-						if (tempSessHdl) 
-						{
-							SetTEText(dptr, NCfavoritename, scratchPstring);//update the favoritename
-	//						TerminalIndex = findPopupMenuItem(TermPopupHdl,
-	//								(**tempSessHdl).TerminalEmulation);
-	//						TPopup[0].choice = TerminalIndex;
-	//						DrawPopUp(dptr, NCtermpopup); //update popup
-							strcpy((char *)scratchPstring, (char *)(**tempSessHdl).hostname);
-
-							if ((**tempSessHdl).port != getDefaultPort((**tempSessHdl).protocol)) {
-									NumToString((unsigned short)(**tempSessHdl).port, scritchPstring);
-									pstrcat(scratchPstring, "\p:");
-									if ((**tempSessHdl).portNegative)
-										pstrcat(scratchPstring, "\p-");
-									pstrcat(scratchPstring, scritchPstring);
-							}
-
-	//						SetTEText(dptr, NChostname, scratchPstring);//update the hostname
-	//						SelectDialogItemText(dptr, NChostname, 0, 32767);
-							SetCntrl(dptr, NCauthenticate, (**tempSessHdl).authenticate && authOK);//update the auth status
-							SetCntrl(dptr, NCencrypt, (**tempSessHdl).encrypt && encryptOK);
-							SetCntrl(dptr, NCssh2, (**tempSessHdl).protocol == 4);
-							setSessStates(dptr);//encrypt cant be on w/o authenticate
-							ReleaseResource((Handle)tempSessHdl);
-						}
+						SetCurrentSession(dptr, scratchPstring);
 					}
 				}
 				break;
@@ -388,40 +373,14 @@ Boolean PresentOpenConnectionDialog(void)
 				scratchlong = PopUpMenuSelect(SessPopupHdl, SessPopupLoc.v,
 												SessPopupLoc.h, 0);
 				DeleteMenu(668);
-				if (scratchlong) 
-				{
+				if (scratchlong) {
 					typedHost = false;
 					scratchshort = scratchlong & 0xFFFF; //	Apple sez ignore the high word
 					SetItemMark(SessPopupHdl, sessMark, 0);
 					sessMark = scratchshort;
 					SetItemMark(SessPopupHdl, sessMark, 18);
 					GetMenuItemText(SessPopupHdl, scratchshort, scratchPstring);
-					tempSessHdl = (SessionPrefs **)Get1NamedSizedResource(SESSIONPREFS_RESTYPE, scratchPstring, sizeof(SessionPrefs));
-					if (tempSessHdl) 
-					{
-						SetTEText(dptr, NCfavoritename, scratchPstring);//update the favoritename
-//						TerminalIndex = findPopupMenuItem(TermPopupHdl,
-//								(**tempSessHdl).TerminalEmulation);
-//						TPopup[0].choice = TerminalIndex;
-//						DrawPopUp(dptr, NCtermpopup); //update popup
-						strcpy((char *)scratchPstring, (char *)(**tempSessHdl).hostname);
-
-						if ((**tempSessHdl).port != getDefaultPort((**tempSessHdl).protocol)) {
-								NumToString((unsigned short)(**tempSessHdl).port, scritchPstring);
-								pstrcat(scratchPstring, "\p:");
-								if ((**tempSessHdl).portNegative)
-									pstrcat(scratchPstring, "\p-");
-								pstrcat(scratchPstring, scritchPstring);
-						}
-
-						SetTEText(dptr, NChostname, scratchPstring);//update the hostname
-						SelectDialogItemText(dptr, NChostname, 0, 32767);
-						SetCntrl(dptr, NCauthenticate, (**tempSessHdl).authenticate && authOK);//update the auth status
-						SetCntrl(dptr, NCencrypt, (**tempSessHdl).encrypt && encryptOK);
-						SetCntrl(dptr, NCssh2, (**tempSessHdl).protocol == 4);
-						setSessStates(dptr);//encrypt cant be on w/o authenticate
-						ReleaseResource((Handle)tempSessHdl);
-					}
+					SetCurrentSession(dptr, scratchPstring);
 				}
 				break;
 			case 1001:
@@ -432,27 +391,7 @@ Boolean PresentOpenConnectionDialog(void)
 					sessMark = CountMItems(SessPopupHdl);
 				SetItemMark(SessPopupHdl, sessMark, 18);
 				GetMenuItemText(SessPopupHdl, sessMark, scratchPstring);
-				tempSessHdl = (SessionPrefs **)Get1NamedSizedResource(SESSIONPREFS_RESTYPE, scratchPstring, sizeof(SessionPrefs));
-				if (tempSessHdl) {
-					SetTEText(dptr, NCfavoritename, scratchPstring);//update the favoritename
-					strcpy((char *)scratchPstring, (char *)(**tempSessHdl).hostname);
-
-					if ((**tempSessHdl).port != getDefaultPort((**tempSessHdl).protocol)) {
-							NumToString((unsigned short)(**tempSessHdl).port, scritchPstring);
-							pstrcat(scratchPstring, "\p:");
-							if ((**tempSessHdl).portNegative)
-								pstrcat(scratchPstring, "\p-");
-							pstrcat(scratchPstring, scritchPstring);
-					}
-
-					SetTEText(dptr, NChostname, scratchPstring);//update the hostname
-					SelectDialogItemText(dptr, NChostname, 0, 32767);
-					SetCntrl(dptr, NCauthenticate, (**tempSessHdl).authenticate && authOK);//update the auth status
-					SetCntrl(dptr, NCencrypt, (**tempSessHdl).encrypt && encryptOK);
-					SetCntrl(dptr, NCssh2, (**tempSessHdl).protocol == 4);
-					setSessStates(dptr);//encrypt cant be on w/o authenticate
-					ReleaseResource((Handle)tempSessHdl);
-				}
+				SetCurrentSession(dptr, scratchPstring);
 				break;
 			case 1000:
 				typedHost = false;
@@ -462,27 +401,7 @@ Boolean PresentOpenConnectionDialog(void)
 					sessMark = 1;
 				SetItemMark(SessPopupHdl, sessMark, 18);
 				GetMenuItemText(SessPopupHdl, sessMark, scratchPstring);
-				tempSessHdl = (SessionPrefs **)Get1NamedSizedResource(SESSIONPREFS_RESTYPE, scratchPstring, sizeof(SessionPrefs));
-				if (tempSessHdl) {
-					SetTEText(dptr, NCfavoritename, scratchPstring);//update the favoritename
-					strcpy((char *)scratchPstring, (char *)(**tempSessHdl).hostname);
-
-					if ((**tempSessHdl).port != getDefaultPort((**tempSessHdl).protocol)) {
-							NumToString((unsigned short)(**tempSessHdl).port, scritchPstring);
-							pstrcat(scratchPstring, "\p:");
-							if ((**tempSessHdl).portNegative)
-								pstrcat(scratchPstring, "\p-");
-							pstrcat(scratchPstring, scritchPstring);
-					}
-
-					SetTEText(dptr, NChostname, scratchPstring);//update the hostname
-					SelectDialogItemText(dptr, NChostname, 0, 32767);
-					SetCntrl(dptr, NCauthenticate, (**tempSessHdl).authenticate && authOK);//update the auth status
-					SetCntrl(dptr, NCencrypt, (**tempSessHdl).encrypt && encryptOK);
-					SetCntrl(dptr, NCssh2, (**tempSessHdl).protocol == 4);
-					setSessStates(dptr);//encrypt cant be on w/o authenticate
-					ReleaseResource((Handle)tempSessHdl);
-				}
+				SetCurrentSession(dptr, scratchPstring);
 				break;
 			default:
 				break;
@@ -495,7 +414,6 @@ Boolean PresentOpenConnectionDialog(void)
 		DisposeMenu(SessPopupHdl);	// drh Ñ Bug fix: memory leak
 		DisposeDialog(dptr);
 		ResetMenus();
-		//UnlockDialog();
 		return;
 		}
 	
@@ -505,10 +423,11 @@ Boolean PresentOpenConnectionDialog(void)
 		DisposeMenu(SessPopupHdl);	// drh Ñ Bug fix: memory leak
 		DisposeDialog(dptr);
 		ResetMenus();
-		//UnlockDialog();
 		return;
 		}
 	
+	pstrcpy(sLastHostName, scratchPstring);
+
 //	GetMenuItemText(TPopup[0].h, TPopup[0].choice, terminalPopupString);
 //	PopupCleanup();
 	portSet = false;
@@ -533,7 +452,6 @@ Boolean PresentOpenConnectionDialog(void)
 		DisposeMenu(SessPopupHdl);	// drh Ñ Bug fix: memory leak
 		DisposeDialog(dptr);
 		ResetMenus();
-		//UnlockDialog();
 		OutOfMemory(1000);
 		return;
 		}
@@ -547,7 +465,6 @@ Boolean PresentOpenConnectionDialog(void)
 //			OutOfMemory(1000);
 //			DisposeDialog(dptr);
 //			ResetMenus();
-//			//UnlockDialog();
 //			return;
 //			}
 //	}
@@ -557,32 +474,24 @@ Boolean PresentOpenConnectionDialog(void)
 	HLock((Handle)InitParams);
 	HLock((Handle)(**InitParams).session);
 
-	 	if (GetCntlVal(dptr, NCauthenticate))
-	  		(**(**InitParams).session).authenticate = 1;
-	 	else
-	 		(**(**InitParams).session).authenticate = 0;
-	 	if (GetCntlVal(dptr, NCencrypt))
-	  		(**(**InitParams).session).encrypt = 1;
-	 	else
-	 		(**(**InitParams).session).encrypt = 0;
+  	(**(**InitParams).session).authenticate = GetCntlVal(dptr, NCauthenticate);
+  	(**(**InitParams).session).encrypt = GetCntlVal(dptr, NCencrypt);
 
-	 	//if ( !wasAlias ) {
-		 	if ( GetCntlVal(dptr, NCssh2) ) {
-				if ((**(**InitParams).session).protocol != 4) {
-					(**(**InitParams).session).protocol = 4;
-					if ( !portSet ) {
-						(**(**InitParams).session).port = getDefaultPort(4);
-					}
-				}
-		 	} else {
-				if ((**(**InitParams).session).protocol == 4) {
-					(**(**InitParams).session).protocol = 0;
-					if ( !portSet ) {
-						(**(**InitParams).session).port = getDefaultPort(0);
-					}
-				}
-		 	}
-		 //}
+ 	if ( GetCntlVal(dptr, NCssh2) ) {
+		if ((**(**InitParams).session).protocol != 4) {
+			(**(**InitParams).session).protocol = 4;
+			if ( !portSet ) {
+				(**(**InitParams).session).port = getDefaultPort(4);
+			}
+		}
+ 	} else {
+		if ((**(**InitParams).session).protocol == 4) {
+			(**(**InitParams).session).protocol = 0;
+			if ( !portSet ) {
+				(**(**InitParams).session).port = getDefaultPort(0);
+			}
+		}
+ 	}
 
 	GetTEText(dptr, NCwindowname, scratchPstring);
 
@@ -598,7 +507,6 @@ Boolean PresentOpenConnectionDialog(void)
 	DisposeMenu(SessPopupHdl);	// drh Ñ Bug fix: memory leak
 	DisposeDialog(dptr);
 	ResetMenus();
-	//UnlockDialog();
 	
 	success = CreateConnectionFromParams(InitParams);
 	return success;
@@ -691,7 +599,8 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	Boolean			scratchBoolean;
 	WindRec			*theScreen;
 	unsigned char	*hostname;
-	SetCursor(theCursors[watchcurs]);					/* We may be here a bit */
+
+	setLastCursor(theCursors[watchcurs]);					/* We may be here a bit */
 
 	// Check if we have the max number of sessions open
 	if (TelInfo->numwindows == MaxSess) return(FALSE);
@@ -783,8 +692,8 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 
 	theScreen->sessmacros = (**Params).sessmacros;
 
-  	theScreen->authenticate = SessPtr->authenticate && authOK;
-  	theScreen->encrypt = SessPtr->encrypt && encryptOK;
+  	theScreen->authenticate = SessPtr->authenticate;
+  	theScreen->encrypt = SessPtr->encrypt;
  
     theScreen->aedata = NULL;
  	
@@ -868,7 +777,9 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 		memcpy(theScreen->sshdata.login, theScreen->username, theScreen->username[0] + 1);
 		memcpy(theScreen->sshdata.password, theScreen->password, theScreen->password[0] + 1);
 		memcpy(theScreen->sshdata.command, theScreen->command, theScreen->command[0] + 1);
-		SetCursor(theCursors[normcurs]);
+
+		setLastCursor(theCursors[normcurs]);
+
 		if ( !theScreen->sshdata.login[0]
 		  /*|| !theScreen->sshdata.password[0]*/ ) {
 		 	if ( !SSH2LoginDialog(theScreen->sshdata.host, theScreen->sshdata.login, theScreen->sshdata.password) ) {
@@ -1333,7 +1244,7 @@ void destroyport(short wind)
 	tw = &screens[wind];
 
 	
-	SetCursor(theCursors[watchcurs]);		/* We may be here a while */
+	setLastCursor(theCursors[watchcurs]);		/* We may be here a while */
 
 	if (tw->active == CNXN_ISCORPSE) {
 		if (tw->curgraph>-1)
@@ -1387,7 +1298,7 @@ void removeport(WindRecPtr tw)
 {
 	Str255		scratchPstring;
 	
-	SetCursor(theCursors[watchcurs]);				/* We may be here a while */
+	setLastCursor(theCursors[watchcurs]);				/* We may be here a while */
 
 	disposemacros(&tw->sessmacros);
 

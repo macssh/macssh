@@ -253,7 +253,7 @@ void setupkeys( void)
 	SetUpMovableModalMenus();
 	dtemp=GetNewMyDialog( SetupDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
 
-	SetCursor(theCursors[normcurs]);
+	setLastCursor(theCursors[normcurs]);
 	
 	GetDialogItem( dtemp, killbox, &kItem, &kbox, &dBox);	
 	GetDialogItem( dtemp, stopbox, &eItem, &ebox, &dBox);	

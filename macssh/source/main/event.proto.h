@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 void	HandleMouseDown(EventRecord myEvent);
+void setLastCursor(Cursor *crsr);
 short updateCursor(short force);
 void NoWindow(void);
 Boolean CheckPageKeys(short code);

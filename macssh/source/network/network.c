@@ -32,6 +32,7 @@
 #include "authencrypt.h"
 #include "authencrypt.proto.h"
 #include "AddressXLation.h"
+#include "event.proto.h"
 
 #include "Connections.proto.h"
 #include "sshglue.proto.h"
@@ -1276,7 +1277,7 @@ void Mnetinit( void)
 		
 	if ((err = OpenDriver("\p.IPP",&TCPd)) != noError) 		/* cant open the IP driver */
 		{	
-		SetCursor(theCursors[normcurs]);
+		setLastCursor(theCursors[normcurs]);
 		FatalAlert(CANT_OPEN_MACTCP, 300, err);		// Doesn't return!
 		}
 }

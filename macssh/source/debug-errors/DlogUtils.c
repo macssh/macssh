@@ -813,5 +813,5 @@ void pstrinsert(StringPtr dst, StringPtr src)
 
 void pstrcpy(StringPtr dst, StringPtr src)
 {
-	BlockMove(src, dst, *src + 1);
+	BlockMoveData(src, dst, *src + 1);
 }

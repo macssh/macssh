@@ -20,6 +20,7 @@
 
 #include "wind.h"
 #include "wdefpatch.proto.h"
+#include "rsmac.proto.h"
 #include "tnae.h"
 
 void drawicon(short id, Rect *dest);
@@ -384,6 +385,10 @@ void setupForGrow(WindowPtr window, short hCharInset, short vCharInset, short hC
 	gGrowSaved.txSize = window->txSize;
 
 	PenNormal();
+
+	/* back to default window colors */
+	RSsetattr( 0, 0 );
+
 	TextFont(1);
 	TextSize(9);
 	TextFace(0);

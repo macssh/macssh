@@ -73,6 +73,10 @@ extern Handle oldMacros;
 extern NewMacroInfo oldMacroIndexes;
 extern short dialogPane;
 
+extern Boolean encryptOK;				// true if des encryption routines available
+extern Boolean authOK;					// true if authentication driver available
+
+
 void	CONFIGUREunload(void) {}
 void SetControlText(DialogPtr dptr, short item, Str255 text);			
 
@@ -832,6 +836,8 @@ void	EditConfigType(ResType ConfigResourceType, Boolean (*EditFunction)(StringPt
 		Hilite(dptr, kChange, 255);
 		Hilite(dptr, kDuplicate, 255);
 	}
+
+	ShowWindow(dptr);
 
 	currentHead = theHead; //let dialog filter know about the list
 	while (ditem > 1) {
@@ -1859,6 +1865,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 		GetIndString(PrefRecordNamePtr, MISC_STRINGS, MISC_NEWSESSION);
 		getAUniqueName(currentHead,PrefRecordNamePtr);
 	}	
+
 	HLock((Handle) SessPrefsHdl);
 	SessPrefsPtr = *SessPrefsHdl;
 	SetCntrl(dptr, SessTEKinhib, (SessPrefsPtr->tektype == -1));
@@ -1908,6 +1915,19 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	CheckPortPopup( dptr, SessPrefsPtr->remoteport, 89 );
 	CheckPortPopup( dptr, (unsigned short)SessPrefsPtr->port, 90 );
 /* NONO */
+
+	if (!authOK) {
+		Hilite( dptr, SessAuthenticate, 255);
+		Hilite( dptr, SessEncrypt, 255);
+	} else if (!encryptOK) {
+		Hilite( dptr, SessEncrypt, 255);
+	}
+	if (GetCntlVal(dptr, SessAuthenticate)) {
+		Hilite(dptr, SessEncrypt, (encryptOK)? 0 : 255);
+	} else {
+		Hilite(dptr, SessEncrypt, 255);
+		SetCntrl(dptr, SessEncrypt, false);
+	}
 
 	configPassword[0] = 0;
 	if (SessPrefsPtr->otppassword[0]) {
@@ -2039,12 +2059,22 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 		{
 			okaySessName:
 			switch (ditem) {
+
+				case	SessAuthenticate:
+					FlipCheckBox(dptr, ditem);
+					if (GetCntlVal(dptr, SessAuthenticate)) {
+						Hilite(dptr, SessEncrypt, (encryptOK)? 0 : 255);
+					} else {
+						Hilite(dptr, SessEncrypt, 255);
+						SetCntrl(dptr, SessEncrypt, false);
+					}
+					break;
+
 				case	SessForceSave:
 				case	SessBezerkeley:
 				case	SessLinemode:
 				case	SessTEKclear:
 				case	SessHalfDuplex:
-				case	SessAuthenticate:
 				case	SessEncrypt:
 				case	SessLocalEcho:
 				case	42:

@@ -17,6 +17,7 @@
 #include "init.proto.h"
 
 #include "mainseg.proto.h"		/* For forcequit() proto */
+#include "event.proto.h"
 #include "iNetwork.proto.h"		/* For initnet proto */
 #include "macros.proto.h"		/* For initmacro proto */
 #include "wind.h"				/* For WindRec definition */
@@ -75,8 +76,8 @@ Boolean		gKeyboardHasControlKey, gAEavail;
 short **topLeftCorners;  //CCP 2.7: Better window positioning scheme
 
 
-Boolean encryptOK;				// true if des encryption routines available
 Boolean authOK;					// true if authentication driver available
+Boolean encryptOK;				// true if des encryption routines available
 
 /*	checkCONF - check if the user clicked on a configuration file */
 void checkCONF( void)
@@ -188,7 +189,7 @@ void initmcurs ( short debug)
 		loadcursor(rDbugCURS, &theCursors[normcurs]);
 	else
 		theCursors[normcurs] = &qd.arrow;
-	SetCursor(theCursors[normcurs]);
+	setLastCursor(theCursors[normcurs]);
 }
 
 /* 	If a file with the filetype "DBUG" was sent to us, set the debug mode. */
@@ -445,7 +446,7 @@ void init (void)
 	TelInfo->debug=checkdebug();	/* must return TRUE or FALSE */
 
 	initmcurs(0);		/* init the mouse cursor */
-	SetCursor(theCursors[watchcurs]);
+	setLastCursor(theCursors[watchcurs]);
 	setupmenu(gApplicationPrefs->CommandKeys, dtemp);
 	
 	trInit(myMenus[National]);	/* LU: Initialize translation routines; must be done */
@@ -474,7 +475,7 @@ void init (void)
 
 	TelInfo->done = FALSE;			// We're not quitting yet.
 
-	SetCursor(theCursors[normcurs]);
+	setLastCursor(theCursors[normcurs]);
 
 	initmacros();
 	CheckGlobalMacros();

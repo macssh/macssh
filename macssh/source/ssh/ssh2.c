@@ -1756,6 +1756,7 @@ void *ssh2_randomize_thread(struct RandStruct *rnd)
 	char			*tabargv[64];
 	char			*buf;
 	int				i, j;
+	Boolean			saveUseKeyChain;
 
 	context = (lshcontext *)NewPtr(sizeof(lshcontext));
 	if (context == NULL) {
@@ -1853,6 +1854,8 @@ void *ssh2_randomize_thread(struct RandStruct *rnd)
 
 	make_args( argstr, tabargv, &argc, &argv );
 
+	saveUseKeyChain = gApplicationPrefs->useKeyChain;
+
 	context->_pexitbuf = &exitbuf;
 	if (!setjmp(exitbuf)) {
 		/* we need to intercept SIGINT to fake 'exit' */
@@ -1866,6 +1869,8 @@ void *ssh2_randomize_thread(struct RandStruct *rnd)
 		}
 		wkappl_main(argc, argv);
 	}
+
+	gApplicationPrefs->useKeyChain = saveUseKeyChain;
 
 	if ( context->_gConsoleOutBufLen ) {
 		/* surely an error message... */
@@ -2008,7 +2013,7 @@ void ssh_randomize(void)
 					cursorHandle = (**cursorList).nCursors[frameNum];
 					if ( cursorHandle != NULL ) {
 						HLock((Handle)cursorHandle);
-						SetCursor(*cursorHandle);
+						setLastCursor(*cursorHandle);
 						HUnlock((Handle)cursorHandle);
 					}
 					(**cursorList).frame = (frameNum + 1) % count;

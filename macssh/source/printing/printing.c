@@ -94,7 +94,7 @@ void printGraph(short dnum)			/* Which drawing to print */
 
 	PrRecHandle = PrintSetupRecord();
 		
-	SetCursor(theCursors[normcurs]);
+	setLastCursor(theCursors[normcurs]);
 
 	if (PrJobDialog(PrRecHandle)) {			/* Cancel the print if FALSE */
 		prPort=PrOpenDoc(PrRecHandle,0L,0L);		/* Open Printer Port */
@@ -332,7 +332,7 @@ void printText
 
 	PrRecHandle = PrintSetupRecord();
 
-	SetCursor(theCursors[normcurs]);
+	setLastCursor(theCursors[normcurs]);
 	
 	if (PrJobDialog(PrRecHandle)) {			/* Cancel the print if FALSE */
 		prPort=PrOpenDoc(PrRecHandle,0L,0L);
