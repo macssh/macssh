@@ -22,7 +22,7 @@
 
 /*  Capable of shifting the text to the right some # of pixels		*/
 #define CVO 0
-#define CHO -3
+#define CHO (-2)
 
 #define LOCKWIDTH 16
 
