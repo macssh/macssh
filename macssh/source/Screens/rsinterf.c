@@ -32,6 +32,7 @@
 #include "SmartTrackControl.h"
 #include "sshglue.proto.h"
 #include "general_resrcdefs.h"
+#include "movableModal.h"
 
 extern void syslog( int priority, const char *format, ...);
 
@@ -338,9 +339,6 @@ short RSupdate
 
 		DrawGrowIcon(wind);
 
-#if !GENERATINGPOWERPC
-		UpdateControls(wind, wind->visRgn);
-#else
 		if (RSlocal[w].active) {
 			UpdateControls(wind, wind->visRgn);
 		} else {
@@ -373,7 +371,7 @@ short RSupdate
 				BackColor(blackColor);
 			}
 		}
-#endif
+
 		RSdrawlocker(w, wind->visRgn);
 	}
     EndUpdate(wind);
@@ -565,12 +563,29 @@ Boolean RSsetcolor
     if ( !(TelInfo->haveColorQuickDraw) || (RSsetwind(w) < 0) || (n > 15) || (n < 0))
 		return(FALSE);
 
-#if GENERATINGPOWERPC
-	if ( n == 1 && gHasSetWindowContentColor ) {
-		SetWindowContentColor(RScurrent->window, &Color);
-	}
-#endif
 	SetEntryColor(RScurrent->pal, n, &Color);
+
+	if ( n == 1 ) {
+		/* set background color */
+#if GENERATINGPOWERPC
+		if (gHasSetWindowContentColor ) {
+			SetWindowContentColor(RScurrent->window, &Color);
+		} else
+#endif
+		{
+			WCTabHandle colorTable = (WCTabHandle)myNewHandle(sizeof(WinCTab));
+			if (colorTable != NULL) {
+				(**colorTable).wCSeed = 0;
+				(**colorTable).wCReserved = 0;
+				(**colorTable).ctSize = 0;
+				(**colorTable).ctTable[0].value = wContentColor;
+				(**colorTable).ctTable[0].rgb = Color;
+				SetWinColor(RScurrent->window, colorTable);
+				DisposeHandle((Handle)colorTable);
+			}
+		}
+	}
+
 	SetPort(RScurrent->window);
 	InvalRect(&RScurrent->window->portRect);
 	return(TRUE);
@@ -833,17 +848,15 @@ void RSkillwindow
 	RSw = -1;
   }
 
-RGBColor RSgetcolor
+void RSgetcolor
   (
 	short w, /* window number */
-	short n /* color entry number */
+	short n, /* color entry number */
+	RGBColor *color /* output color */
   )
   /* gets the current value for the specified color entry of a terminal window. */
   {
-	RGBColor theColor;
-	GetEntryColor(RSlocal[w].pal,n,&theColor);
-	return theColor;
-  
+	GetEntryColor(RSlocal[w].pal,n,color);  
   } /* RSgetcolor */
 
 void	RShide( short w)		/* hides a terminal window. */
@@ -1132,12 +1145,13 @@ void	RScprompt(short w)
 	Boolean		UserLikesNewColor;
 	RGBColor	scratchRGBcolor;
 	
+	SetUpMovableModalMenus();
 	dptr = GetNewMySmallDialog(ColorDLOG, NULL, kInFront, (void *)ThirdCenterDialog);
 
 	for (scratchshort = 0, NumberOfColorBoxes = 4; scratchshort < NumberOfColorBoxes; scratchshort++)
 	{
 		RGBColor tempColor;
-		tempColor = RSgetcolor(w,scratchshort);
+		RSgetcolor(w,scratchshort, &tempColor);
 		BoxColorItems[scratchshort] = ColorNF + scratchshort;
 		BlockMoveData(&tempColor,&BoxColorData[scratchshort], sizeof(RGBColor));
 		UItemAssign( dptr, ColorNF + scratchshort, ColorBoxItemProcUPP);
@@ -1148,7 +1162,9 @@ void	RScprompt(short w)
 	
 	ditem = 3;	
 	while (ditem > 2) {
-		ModalDialog(ColorBoxModalProcUPP, &ditem);
+		/*ModalDialog(ColorBoxModalProcUPP, &ditem);*/
+		movableModalDialog(ColorBoxModalProcUPP, &ditem);
+
 		switch (ditem) {
 			case	ColorNF:	
 			case	ColorNB:	
@@ -1172,6 +1188,7 @@ void	RScprompt(short w)
 
 	if (ditem == DLOGCancel) {
 		DisposeDialog(dptr);
+		ResetMenus();
 		return;
 		}
 		
@@ -1183,6 +1200,7 @@ void	RScprompt(short w)
 	InvalRect(&RSlocal[w].window->portRect);
 
 	DisposeDialog(dptr);
+	ResetMenus();
 } /* RScprompt */
 
 /*------------------------------------------------------------------------------*/

@@ -17,7 +17,7 @@ short RSnewwindow(RectPtr wDims,short scrollback, short width, short lines, Stri
 	short colorBold, short ignoreBeeps, short bfnum, short bfsiz, short bfstyle, short realbold, short oldScrollback, short jump, short);
 short RSmouseintext(short w, Point myPoint);
 void RSkillwindow(short w);
-RGBColor RSgetcolor(short w, short n);
+void RSgetcolor(short w, short n, RGBColor *color);
 void RShide(short w);
 GrafPtr RSgetwindow(short w);
 char **RSGetTextSel(short w, short table);

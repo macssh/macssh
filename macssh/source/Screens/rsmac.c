@@ -560,24 +560,36 @@ void RSdraw
 
 	RSsetattr(a);
 
-	if (x <= 0)
-	  rect.left = 0;
+	if (rect.left <= 0)						/* little buffer strip on left */
+		rect.left = CHO;
+	if (rect.right >= RScurrent->width - 1)
+		rect.right = RScurrent->rwidth - 1;
+	if (rect.bottom >= RScurrent->height - 1)
+		rect.bottom = RScurrent->rheight + 1;
 
 	EraseRect(&rect);
+
+	if (rect.left <= 0)
+		rect.left = 0;
+	if (rect.right >= RScurrent->width)
+		rect.right = RScurrent->width;
+	if (rect.bottom >= RScurrent->height)
+		rect.bottom = RScurrent->height;
 
 	MoveTo(x * RScurrent->fwidth, ys + RScurrent->fascent);
 
 	if ( rect.bottom < RScurrent->height || !VSisundl(a) ) {
    		DrawText(ptr, 0, len);
    	} else {
-		rect.right += 1;
+		++rect.right;
 		TETextBox(ptr, len, &rect, teJustLeft);
+		--rect.right;
 	}
 
-	if (RScurrent->selected)
+	if (RScurrent->selected) {
 		RSinvText(w, *(Point *) &RScurrent->anchor,
 			*(Point *) &RScurrent->last, &rect);
-
+	}
 	ValidRect(&rect);
 
   } /* RSdraw */
@@ -674,11 +686,10 @@ void RSdelchars
 		RScurrent->width,
 		(y + 1) * RScurrent->fheight
 	  );
-	if ((x + n) * RScurrent->fwidth > RScurrent->width)
-	  /* deleting to end of line */
+	if ((x + n) * RScurrent->fwidth > RScurrent->width) {
+		/* deleting to end of line */
 		EraseRect(&rect);
-	else
-	  {
+	} else {
 		/* scroll remainder of line to the left */
 		ScrollRectInRgn(RScurrent->window, &rect, - n * RScurrent->fwidth, 0);
 
@@ -736,9 +747,9 @@ void RSdellines
 	MYSETRECT
 	  (
 		rect,
-		-3,			/* scroll 3 pixels more on the left */
+		CHO,			/* scroll 3 pixels more on the left */
 		t * RScurrent->fheight,
-		RScurrent->width,
+		RScurrent->rwidth - 1,
 		(b + 1) * RScurrent->fheight
 	  );
 
@@ -777,8 +788,8 @@ void RSerase
 	if (rect.left <= 0)						/* little buffer strip on left */
 		rect.left = CHO;
 	if (rect.right >= RScurrent->width - 1)
-		rect.right = RScurrent->rwidth - 2;	/* clear to edge of window, including edge strip */
-	if (rect.bottom >= RScurrent->height)
+		rect.right = RScurrent->rwidth - 1;	/* clear to edge of window, including edge strip */
+	if (rect.bottom >= RScurrent->height - 1)
 		rect.bottom = RScurrent->rheight + 1;	/* clear to bottom edge also */
     EraseRect(&rect);
 	if (RScurrent->selected)
@@ -807,6 +818,7 @@ void RSinslines
     RSsetwind(w);
 	RSsetConst(w);
     RSsetattr(0); /* avoid funny pen modes */
+
 	if (RScurrent->selected && (scrolled < 0))
 	  {
 	  /* unhighlight and cancel selection */
@@ -816,9 +828,9 @@ void RSinslines
     MYSETRECT
 	  (
 		rect,
-		-3, /* scroll 3 pixels more on the left */
+		CHO, /* scroll 3 pixels more on the left */
 		t * RScurrent->fheight,
-		RScurrent->width,
+		RScurrent->rwidth - 1,
 		(b + 1) * RScurrent->fheight
 	  );
 
@@ -902,8 +914,9 @@ void RSinsstring
 	if ( rect.bottom < RScurrent->height || !VSisundl(a) ) {
    		DrawText(ptr, 0, len);
    	} else {
-		rect.right += 1;
+		++rect.right;
 		TETextBox(ptr, len, &rect, teJustLeft);
+		--rect.right;
 	}
 	if (RScurrent->selected)
 		/* highlight any part of selection covering the newly-inserted text */
