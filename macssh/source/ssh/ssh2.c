@@ -63,6 +63,7 @@
 #include <Gestalt.h>
 #include <Resource.h>
 
+extern Boolean			gInitialized;
 
 extern ApplicationPrefs		*gApplicationPrefs;
 
@@ -816,6 +817,7 @@ void UnlockDialog()
 	pthread_mutex_unlock( &dialock );
 }
 
+
 /*
  * getpass
  */
@@ -851,7 +853,6 @@ char *getpass( const char *prompt )
 			UnlockDialog();
 			return password;
 		}
-
 		if ( wind->sshdata.password[0] ) {
 			memcpy(password, wind->sshdata.password + 1, wind->sshdata.password[0]);
 			password[wind->sshdata.password[0]] = '\0';
@@ -859,7 +860,7 @@ char *getpass( const char *prompt )
 			valid = 1;
 		} else {
 			ppassword[0] = 0;
-			valid = SSH2PasswordDialog(prompt, ppassword);
+			valid = SSH2PasswordDialog(prompt, ppassword, wind->wind);
 			if (valid) {
 				memcpy(password, ppassword + 1, ppassword[0]);
 				password[ppassword[0]] = '\0';
@@ -874,6 +875,7 @@ char *getpass( const char *prompt )
 	} else {
 		/* encrypted private key */
 		int plen;
+		WindowPtr term;
 		assert(context != NULL);
 		index = context->_kindex;
 		if ( gApplicationPrefs->cachePassphrase
@@ -887,8 +889,9 @@ char *getpass( const char *prompt )
 			UnlockDialog();
 			return context->_kpassword;
 		}
+		term = ( wind ) ? wind->wind : NULL;
 		context->_kpassword[0] = 0;
-		valid = SSH2PasswordDialog(prompt, (StringPtr)context->_kpassword);
+		valid = SSH2PasswordDialog(prompt, (StringPtr)context->_kpassword, term);
 		if (valid) {
 			plen = context->_kpassword[0];
 			password = (wind != NULL) ? wind->sshdata.currentpass : context->_kpassword;
@@ -1040,6 +1043,11 @@ void ssh2_doevent(long sleepTime)
 {
 	Boolean memOK;
 	extern Boolean haveNotifiedLowMemory;
+
+	if ( !gInitialized ) {
+		// don't process GUSI events until full init.
+		return;
+	}
 
 	if ( key_gen == 0 ) {
 		if (!gThreadModal && !/*gSetUpMovableModal*/gMovableModal) {
