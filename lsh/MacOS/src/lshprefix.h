@@ -360,6 +360,12 @@ extern char *strsignal(int signo);
 /* bug in metrowerks 68k alloca function */
 #ifndef powerc
 #define ALLOCA_68K_BUG 1
+//#if __MWERKS__
+#if __MC68K__										/* begin mm 980512 */
+#include <stddef.h>
+extern void *__alloca(size_t size:__d0) : __d0;
+#endif												/*  end  mm 980512 */
+//#endif
 #endif
 
 #if ALLOCA_68K_BUG
