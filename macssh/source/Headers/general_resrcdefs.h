@@ -28,7 +28,7 @@
 #define leftcrsr		130		/* cursors to display encryption state */
 #define rightcrsr		129		/* cursors to display encryption state */
 #define lockcrsr		131		/* cursors to display encryption state */
-#define sshcrsr			132		/* cursors to display ssh2 state */
+#define sshicon			135		/* ics# to display ssh2 state */
 /*================================================================================*/
 /*	WIND resources for remembering the position of our windows */
 #define	FTPlogWIND	257
