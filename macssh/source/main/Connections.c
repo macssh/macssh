@@ -771,6 +771,8 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	if (SessPtr->linemode) //we allow linemode
 		initLinemode(&screens[cur]);
 
+	theScreen->launchurlesc = SessPtr->launchurlesc;
+
 /* NONO */
 	theScreen->authentication = SessPtr->authentication;
 	theScreen->compression = SessPtr->compression;
@@ -957,32 +959,35 @@ void	CompleteConnectionOpening(short dat, ip_addr the_IP, OSErr DNRerror, char *
 {
 	ConnInitParams	**Params;
 	short socks4a, len, pos;
+	WindRec *tw;
 	
-	if (screens[dat].active != CNXN_DNRWAIT) return;			// Something is wrong.
+	tw = &screens[dat];
+
+	if (tw->active != CNXN_DNRWAIT) return;			// Something is wrong.
 	
-	Params = (ConnInitParams **)screens[dat].myInitParams;
+	Params = (ConnInitParams **)tw->myInitParams;
 	
 	if (DNRerror == noErr) {
-		if (screens[dat].sockslookup) { // RAB BetterTelnet 2.0fc1
-			screens[dat].socksIP = the_IP;
+		if (tw->sockslookup) { // RAB BetterTelnet 2.0fc1
+			tw->socksIP = the_IP;
 			socks4a = 0;
-			if (screens[dat].socks4a) {
-				len = screens[dat].machine[0];
+			if (tw->socks4a) {
+				len = tw->machine[0];
 				pos = 1;
 				while (len) { // we still "look up" dotted quad numbers since
 							  // that doesn't involve DNS
-					if (((screens[dat].machine[pos] < '0') ||
-						 (screens[dat].machine[pos] > '9')) &&
-						(screens[dat].machine[pos] != '.'))
+					if (((tw->machine[pos] < '0') ||
+						 (tw->machine[pos] > '9')) &&
+						(tw->machine[pos] != '.'))
 						socks4a = 1; // not a number or period, thus it's a DNS name
 					len--;
 					pos++;
 				}
 			}
-			screens[dat].socks4a = socks4a;
+			tw->socks4a = socks4a;
 			if (!socks4a) { // we need to do another lookup
-				screens[dat].sockslookup = 0;
-				if (DoTheDNR(screens[dat].machine, dat) != noErr) {
+				tw->sockslookup = 0;
+				if (DoTheDNR(tw->machine, dat) != noErr) {
 					OutOfMemory(1010);
 					DisposeHandle((Handle)(**Params).terminal);
 					DisposeHandle((Handle)(**Params).session);
@@ -993,15 +998,15 @@ void	CompleteConnectionOpening(short dat, ip_addr the_IP, OSErr DNRerror, char *
 				}
 				return; // wait for it to finish
 			}
-		} else if (screens[dat].usesocks) { // ok, it finished
-			screens[dat].actualIP = the_IP;
-			the_IP = screens[dat].socksIP; // we connect to the socks server (first lookup)
+		} else if (tw->usesocks) { // ok, it finished
+			tw->actualIP = the_IP;
+			the_IP = tw->socksIP; // we connect to the socks server (first lookup)
 										   // not the remote host (second lookup)
 		}
 
-		if (screens[dat].usesocks) // fix the port
-			(**(**Params).session).port = screens[dat].socksport;
-			// we set (**(**Params).session).port but not screens[dat].portNum because
+		if (tw->usesocks) // fix the port
+			(**(**Params).session).port = tw->socksport;
+			// we set (**(**Params).session).port but not tw->portNum because
 			// the session is disposed after the connection is open while
 			// the screen remains and could be used to save a set
 
@@ -1012,24 +1017,24 @@ void	CompleteConnectionOpening(short dat, ip_addr the_IP, OSErr DNRerror, char *
 
 		if (setReadBlockSize((**(**Params).session).NetBlockSize,dat) != 0) //couldnt get read buffer
 			return;
-		if ((screens[dat].protocol == 1) || (screens[dat].protocol == 2)) netfromport(768);
+		if ((tw->protocol == 1) || (tw->protocol == 2)) netfromport(768);
 
 /* NONO */
 #if 1
-		if ( screens[dat].protocol == 4 ) {
+		if ( tw->protocol == 4 ) {
 			// dummy makestream for ssh2...
-			screens[dat].port = makestream();
-			screens[dat].sshdata.ip = the_IP;
+			tw->port = makestream();
+			tw->sshdata.ip = the_IP;
 			// fake open indication for ssh2...
-			netputevent(CONCLASS, CONOPEN, screens[dat].port,0);
+			netputevent(CONCLASS, CONOPEN, tw->port,0);
 
 		} else {
-			screens[dat].port  = netxopen(the_IP,(**(**Params).session).port,/* BYU 2.4.15 - open to host name */
+			tw->port  = netxopen(the_IP,(**(**Params).session).port,/* BYU 2.4.15 - open to host name */
 						gApplicationPrefs->OpenTimeout);/* CCP 2.7 allow user set-able timeouts on open */
 		}
 
 #else
-		screens[dat].port  = netxopen(the_IP,(**(**Params).session).port,/* BYU 2.4.15 - open to host name */
+		tw->port  = netxopen(the_IP,(**(**Params).session).port,/* BYU 2.4.15 - open to host name */
 					gApplicationPrefs->OpenTimeout);/* CCP 2.7 allow user set-able timeouts on open */
 #endif
 /* NONO */
@@ -1037,19 +1042,19 @@ void	CompleteConnectionOpening(short dat, ip_addr the_IP, OSErr DNRerror, char *
 		// We need the cannonical hostname for Kerberos. Make best guess if
 		// DNR did not return a cname.
 		if (cname)
-			strncpy(screens[dat].cannon, cname, sizeof(screens[dat].cannon));
+			strncpy(tw->cannon, cname, sizeof(tw->cannon));
 		else
-			strncpy(screens[dat].cannon, (char *)(**(**Params).session).hostname, sizeof(screens[dat].cannon));
-		screens[dat].cannon[sizeof(screens[dat].cannon)-1] = '\0';
+			strncpy(tw->cannon, (char *)(**(**Params).session).hostname, sizeof(tw->cannon));
+		tw->cannon[sizeof(tw->cannon)-1] = '\0';
 
 		DisposeHandle((Handle)(**Params).session);
 		DisposeHandle((Handle)(**Params).terminal);
 		DisposeHandle((Handle)Params);
 
-		if (screens[dat].port <0) {					/* Handle netxopen fail */
+		if (tw->port <0) {					/* Handle netxopen fail */
 			destroyport(dat);
 			}
-		screens[dat].active = CNXN_OPENING;
+		tw->active = CNXN_OPENING;
 		SetMenuMarkToOpeningForAGivenScreen(dat);	/* Change status mark */
 		}
 	else
@@ -1076,10 +1081,10 @@ void	CompleteConnectionOpening(short dat, ip_addr the_IP, OSErr DNRerror, char *
 		DisposeDialog(theDialog);
 
 		// RAB BetterTelnet 2.0b2 - we need to report the DNS error to AppleScript
-		if (screens[dat].cxWeHaveAppleEvent) {
-			AEResumeTheCurrentEvent(&screens[dat].cxAppleEvent, &screens[dat].cxAEReply,
+		if (tw->cxWeHaveAppleEvent) {
+			AEResumeTheCurrentEvent(&tw->cxAppleEvent, &tw->cxAEReply,
 				MyHandleConnectUPP, 2);
-			screens[dat].cxWeHaveAppleEvent = 0;
+			tw->cxWeHaveAppleEvent = 0;
 		}
 
 		DisposeHandle((Handle)(**Params).session);
@@ -1282,18 +1287,17 @@ void destroyport(short wind)
 	
 	tw = &screens[wind];
 
-	
 	setLastCursor(theCursors[watchcurs]);		/* We may be here a while */
 
 	if (tw->active == CNXN_ISCORPSE) {
-		if (tw->curgraph>-1)
+		if ( tw->curgraph >= 0 )
 			detachGraphics( tw->curgraph);	/* Detach the Tek screen */
 		if (tw->outlen>0) {
 			tw->outlen=0;						/* Kill the remaining send*/
 			HUnlock( tw->outhand);			/*  buffer */
 			HPurge ( tw->outhand);
-			}
 		}
+	}
 
 	if (FrontWindow() == tw->wind)
 		callNoWindow=1;
@@ -1301,6 +1305,7 @@ void destroyport(short wind)
 	if (tw->aedata != NULL) {
 		auth_encrypt_end((tnParams **)&tw->aedata);
  		DisposePtr((Ptr)tw->aedata);
+ 		tw->aedata = NULL;
 	}
 
 
@@ -1342,7 +1347,7 @@ void removeport(WindRecPtr tw)
 
 	disposemacros(&tw->sessmacros);
 
-	if (tw->curgraph>-1)
+	if (tw->curgraph >= 0)
 		detachGraphics( tw->curgraph);		/* Detach the Tek screen */
 
 	if (tw->protocol == 4) {
@@ -1352,10 +1357,10 @@ void removeport(WindRecPtr tw)
 	disposetranslation(tw);
 
 	if (tw->outlen>0) {
-				tw->outlen=0;				/* Kill the remaining send*/
-				HUnlock( tw->outhand);		/*  buffer */
-				HPurge ( tw->outhand);
-				}
+		tw->outlen=0;				/* Kill the remaining send*/
+		HUnlock( tw->outhand);		/*  buffer */
+		HPurge ( tw->outhand);
+	}
 
 	if (VSiscapturing(tw->vs))				/* NCSA: close up the capture */
 		CloseCaptureFile(tw->vs);			/* NCSA */
