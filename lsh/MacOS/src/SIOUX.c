@@ -1102,9 +1102,9 @@ short SIOUXHandleOneEvent(EventRecord *userevent)
 					if (SIOUXState == SCANFING) {
 						/*	If there are too many characters on the line already then just return ...*/
 #if SIOUX_USE_WASTE
-						if ((WEGetTextLength( SIOUXTextWindow->edit ) - SIOUXselstart + 1) >= inputBuffersize)
+						if (!gSIOUXTerminalMode && (WEGetTextLength( SIOUXTextWindow->edit ) - SIOUXselstart + 1) >= inputBuffersize)
 #else
-						if (((*SIOUXTextWindow->edit)->teLength - SIOUXselstart + 1) >= inputBuffersize)
+						if (!gSIOUXTerminalMode && ((*SIOUXTextWindow->edit)->teLength - SIOUXselstart + 1) >= inputBuffersize)
 #endif /* SIOUX_USE_WASTE */
 						{
 							SysBeep(10);
@@ -2085,7 +2085,9 @@ long ReadCharsFromConsole(char *buffer, long n)
 	GetPort(&saveport);
 	SetPortWindowPort(SIOUXTextWindow->window);	/* ra 990612 Use UI 3.2 and WindowPtr */
 
-	SIOUXState = SCANFING;
+	if ( !gSIOUXTerminalMode || !gSIOUXBufSize )
+		SIOUXState = SCANFING;
+
 	inputBuffersize = n;
 #if SIOUX_USE_WASTE
 	SIOUXselstart = WEGetTextLength( SIOUXTextWindow->edit );
