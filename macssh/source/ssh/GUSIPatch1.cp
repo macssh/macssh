@@ -318,6 +318,8 @@ done:
  * Let's clear it upon kOTProviderWillClose message.
  */
 
+/* moved to GUSIPatch2.cp : 68k version no longer links otherwise */
+/*
 // <Asynchronous notifier function for [[GUSIOTNetDB]]>=                   
 inline uint32_t CompleteMask(OTEventCode code)	
 { 	
@@ -372,6 +374,7 @@ pascal void GUSIOTNetDBNotify(
 		netdb->fAsyncError = result;
 	context->Wakeup();
 }
+*/
 
 /*
  * we need to track open()/dup()/close()/socket() calls to close files/sockets
