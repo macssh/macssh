@@ -89,8 +89,8 @@ Boolean SSH2RandomizeDialog( long *type, long *level, long *encrypt, Str255 comm
 
 	SetUpMovableModalMenus();
 	dlogFilterUPP = NewModalFilterProc(RandomizeFilter);
-	//dlog = GetNewMyDialog(rSSH2RandomizeDialog, 0L, (WindowPtr)-1L, NULL);
-	dlog = GetNewMyDialog(rSSH2RandomizeDialog, 0L, (WindowPtr)-1L, (void *)ThirdCenterDialog);
+	//dlog = GetNewMyDialog(rSSH2RandomizeDialog, 0L, (WindowPtr)-1L, (void *)ThirdCenterDialog);
+	dlog = GetNewMyDialog(rSSH2RandomizeDialog, 0L, (WindowPtr)-1L, NULL);
 	if ( dlog ) {
 		short item;
 		SInt16 itemType;
@@ -308,7 +308,8 @@ void SSH2ErrorDialog(char *mess1)
 
 	InteractWithUser( true, 128, 128 );
 
-	dlog = GetNewMyDialog(rSSH2ErrorDialog, 0L, (WindowPtr)-1L, (void *)ThirdCenterDialog);
+	//dlog = GetNewMyDialog(rSSH2ErrorDialog, 0L, (WindowPtr)-1L, (void *)ThirdCenterDialog);
+	dlog = GetNewMyDialog(rSSH2ErrorDialog, 0L, (WindowPtr)-1L, NULL);
 	if ( dlog ) {
 		buf[0]=0;		/* dont print extraneous garbage to the screen... */
 		strncpy(buf, mess1, 255);
