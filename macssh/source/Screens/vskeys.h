@@ -17,6 +17,9 @@
  *
  */
 
+#ifndef __VSKEYS_H__
+#define __VSKEYS_H__
+
 /* internal codes for identifying special keys */
 
 #define VSF10	 96		/* Function key 10 */		/* Mac Key F5 */	/* BYU 2.4.12 */
@@ -71,9 +74,6 @@
 #define VSF4    150     /* Function 4 */			/* Mac Keypad * */	
 
 
-
-
-
 #ifdef VSMASTER
 char VSIkpxlate[2][23] =
 	{	"ABCD0123456789,-.\15PQRS",
@@ -94,8 +94,8 @@ extern unsigned char *VSIkplen;							/* BYU 2.4.12 */
  *          Definition of attribute bits in the Virtual Screen
  *
  *          0   -   Bold
- *          1   -   faint
- *          2   -   italic
+ *          1   -   faint   (used internally for 2nd ansi foreground color)
+ *          2   -   italic  (used internally for 2nd ansi background color)
  *          3   -   Underline
  *          4   -   slowly Blinking
  *          5   -   rapidly Blinking
@@ -111,30 +111,30 @@ extern unsigned char *VSIkplen;							/* BYU 2.4.12 */
  *			15	-	use ansi background color
  *
  */
-#define VSa(x)			( 1 << ((x)-1) )	
-#define VSisbold(x) 	((x) & 0x01)
-#define VSisfaint(x) 	((x) & 0x02)
-#define VSisitalic(x) 	((x) & 0x04)
-#define VSisundl(x) 	((x) & 0x08)
-#define VSisblnk(x) 	((x) & 0x10)
+#define VSa(x)          (1 << ((x) - 1))
+#define VSisbold(x)     ((x) & 0x01)
+#define VSisfaint(x)    ((x) & 0x02)
+#define VSisitalic(x)   ((x) & 0x04)
+#define VSisundl(x)     ((x) & 0x08)
+#define VSisblnk(x)     ((x) & 0x10)
 #define VSisfastblnk(x) ((x) & 0x20)
-#define VSisrev(x)  	((x) & 0x40)
-#define VSisgrph(x) 	((x) & 0x80)
-#define VSinattr(x) 	((x) & 0xff)	
+#define VSisrev(x)      ((x) & 0x40)
+#define VSisgrph(x)     ((x) & 0x80)
+#define VSisansifg(x)   ((x) & 0x0800)
+#define VSisansibg(x)   ((x) & 0x08000)
+#define VSisansi(x)     ((x) & 0x08800)
+#define VSisansifg2(x)  ((x) & 0x10000)
+#define VSisansibg2(x)  ((x) & 0x20000)
+
+//#define VSinattr(x) 	((x) & 0xd9)
+#define VSinattr(x) 	((x) & 0xff)
 
 #define VSgraph(x)  	((x) | 0x80)
 #define VSnotgraph(x) 	((x) & 0x7F)
 
-#define VSisansifg(x) 	((x) & 0x0800)	
-#define VSisansibg(x) 	((x) & 0x8000)	
-#define VSisansi(x)		((x) & 0x8800)	
+#define VSansifg(x)  	((x) | 0x00800)
+#define VSansibg(x) 	((x) | 0x08000)
+#define VSansifg2(x)  	((x) | 0x10800)
+#define VSansibg2(x) 	((x) | 0x28000)
 
-//#define VSisbold(x) (x & 0x01)
-//#define VSisundl(x) (x & 0x08)
-//#define VSisblnk(x) (x & 0x10)
-//#define VSisrev(x)  (x & 0x40)
-//#define VSisgrph(x) (x & 0x80)
-//#define VSinattr(x) (x & 0xd9)
-
-//#define VSgraph(x)  (x | 0x80)
-//#define VSnotgraph(x) (x & 0x7F)
+#endif
