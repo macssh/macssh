@@ -25,6 +25,10 @@
 
 /*#include <features.h>*/
 
+#ifndef __const
+#define __const const
+#endif
+
 __BEGIN_DECLS
 
 #ifndef _BITS_TYPES_H
