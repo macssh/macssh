@@ -54,6 +54,13 @@
 #include "movableModal.h"
 #include <Script.h> // for EMACS meta hack
 #include <Icons.h> //For Notify User Icon Stuff
+
+#include <Gestalt.h>
+#include <OSUtils.h>
+#include <Traps.h>
+#include <LowMem.h>
+
+
 extern short		scrn;
 extern MenuHandle	myMenus[NMENUS];
 extern Boolean		gKeyboardHasControlKey;
@@ -69,12 +76,20 @@ extern void VSdump(char *p, int len);
 static gHaveInstalledNotification = 0;
 NMRec *nRecPtr;
 
+OSType	gKeyboardLayoutType = kKeyboardUnknown;
+
 extern int gMovableModal;
 
 #include "event.proto.h"
 
 extern void syslog( int priority, const char *format, ...);
 extern long dumpln( long base, char *dest, void *src, long len );
+
+
+Boolean IsKBGetLayoutTypeAvailable(void);
+
+OSType GetKeyboardLayoutType(short deviceID);
+
 
 // BetterTelnet 2.0fc1 - integrated DJ's changes for real blink (if you want it :-)
 /* DJ: Blink global */
@@ -127,8 +142,8 @@ unsigned char kpxlate[2][62] =
 		0,		/* $5A */
 		VSK8,	/* $5B */
 		VSK9,	/* $5C */
-		0,		/* $5D */
-		0,		/* $5E */
+		VSJPBKS,/* $5D */	/* '\' on japanese keyboard */
+		VSJPUND,/* $5E */	/* '_' on japanese keyboard */
 		VSF5,	/* $5F */
 		VSF10,	/* $60 */	/* BYU 2.4.12 */
 		VSF11,	/* $61 */	/* BYU 2.4.12 */
@@ -191,8 +206,8 @@ unsigned char kpxlate[2][62] =
 		0,		/* $5A */
 		VSK8,	/* $5B */
 		VSK9,	/* $5C */
-		0,		/* $5D */
-		0,		/* $5E */
+		VSJPBKS,/* $5D */	/* '\' on japanese keyboard */
+		VSJPUND,/* $5E */	/* '_' on japanese keyboard */
 		VSF5,		/* $5F */
 		VSF10,	/* $60 */	/* BYU 2.4.12 */
 		VSF11,	/* $61 */	/* BYU 2.4.12 */
@@ -434,6 +449,21 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 	else if ( controldown && shifted && ascii == '6' )
 		ascii = 0x1e;					// fix bad KCHR control-^
 
+	if ( controldown && !commanddown && gKeyboardLayoutType == kKeyboardJIS ) {
+		if ( code == 0x5d ) {	// '\'
+			ascii = 0x1c;
+			code = 0;
+		} else if ( code == 0x5e ) {	// '_'
+			ascii = 0x1f;
+			code = 0;
+		} else if ( code == 0x21 )	// '@'
+			ascii = 0;
+		else if ( code == 0x1e )	// '['
+			ascii = 0x1b;
+		else if ( code == 0x2a )	// ']'
+			ascii = 0x1d;
+	}
+
 	if ( commanddown ) {
 		if (gApplicationPrefs->CommandKeys) {
 			//if optioned, retranslate so we can do menu commands
@@ -505,10 +535,10 @@ emacsHack:
 	if ((TelInfo->numwindows < 1) || (tw->active != CNXN_ACTIVE)) 
 		return;
 
+	if ( (ascii == '@' || ascii == 32) && controldown ) //this, along with the fixed KCHR that mapps a Cntl-@ to
+		ascii = 0;	// a @, takes care of Apple not posting NULL key values
 
-	if (((ascii == '@') || (ascii == 32))&& controldown) //this, along with the fixed KCHR that mapps a Cntl-@ to
-		ascii = NULL;				 //a @, takes care of Apple not posting NULL key values
-	
+
 	//	map '`' to ESC if needed
 	if (ascii == '`' && gApplicationPrefs->RemapTilde && !commanddown)
 		ascii = ESC;
@@ -899,11 +929,91 @@ static Boolean haveChangedKCHR;
 //called at startup to figure out the default roman KCHR and the active script
 void scriptKbdInit(void)
 {
+	long	response;
+
 	currentScript = GetScriptManagerVariable(smKeyScript);//get active script
 	defaultKCHR = GetScriptVariable(smRoman, smScriptKeys); //get the smRoman default KCHR
 	mungeCount = GetScriptManagerVariable(smMunged); //Get the mungeCount
 	haveChangedKCHR = FALSE;
+#if GENERATINGPOWERPC
+	gKeyboardLayoutType = GetKeyboardLayoutType(LMGetKbdType());
+#endif
 }
+
+#if GENERATINGPOWERPC
+/*  Returns the keyboard layout type.  */
+
+OSType GetKeyboardLayoutType(short deviceID)
+{
+    OSType keyboardLayoutType;
+
+    switch (deviceID) {
+        case 0x01:
+        case 0x02:
+        case 0x03:
+        case 0x06:
+        case 0x08:
+        case 0x0C:
+        case 0x10:
+        case 0x18:
+        case 0x1B:
+        case 0x1C:
+        case 0xC0:
+        case 0xC3:
+        case 0xC6:
+            keyboardLayoutType = kKeyboardANSI;
+            break;
+        case 0x12:
+        case 0x15:
+        case 0x16:
+        case 0x17:
+        case 0x1A:
+        case 0x1E:
+        case 0xC2:
+        case 0xC5:
+        case 0xC8:
+        case 0xC9:
+        case 0xCE:
+            keyboardLayoutType = kKeyboardJIS;
+            break;
+        case 0x04:
+        case 0x05:
+        case 0x07:
+        case 0x09:
+        case 0x0D:
+        case 0x11:
+        case 0x14:
+        case 0x19:
+        case 0x1D:
+        case 0xC1:
+        case 0xC4:
+        case 0xC7:
+            keyboardLayoutType = kKeyboardISO;
+            break;
+        default:
+            if (IsKBGetLayoutTypeAvailable ())
+                keyboardLayoutType = KBGetLayoutType (deviceID);
+            else
+                keyboardLayoutType = kKeyboardUnknown;
+            break;
+    }
+    return keyboardLayoutType;
+}
+
+/*  Returns true if KBGetLayoutType is available.  */
+
+Boolean IsKBGetLayoutTypeAvailable(void)
+{
+    long response;
+
+    if (Gestalt (gestaltKeyboardsLib, &response) == noErr)
+        return true;
+    else
+        return false;
+}
+
+#endif
+
 
 void SetDefaultKCHR(void)
 {

@@ -11,3 +11,43 @@ extern unsigned char kpxlate[2][62];
 
 #define DELchar		0x7f	/* BYU LSC - (DEL is defined in MacLook.h) the delete character */
 #define	KILLCHAR	0x15	/* the character to kill the local line with */
+
+#ifndef __MACTYPES__
+#include <MacTypes.h>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#if ! defined (__KEYBOARDS__)
+
+enum {
+    gestaltKeyboardsLib = FOUR_CHAR_CODE('kbds')     /* Keyboards library */
+};
+
+enum
+{
+    kKeyboardJIS     = 'JIS ',
+    kKeyboardANSI    = 'ANSI',
+    kKeyboardISO     = 'ISO ',
+    kKeyboardUnknown = '????'
+};
+
+enum
+{
+    _KeyboardDispatch = 0xAA7A
+};
+
+#pragma import on
+extern pascal OSType KBGetLayoutType (short deviceID)
+ THREEWORDINLINE(0x303C, 0x0007, _KeyboardDispatch);
+#pragma import off
+
+#endif
+
+OSType GetKeyboardLayoutType (short deviceID);
+
+#ifdef __cplusplus
+}
+#endif

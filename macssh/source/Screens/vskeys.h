@@ -68,26 +68,32 @@
 #define VSKP    145     /* Keypad . */
 #define VSKE    146     /* Keypad Enter */
 
-#define VSPF1    147     /* Function 1 */			/* Mac Keypad Clear */	
-#define VSPF2    148     /* Function 2 */			/* Mac Keypad = */	
-#define VSPF3    149     /* Function 3 */			/* Mac Keypad / */	
-#define VSPF4    150     /* Function 4 */			/* Mac Keypad * */	
+#define VSPF1   147     /* Function 1 */			/* Mac Keypad Clear */	
+#define VSPF2   148     /* Function 2 */			/* Mac Keypad = */	
+#define VSPF3   149     /* Function 3 */			/* Mac Keypad / */	
+#define VSPF4   150     /* Function 4 */			/* Mac Keypad * */	
+
+#define VSJPBKS 151     /* backslash on japanese keyboard */
+#define VSJPUND 152     /* underscore on japanese keyboard */
 
 
 #ifdef VSMASTER
-char VSIkpxlate[2][23] =
-	{	"ABCD0123456789,-.\15PQRS",
-		"ABCDpqrstuvwxylmnMPQRS"
+char VSIkpxlate[2][25] =
+	{
+		"ABCD0123456789,-.\15PQRS\\_",
+		//"ABCDpqrstuvwxylmnMPQRS\\_"
+		"ABCD0123456789,-.\15PQRS|_"
 	};
-char VSIkpxlate2[] = "222122?2?3?3?2?3?3123425161";		/* BYU 2.4.12 */
-char VSIkpxlate3[] = "134956?9?2?3?8?1?4~~~~0~8~7";		/* BYU 2.4.12 */
-unsigned char VSIkplen[] = 								/* BYU 2.4.12 */
-	{ 5,5,5,5,5,5,5,5,5,5,								/* BYU 2.4.12 */
-	  5,5,5,5,5,5,5,5,4,4,								/* BYU 2.4.12 */
-	  4,4,5,4,5,4,5 };									/* BYU 2.4.12 */
+//char VSIkpxlate2[] = "222122?2?3?3?2?3?3123425161";		/* BYU 2.4.12 */
+//char VSIkpxlate3[] = "134956?9?2?3?8?1?4~~~~0~8~7";		/* BYU 2.4.12 */
+//unsigned char VSIkplen[] = 								/* BYU 2.4.12 */
+//	{ 5,5,5,5,5,5,5,5,5,5,								/* BYU 2.4.12 */
+//	  5,5,5,5,5,5,5,5,4,4,								/* BYU 2.4.12 */
+//	  4,4,5,4,5,4,5 };									/* BYU 2.4.12 */
 #else
-extern char *VSIkpxlate,*VSIkpxlate2,*VSIkpxlate2;		/* BYU 2.4.12 */
-extern unsigned char *VSIkplen;							/* BYU 2.4.12 */
+extern char *VSIkpxlate;
+//extern char *VSIkpxlate2:
+//extern unsigned char *VSIkplen;							/* BYU 2.4.12 */
 #endif
 
 /*
@@ -111,9 +117,8 @@ extern unsigned char *VSIkplen;							/* BYU 2.4.12 */
  *			15	- 0x008000 - use ansi background color
  *			16	- 0x010000 - use 2nd ansi foreground color
  *			17	- 0x020000 - use 2nd ansi background color
- *			18	- 0x040000 - has first character in high byte
+ *			18	- 0x040000 - next character is part of multi-byte
  *
- *          8 higher bits: second character in multibyte mode
  */
 
 /* character attributes */
