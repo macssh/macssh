@@ -1908,12 +1908,29 @@ void	CheckNational(short choice)
 }
 
 /*
+ *	adjustwindowcommands.
+ */
+
+static void adjustwindowcommands()
+{
+	int i;
+	int count = CountMenuItems(myMenus[Conn]);
+	if (count > FIRST_CNXN_ITEM + 8 )
+		count = FIRST_CNXN_ITEM + 8;
+	for (i = FIRST_CNXN_ITEM; i <= count; ++i) {
+		//SetItemCommand( myMenus[Conn], i, mark);
+		SetItemCmd( myMenus[Conn], i, '1' + i - FIRST_CNXN_ITEM );
+	}
+}
+
+/*
  *	extractmenu - remove a connection from the menu.
  */
 
 void extractmenu(short screen)
 {
 	DeleteMenuItem(myMenus[Conn], screen + FIRST_CNXN_ITEM);
+	adjustwindowcommands();
 	AdjustMenus();
 }
 
@@ -1927,8 +1944,10 @@ void addinmenu( short screen, Str255 temps, char mark)
 	InsertMenuItem(myMenus[Conn], "\pDoh", (screen-1) + FIRST_CNXN_ITEM);
 	SetMenuItemText(myMenus[Conn], screen + FIRST_CNXN_ITEM, temps);		// Avoid metas
 	SetItemMark( myMenus[Conn], screen + FIRST_CNXN_ITEM, mark);
+	adjustwindowcommands();
 	AdjustMenus();
 }
+
 
 /*	Set the item mark for <scrn> to opening connection */
 void SetMenuMarkToOpeningForAGivenScreen( short scrn)
