@@ -33,6 +33,7 @@
 #include "sshglue.proto.h"
 #include "general_resrcdefs.h"
 
+extern void syslog( int priority, const char *format, ...);
 
 static void calculateWindowPosition(WindRec *theScreen,Rect *whereAt, short colsHigh, short colsWide);
 
@@ -332,9 +333,47 @@ short RSupdate
 
     BeginUpdate(wind);
 	if ( !EmptyRgn(wind->visRgn) ) {
+
 		RSupdatecontent(wind, wind->visRgn);
+
 		DrawGrowIcon(wind);
+
+#if !GENERATINGPOWERPC
 		UpdateControls(wind, wind->visRgn);
+#else
+		if (RSlocal[w].active) {
+			UpdateControls(wind, wind->visRgn);
+		} else {
+			ControlHandle ctrl;
+			Rect ctrlRect;
+			RgnHandle eraseRgn;
+
+			BackColor(whiteColor);
+
+			eraseRgn = NewRgn();
+			if ((ctrl = RSlocal[w].scroll) != 0L) {
+				ctrlRect = (**ctrl).contrlRect;
+				InsetRect(&ctrlRect, 1, 1);
+				RectRgn(eraseRgn, &ctrlRect);
+				SectRgn(eraseRgn, wind->visRgn, eraseRgn);
+				EraseRgn(eraseRgn);
+			}
+			if ((ctrl = RSlocal[w].left) != 0L) {
+				ctrlRect = (**ctrl).contrlRect;
+				InsetRect(&ctrlRect, 1, 1);
+				RectRgn(eraseRgn, &ctrlRect);
+				SectRgn(eraseRgn, wind->visRgn, eraseRgn);
+				EraseRgn(eraseRgn);
+			}
+			DisposeRgn(eraseRgn);
+
+			if (TelInfo->haveColorQuickDraw) {
+				PmBackColor(1);
+			} else {
+				BackColor(blackColor);
+			}
+		}
+#endif
 		RSdrawlocker(w, wind->visRgn);
 	}
     EndUpdate(wind);
@@ -743,6 +782,8 @@ short RSnewwindow
 	RScurrent->flipped = 0;		/* Initially, the color entries are not flipped */
 	RSsetsize(w, wheight, wwidth, screenNumber);
 
+	RScurrent->active = 0;
+
 	RSTextFont(RScurrent->fnum,RScurrent->fsiz,0);	/* BYU LSC */
 	TextSize(RScurrent->fsiz);				/* 9 point*/
 	if (!TelInfo->haveColorQuickDraw)
@@ -1000,9 +1041,9 @@ void RSdeactivate
 
 	RSsetConst(w);
 
-  /* deactivate the scroll bars */
 	BackColor(whiteColor);
 
+  	/* deactivate the scroll bars */
 	if (RSlocal[w].scroll != 0L) {
 		HideControl(RSlocal[w].scroll);
 	}
@@ -1010,13 +1051,17 @@ void RSdeactivate
 		HideControl(RSlocal[w].left);
 	}
 
-  /* update the appearance of the grow icon */
+	/* update the appearance of the grow icon */
 	DrawGrowIcon(RSlocal[w].window); 
 
-	if (TelInfo->haveColorQuickDraw)
+	if (TelInfo->haveColorQuickDraw) {
 		PmBackColor(1);
-	else
+	} else {
 		BackColor(blackColor);
+	}
+
+	RSlocal[w].active = 0;
+
  	SetPort(port);
   } /* RSdeactivate */
 
@@ -1294,6 +1339,8 @@ void RSactivate
 	if (RSlocal[w].left != 0L) {
 		ShowControl(RSlocal[w].left);
 	}
+	RSlocal[w].active = 1;
+
   } /* RSactivate */
 
 /*--------------------------------------------------------------------------*/
@@ -1542,6 +1589,9 @@ void RSchangebold
 	RScurrent->allowBold = allowBold;
 	RScurrent->colorBold = colorBold;
 	RScurrent->bfstyle = inversebold;
+/* NONO */
+	RScurrent->realbold = allowBold;
+/* NONO */
 	VSredraw(screens[scrn].vs,0,0,VSmaxwidth(screens[scrn].vs),VSgetlines(screens[scrn].vs)-1);
 }
 
@@ -1740,29 +1790,27 @@ void RSUpdatePalette(void)  //called when ANSI colors have changed, and we need 
 {							//windows palette
 	GrafPtr oldPort;
 	int screenIndex;
+	WindRec	*w;
+	
 
 	GetPort(&oldPort);
 	for (screenIndex = 0; screenIndex < TelInfo->numwindows; screenIndex++)
 	{
-		if ((screens[screenIndex].active == CNXN_ACTIVE)||
-			(screens[screenIndex].active == CNXN_OPENING))
+		w = &screens[screenIndex];
+		if ((w->active == CNXN_ACTIVE)||
+			(w->active == CNXN_OPENING))
 		{
-			if (screens[screenIndex].ANSIgraphics)
+			if (w->ANSIgraphics)
 			{
-				if (RSsetwind(screens[screenIndex].vs) >= 0)
+				if (RSsetwind(w->vs) >= 0)
 				{
 					int i;
 					for (i = 0; i < 16; i++) {
 							RGBColor tempColor;
 							GetEntryColor(TelInfo->AnsiColors, i, &tempColor);
-#if GENERATINGPOWERPC
-							if ( i == 1 && gHasSetWindowContentColor ) {
-								SetWindowContentColor(RScurrent->window, &tempColor);
-							}
-#endif
 							SetEntryColor(RScurrent->pal,i+4, &tempColor); //set the new color
 					}
-					SetPort(screens[screenIndex].wind);
+					SetPort(w->wind);
 					InvalRect(&RScurrent->window->portRect); //force a redraw
 				}
 			}

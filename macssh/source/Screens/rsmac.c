@@ -160,14 +160,10 @@ void RSinitall(short max) //max windows to allow
 	hiddenRgn = NewRgn();
 	revealedRgn = NewRgn();
 #if GENERATINGPOWERPC
-	// can't use this: updated scrollbars looks ugly.
-/*
 	theErr = GetSharedLibrary("\pWindowsLib", kPowerPCCFragArch, kFindCFrag, &connID, NULL, NULL);
 	if ( !theErr ) {
 		gHasSetWindowContentColor = (FindSymbol( connID, "\pSetWindowContentColor", NULL, NULL ) == noErr);
 	}
-*/
-	gHasSetWindowContentColor = 0;
 #endif
 } // RSinitall
 
