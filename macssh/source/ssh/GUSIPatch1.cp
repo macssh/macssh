@@ -48,6 +48,9 @@
 
 #include <LowMem.h>
 
+#include <MoreFilesExtras.h>
+#include <FullPath.h>
+
 /*#include "ssh2.h"*/ /* lsh source code doesn't like cplusplus... */
 
 #ifdef __cplusplus
@@ -117,6 +120,55 @@ void ssh2_sched()
 
 char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *dirID)
 {
+	OSErr			err;
+	FSSpec			fileSpec;
+	Boolean			isFolder;
+	Boolean			wasAlias;
+	Boolean			isDirectory;
+	short			fullPathLength;
+	short			pathLength;
+	Handle			fullPath;
+
+	*vRefNum = 0;
+	*dirID = 0;
+	err = FindFolder(kOnSystemDisk, kPreferencesFolderType, true, &fileSpec.vRefNum, &fileSpec.parID);
+	if (err) {
+		return NULL;
+	}
+	fileSpec.name[0] = strlen(name);
+	BlockMoveData(name, fileSpec.name + 1, fileSpec.name[0]);
+	err = ResolveAliasFile(&fileSpec, true, &isFolder, &wasAlias);
+	err = FSpGetDirectoryID(&fileSpec, dirID, &isDirectory);
+	if (err == fnfErr) {
+		err = FSpDirCreate(&fileSpec, smSystemScript, dirID);
+		if (err != noErr) {
+			return NULL;
+		}
+		isDirectory = true;
+	}
+	if (err != noErr || !isDirectory) {
+		return NULL;
+	}
+	err = FSpGetFullPath(&fileSpec, &fullPathLength, &fullPath);
+	if (err != noErr) {
+		return NULL;
+	}
+	pathLength = fullPathLength;
+	if ((*fullPath)[pathLength - 1] == ':' )
+		--pathLength;
+	if (pathLength > size - 2) {
+		// FIXME: better error message
+		DisposeHandle(fullPath);
+		return NULL;
+	}
+	*vRefNum = fileSpec.vRefNum;
+	BlockMoveData(*fullPath, buf, pathLength);
+	buf[pathLength++] = ':';
+	buf[pathLength] = 0;
+	DisposeHandle(fullPath);
+	return buf;
+
+/*
 	GUSIFileSpec	prefs(kPreferencesFolderType, kOnSystemDisk);
 	char * 			res;
 	char * 			out = buf;
@@ -127,7 +179,7 @@ char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *dirID)
 
 	prefs.SetName(name);
 	
-	/* resolve path name in case it's an alias */
+	// resolve path name in case it's an alias
 	prefs.Resolve( true );
 
 	res = prefs.FullPath();
@@ -152,6 +204,7 @@ char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *dirID)
 		return static_cast<char *>(nil);
 	}
 	return out;
+*/
 }
 
 /*
