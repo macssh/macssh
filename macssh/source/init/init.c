@@ -441,6 +441,7 @@ void init (void)
 	
 	dtemp = GetNewMySmallDialog(FirstDLOG, NULL, kInFront, (void *)ThirdCenterDialog);	/* opening dialog */
 	UItemAssign( dtemp, 2, VersionNumberUPP);
+	ShowWindow(dtemp);
 	DrawDialog(dtemp);										/* while we init everything */
 	scriptKbdInit(); 
 	TelInfo->debug=checkdebug();	/* must return TRUE or FALSE */

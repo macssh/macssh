@@ -1202,6 +1202,8 @@ void	RScprompt(short w)
 	SetDialogCancelItem(dptr, 2);
 	//SetDialogTracksCursor(dptr, 1);
 
+	ShowWindow(dptr);
+
 	ditem = 3;	
 	while (ditem > 2) {
 		/*ModalDialog(ColorBoxModalProcUPP, &ditem);*/

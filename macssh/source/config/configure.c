@@ -2589,6 +2589,9 @@ short AnsiPrompt(short allowDefaultBoldSelect, short *defaultBoldColor)
 	ColorBoxPoint.v = 0;			// screen
 	NumOnly[0] = 12; //safe item
 	ditem = 3;	
+
+	ShowWindow(dptr);
+
 	while (ditem > 2) {
 		movableModalDialog(ColorBoxModalProcUPP, &ditem);
 		switch (ditem) {

@@ -492,7 +492,7 @@ WindowPtr GetNewMySmallDialog(short template,Ptr wStorage,WindowPtr behind,
 		and then do a ShowWindow.  This keeps the Control Manager from every using Chicago
 		on our turf. -- JMB */
 		
-	if (! ((((DialogPeek) dlogptr)->window).visible)) ShowWindow(dlogptr);
+	//if (! ((((DialogPeek) dlogptr)->window).visible)) ShowWindow(dlogptr);
 	
 	return(dlogptr);
 }

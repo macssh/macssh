@@ -2170,6 +2170,7 @@ void	ChangeWindowName(WindowPtr	theWindow)
 		SetTEText( dptr, kWinNameTE, theName);
 		SelectDialogItemText( dptr, kWinNameTE, 0, 250 );
 
+		ShowWindow(dptr);
 		itemHit = 0;
 		while(itemHit != DLOGOk && itemHit != DLOGCancel) {
 			//ModalDialog(DLOGwOK_CancelUPP, &itemHit);
