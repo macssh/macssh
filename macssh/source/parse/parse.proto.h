@@ -11,3 +11,4 @@ void	send_do(short port, short option);
 void	send_dont(short port, short option);
 void	otpauto(struct WindRec *, char *, short);
 void	handlewait(struct WindRec *, char *, short);
+void	handleread(struct WindRec *tw, char *string, short len);

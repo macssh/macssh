@@ -388,7 +388,6 @@ void parse (struct WindRec *tw, unsigned char *st, short cnt)
 */
 			if (!tw->timing) {
 				if (tw->termstate == TEKTYPE) {
-					short i;
 					
 					i = VGwrite( tw->curgraph,(char *) orig,  st-orig);	/* BYU LSC */
 					if (i < (st - orig)) {
@@ -397,7 +396,6 @@ void parse (struct WindRec *tw, unsigned char *st, short cnt)
 						}
 					}
 				else if (tw->termstate == RASTYPE) {
-					short i;
 					
 					i= VRwrite((char *) orig, st-orig);		/* BYU LSC */
 					if (i <(st-orig)) {
@@ -410,6 +408,12 @@ void parse (struct WindRec *tw, unsigned char *st, short cnt)
 						otpauto(tw, (char *) orig, st-orig);
 					if (tw->waWaiting)
 						handlewait(tw, (char *) orig, st-orig);
+/* NONO */
+					else if (tw->waWeHaveAppleEvent)
+						handleread(tw, (char *) orig, st-orig);
+/* NONO */
+
+
 					VSwritefast( tw->vs,(char *) orig,st-orig);	/* BYU LSC - send to virtual VT102 */
 					}
 				}
@@ -1126,4 +1130,14 @@ void handlewait(struct WindRec *tw, char *string, short len)
 		templen--;
 		tempstring++;
 	}
+}
+
+void handleread(struct WindRec *tw, char *string, short len)
+{
+	/* add 'string' to AppleEvent reply */
+	OSErr err = AEPutParamPtr(&tw->waAEReply, keyDirectObject, typeChar, string, len);
+	tw->waWeHaveAppleEvent = 0;
+	tw->enabled = tw->waWasEnabled;
+	AEResumeTheCurrentEvent(&tw->waAppleEvent, &tw->waAEReply,
+		MyHandleReadUPP, (err == noErr) ? 1 : 2);
 }

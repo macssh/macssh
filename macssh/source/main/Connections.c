@@ -1144,7 +1144,7 @@ void	ConnectionDataEvent(short port)
 	i=WindByPort(port);									/* BYU */
 	if (i<0) {return; }					/* BYU */
 
-	if (TelInfo->ScrlLock || !screens[i].enabled)	/* BYU LSC */
+	if (TelInfo->ScrlLock || (!screens[i].enabled && !screens[i].waWeHaveAppleEvent))	/* BYU LSC */
 		netputuev( CONCLASS, CONDATA, port,0);
 	else {
 		cnt = netread(port,gReadspace,gBlocksize);	/* BYU LSC */
@@ -1177,7 +1177,6 @@ void	ConnectionDataEvent(short port)
 			cnt--;
 			st++;
 		}
-
 		if (/*screens[i].protocol != 4*/ true ) // ssh handles differently
 			parse( &screens[i], st, cnt);	/* BYU LSC */
 		else {

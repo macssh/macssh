@@ -327,6 +327,8 @@ void initmac( void)
 			FatalAlert(AE_PROBLEM_ERR, 0, 0);
 		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'WaiT',MyHandleWaitUPP,0,FALSE)) != noErr)
 			FatalAlert(AE_PROBLEM_ERR, 0, 0);
+		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'ReaD',MyHandleReadUPP,0,FALSE)) != noErr)
+			FatalAlert(AE_PROBLEM_ERR, 0, 0);
 		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'susp',MyHandleSuspendUPP,0,FALSE)) != noErr)
 			FatalAlert(AE_PROBLEM_ERR, 0, 0);
 		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'!sus',MyHandleUnSuspendUPP,0,FALSE)) != noErr)
