@@ -59,6 +59,8 @@ extern char gSIOUXChars[];
 extern short gSIOUXBufSize;
 extern const short gSIOUXMaxSize;
 
+extern void GUSIWakeupSIOUXSocket();
+
 #if ! SIOUX_USE_WASTE
 
 /************************************************************************/
@@ -584,6 +586,7 @@ void SIOUXDoEditPaste(void)
 				BlockMoveData(* hText, gSIOUXChars + gSIOUXBufSize, size);
 				gSIOUXBufSize += size;
 				SIOUXState = IDLE;
+				GUSIWakeupSIOUXSocket();
 				DisposeHandle( hText );
 			}
 		}
