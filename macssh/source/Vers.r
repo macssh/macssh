@@ -1,3 +1,6 @@
+
+#define REZ_COMPILER 1
+
 #include "Vers.h"
 
 resource 'vers' (2, purgeable) {
