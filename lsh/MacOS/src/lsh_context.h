@@ -17,7 +17,7 @@
 #define ERROR_BUF_SIZE 512
 
 typedef struct lshcontext {
-	short			_port;		// for BetterTelnet's networking
+	int				_port;		// for BetterTelnet's networking
 	void			*_userdata;	// available for callers
 	pthread_t		_thread;
 	int				_forward;
@@ -25,7 +25,6 @@ typedef struct lshcontext {
 	int				_listener;	// for cvs
 	int				_socket;	// for cvs
 	int				_rcmdline;	// for cvs
-	jmp_buf			_exitbuf;
 	jmp_buf			*_pexitbuf;
 	char			*_gMemPool;
 	int				_filesTable[MAXFILESCOUNT];
@@ -69,6 +68,8 @@ typedef struct lshcontext {
 	int				_kindex;
 	int				_pindex;
 	char			_keychainprompt[256];
+
+	struct lshcontext *_self;
 
 } lshcontext;
 
