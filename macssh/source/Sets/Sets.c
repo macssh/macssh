@@ -345,10 +345,7 @@ short confile( char *s)
 				SetTerminalPtr->vtwidth = a;
 			break;
 		case 20:
-			if (affirmative(s))
-				SetSessionPtr->tekclear = 1;
-			else
-				SetSessionPtr->tekclear = 0;
+			SetSessionPtr->tekclear = affirmative(s);
 			break;
 		case 22:
 			if ( 3 != sscanf(s, "{%u,%u,%u}", &a, &b, &c)) {	/* BYU LSC - "%d" changed to "%u" */
@@ -586,23 +583,23 @@ short confile( char *s)
 				SetSessionPtr->compression = a;
 			break;
 		case 77: // verbose
-			SetSessionPtr->verbose = (affirmative(s)) ? TRUE : FALSE;	
+			SetSessionPtr->verbose = affirmative(s);
 			break;
 		case 78: // trace
-			SetSessionPtr->trace = (affirmative(s)) ? TRUE : FALSE;	
+			SetSessionPtr->trace = affirmative(s);
 			break;
 		case 79: // debug
-			SetSessionPtr->debug = (affirmative(s)) ? TRUE : FALSE;	
+			SetSessionPtr->debug = affirmative(s);
 			break;
 		case 80: // restricted
-			SetSessionPtr->restricted = (affirmative(s)) ? TRUE : FALSE;	
+			SetSessionPtr->restricted = affirmative(s);
 			break;
 		case 81: // ssh2method
 			if (1 == sscanf( s, "%d", &a))
 				SetSessionPtr->ssh2method = a;
 			break;
 		case 82: // ssh2guests
-			SetSessionPtr->ssh2guests = (affirmative(s)) ? TRUE : FALSE;	
+			SetSessionPtr->ssh2guests = affirmative(s);
 			break;
 		case 83: // localport
 			if (1 == sscanf( s, "%d", &a))
@@ -649,6 +646,9 @@ short confile( char *s)
 			break;
 		case 92: // vt7bits
 			SetTerminalPtr->vt7bits = affirmative(s);
+			break;
+		case 93: // x11forward
+			SetSessionPtr->x11forward = affirmative(s);
 			break;
 /* NONO */
 	}

@@ -211,6 +211,9 @@ typedef	struct {
 		launchurlesc,
 		x11forward;
 
+	char
+		display[64];			// x11 display name (usually "0.0")
+
 	short
 		padding[100];			// Disk space is cheap.... (used to be [98])
 /* NONO */

@@ -652,6 +652,7 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	WindRec			*theScreen;
 	unsigned char	*hostname;
 	unsigned long	flags;
+	unsigned char	localIP[4];
 
 	setLastCursor(theCursors[watchcurs]);					/* We may be here a bit */
 
@@ -810,21 +811,18 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	theScreen->localport = SessPtr->localport;
 	memcpy(theScreen->remotehost, SessPtr->remotehost, SessPtr->remotehost[0] + 1);
 	theScreen->remoteport = SessPtr->remoteport;
-	
-	//FIXME: user configurable display...
 
-	pstrcpy((unsigned char *)theScreen->display, "\p127.0.0.1:0.0");
-/*
-	theScreen->display[0] = 4;
-	theScreen->display[1] = ':';
-	theScreen->display[2] = '0';
-	theScreen->display[3] = '.';
-	theScreen->display[4] = '0';
-*/
+	// eXodus doesn't like loopback, but accepts local IP...
+	//pstrcpy((unsigned char *)theScreen->display, "\p127.0.0.1:0.0");
+	if ( !SessPtr->display[0] )
+		pstrcpy((unsigned char *)SessPtr->display, "\p0.0");
+	netgetip(localIP);
+	sprintf((char *)theScreen->display + 1, "%d.%d.%d.%d:%#s", localIP[0], localIP[1], localIP[2], localIP[3], SessPtr->display);
+	theScreen->display[0] = strlen((char *)theScreen->display + 1);
 
 	theScreen->sshdata.thread = NULL;
 	theScreen->sshdata.context = NULL;
-	
+
 	theScreen->vs = -1;
 	theScreen->wind = NULL;
 
