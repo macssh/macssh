@@ -391,7 +391,7 @@ static unsigned char translatekey(unsigned char code, long modifiers)
 
 	KCHRPtr = (Ptr)GetScriptManagerVariable(smKCHRCache);
 	if ( KCHRPtr ) {
-		return KeyTranslate(KCHRPtr, code | (modifiers & shiftKey), &state);
+		return KeyTranslate(KCHRPtr, code | modifiers, &state);
 	}
 	return 0;
 }
@@ -455,7 +455,8 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 //		goto emacsHack;  //ha ha hack hack
 */
 	if ( tw->emacsmeta == 2 && optiondown ) {
-		ascii = translatekey( code, theEvent.modifiers );
+		/* option key as emacs meta key: keep shift and control translation */
+		ascii = translatekey( code, (theEvent.modifiers & (shiftKey|controlKey)) );
 		goto emacsHack;  //ha ha hack hack
 	}
 /* NONO */
@@ -474,7 +475,7 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 			//if optioned, retranslate so we can do menu commands
 			if (optiondown)
 			{
-				ascii = translatekey( code, theEvent.modifiers );
+				ascii = translatekey( code, (theEvent.modifiers & shiftKey) );
 			}
 
 			menuEquiv = MenuKey(ascii); //handle menu keys first
@@ -493,7 +494,7 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 					ascii |= 0x40; //move back to a non-control
 				if ((shifted)||(ascii == 0x5f)) //so we can get meta -
 				{
-					ascii = translatekey( code, theEvent.modifiers );
+					ascii = translatekey( code, (theEvent.modifiers & shiftKey) );
 				}
 emacsHack:		//if the option key KCHR is installled, we will get the right ascii value
 				if ((tw->clientflags & PASTE_IN_PROGRESS)&&(tw->pastemethod)) //queue this
