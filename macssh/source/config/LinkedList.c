@@ -131,29 +131,33 @@ LinkedListNode *createSortedList(ResType ConfigResourceType,short numberofitems,
 	ResType		restype;
 	LinkedListNode *newNode, *theHead = NULL;
 	
-	if (placeThisFirst != NULL)
-	{
-		theHead =  (LinkedListNode *) myNewPtrCritical(sizeof(LinkedListNode));
+	if (placeThisFirst) {
 		ItemResource = Get1NamedResource(ConfigResourceType,placeThisFirst);
-		theHead->name = NewString(placeThisFirst); //set the head of our list
-		theHead->next = NULL;
-		if (ItemResource != NULL)
-			ReleaseResource(ItemResource);
-	}
-	for (index = 1; index <= numberofitems; index++)
-	{
-		ItemResource = Get1IndResource(ConfigResourceType, index);
-		GetResInfo(ItemResource, &resID, &restype, (StringPtr)&ItemName);
-		if (!(EqualString(placeThisFirst,ItemName,1,0)))
-		{
-			newNode = (LinkedListNode *) myNewPtrCritical(sizeof(LinkedListNode));
-			newNode->name = NewString(ItemName);
-			
-			insertInSortedList(&theHead, newNode);
+		if ( ItemResource ) {
+			theHead = (LinkedListNode *) myNewPtrCritical(sizeof(LinkedListNode));
+			theHead->name = NewString(placeThisFirst); //set the head of our list
+			theHead->next = NULL;
 			ReleaseResource(ItemResource);
 		}
 	}
-	return (theHead);
+	for (index = 1; index <= numberofitems; index++) {
+		ItemResource = Get1IndResource(ConfigResourceType, index);
+		if ( ItemResource ) {
+			GetResInfo(ItemResource, &resID, &restype, ItemName);
+			if ( !placeThisFirst || !EqualString(placeThisFirst,ItemName,1,0) ) {
+				newNode = (LinkedListNode *) myNewPtrCritical(sizeof(LinkedListNode));
+				newNode->name = NewString(ItemName);
+				if ( theHead == NULL ) {
+					theHead = newNode;
+					theHead->next = NULL;
+				} else {
+					insertInSortedList(&theHead, newNode);
+				}
+				ReleaseResource(ItemResource);
+			}
+		}
+	}
+	return theHead;
 }
 
 LinkedListNode *createSortedList2(ResType ConfigResourceType,short numberofitems,ConstStr255Param placeThisFirst)
@@ -164,29 +168,33 @@ LinkedListNode *createSortedList2(ResType ConfigResourceType,short numberofitems
 	ResType		restype;
 	LinkedListNode *newNode, *theHead = NULL;
 	
-	if (placeThisFirst != NULL)
-	{
-		theHead =  (LinkedListNode *) myNewPtrCritical(sizeof(LinkedListNode));
+	if (placeThisFirst) {
 		ItemResource = GetNamedResource(ConfigResourceType,placeThisFirst);
-		theHead->name = NewString(placeThisFirst); //set the head of our list
-		theHead->next = NULL;
-		if (ItemResource != NULL)
-			ReleaseResource(ItemResource);
-	}
-	for (index = 1; index <= numberofitems; index++)
-	{
-		ItemResource = GetIndResource(ConfigResourceType, index);
-		GetResInfo(ItemResource, &resID, &restype, (StringPtr)&ItemName);
-		if (!(EqualString(placeThisFirst,ItemName,1,0)))
-		{
-			newNode = (LinkedListNode *) myNewPtrCritical(sizeof(LinkedListNode));
-			newNode->name = NewString(ItemName);
-			
-			insertInSortedList(&theHead, newNode);
+		if ( ItemResource ) {
+			theHead = (LinkedListNode *) myNewPtrCritical(sizeof(LinkedListNode));
+			theHead->name = NewString(placeThisFirst); //set the head of our list
+			theHead->next = NULL;
 			ReleaseResource(ItemResource);
 		}
 	}
-	return (theHead);
+	for (index = 1; index <= numberofitems; index++) {
+		ItemResource = GetIndResource(ConfigResourceType, index);
+		if ( ItemResource ) {
+			GetResInfo(ItemResource, &resID, &restype, (StringPtr)&ItemName);
+			if ( !placeThisFirst || !EqualString(placeThisFirst,ItemName,1,0) ) {
+				newNode = (LinkedListNode *) myNewPtrCritical(sizeof(LinkedListNode));
+				newNode->name = NewString(ItemName);
+				if ( theHead == NULL ) {
+					theHead = newNode;
+					theHead->next = NULL;
+				} else {
+					insertInSortedList(&theHead, newNode);
+				}
+				ReleaseResource(ItemResource);
+			}
+		}
+	}
+	return theHead;
 }
 
 void deleteItem(LinkedListNode **theHead,Str255 ItemName)
