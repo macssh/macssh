@@ -467,6 +467,13 @@ short	sendmacro(struct WindRec *tw, short n)				/* send macro number n */
 				case 'k':
 					escape = 2;
 					break;
+				case 'w':
+					// switch to window num
+					if ( s[1] >= '1' && s[1] <= '9') {
+						HandleMenuCommand( (connMenu << 16 | FIRST_CNXN_ITEM) + s[1] - '1', 0 );
+						++s;
+					}
+					break;
 				default:
 					if (*s <='9' && *s >='0' && pos <3) {
 						num= num*8+( *s -'0');
