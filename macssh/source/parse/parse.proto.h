@@ -1,5 +1,8 @@
 
 /* parse.c */
+
+void	kbflush(struct WindRec *tw);
+void	kbwrite(struct WindRec *tw, unsigned char *string, short len);
 void	SendStringAsIfTyped(struct WindRec *tw, char *string, short len);
 void	SendCRAsIfTyped(struct WindRec *tw);
 void	Parseunload(void);

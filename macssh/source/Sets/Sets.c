@@ -209,7 +209,7 @@ short confile( char *s)
 			break;
 
 		case 2:				/* HOST */
-			strncpy(tempCstring, s, 63);			/* Move name in */
+			strncpy(tempCstring, s, sizeof(SetSessionPtr->hostname) - 1);	/* Move name in */
 			CtoPstr(tempCstring);
 
 			//	Process the hosname string.
@@ -375,9 +375,11 @@ short confile( char *s)
 			TelInfo->CONFstate = 0;
 			break;
 		case 26:		/* Font Name */
-			strncpy(tempCstring, s, 63);			/* Move name in */
-			CtoPstr(tempCstring);
-			BlockMoveData(tempCstring, &(SetTerminalPtr->DisplayFont[0]), tempCstring[0]+1);
+//			strncpy(tempCstring, s, 63);			/* Move name in */
+//			CtoPstr(tempCstring);
+//			BlockMoveData(tempCstring, &(SetTerminalPtr->DisplayFont[0]), tempCstring[0]+1);
+			strncpy((char *) SetTerminalPtr->DisplayFont, s, sizeof(SetTerminalPtr->DisplayFont) - 1);
+			CtoPstr((char *) SetTerminalPtr->DisplayFont);
 			TelInfo->CONFstate = 0;
 			break;
 		case 27:		/* Font Size */
@@ -439,7 +441,7 @@ short confile( char *s)
 			TelInfo->CONFstate = 0;				/* NCSA */
 			break;								/* NCSA */
 		case 38:	// translation
-			strncpy((char *) SetSessionPtr->TranslationTable, s, 32);
+			strncpy((char *) SetSessionPtr->TranslationTable, s, sizeof(SetSessionPtr->TranslationTable) - 1);
 			CtoPstr((char *) SetSessionPtr->TranslationTable);
 			TelInfo->CONFstate=0;
 			break;
@@ -449,7 +451,7 @@ short confile( char *s)
 			TelInfo->CONFstate=0;
 			break;
 		case 40:	// answerback
-			strncpy((char *) SetTerminalPtr->AnswerBackMessage, s, 32);
+			strncpy((char *) SetTerminalPtr->AnswerBackMessage, s, sizeof(SetTerminalPtr->AnswerBackMessage) - 1);
 			CtoPstr((char *) SetTerminalPtr->AnswerBackMessage);
 			TelInfo->CONFstate=0;
 			break;
@@ -573,9 +575,11 @@ short confile( char *s)
 			TelInfo->CONFstate=0;
 			break;
 		case 63: // boldfont
-			strncpy(tempCstring, s, 63);			/* Move name in */
-			CtoPstr(tempCstring);
-			BlockMoveData(tempCstring, &(SetTerminalPtr->BoldFont[0]), tempCstring[0]+1);
+			//strncpy(tempCstring, s, 63);			/* Move name in */
+			//CtoPstr(tempCstring);
+			//BlockMoveData(tempCstring, &(SetTerminalPtr->BoldFont[0]), tempCstring[0]+1);
+			strncpy((char *) SetTerminalPtr->BoldFont, s, sizeof(SetTerminalPtr->BoldFont) - 1);
+			CtoPstr((char *) SetTerminalPtr->BoldFont);
 			TelInfo->CONFstate = 0;
 			break;
 		case 64: // inversebold
@@ -604,9 +608,11 @@ short confile( char *s)
 			TelInfo->CONFstate = 0;
 			break;
 		case 69: // otppassword
-			strncpy(tempCstring, s, 63);			/* Move name in */
-			CtoPstr(tempCstring);
-			BlockMoveData(tempCstring, &(SetSessionPtr->otppassword[0]), tempCstring[0]+1);
+			//strncpy(tempCstring, s, 63);			/* Move name in */
+			//CtoPstr(tempCstring);
+			//BlockMoveData(tempCstring, &(SetSessionPtr->otppassword[0]), tempCstring[0]+1);
+			strncpy((char *) SetSessionPtr->otppassword, s, sizeof(SetSessionPtr->otppassword) - 1);
+			CtoPstr((char *) SetSessionPtr->otppassword);
 			TelInfo->CONFstate = 0;
 			break;
 		case 70: // realbold
@@ -904,7 +910,7 @@ void SaveSet(short doSaveMacros, short dontSaveTitle)
 	Rect		rect;
 	Point		where;
 	long		junk;
-	char		temp[256], temp2[256];			/* BYU LSC */
+	char		temp[256], temp2[300];			/* BYU LSC */
 	short			fnum,fsiz;
 	short			i;
 	FSSpec		set;
@@ -1115,9 +1121,9 @@ void SaveSet(short doSaveMacros, short dontSaveTitle)
 			CStringToFile(fn, (unsigned char *)temp2);
 		}
 
-//		if (screens[i].national) {						// Don't do this if using default translation table
+//		if (screens[i].outnational) {						// Don't do this if using default translation table
 // TranslationTable
-			GetMenuItemText(myMenus[National], screens[i].national+1, scratchPstring);
+			GetMenuItemText(myMenus[National], screens[i].outnational+1, scratchPstring);
 			//pstrcpy(scratchPstring, (unsigned char *)TranslationTable);
 			PtoCstr(scratchPstring);
 			sprintf(temp2, "translation= \"%s\"\015", scratchPstring);
@@ -1229,7 +1235,7 @@ void SaveSetFromSession(SessionPrefs* setSession, TerminalPrefs* setTerminal, sh
 	Rect		rect;
 	Point		where;
 	long		junk;
-	char		temp[256], temp2[256];			/* BYU LSC */
+	char		temp[256], temp2[300];			/* BYU LSC */
 	short			fnum,fsiz, i;
 	FSSpec		set;
 	OSErr		err;

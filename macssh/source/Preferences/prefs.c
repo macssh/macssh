@@ -16,6 +16,7 @@
 #include "prefs.proto.h"
 #include "mainseg.proto.h"		// For quit proto
 #include "errors.proto.h"
+#include "DlogUtils.proto.h"
 
 FTPServerPrefs*		gFTPServerPrefs=NULL;
 ApplicationPrefs*	gApplicationPrefs=NULL;
@@ -90,8 +91,8 @@ OSErr NewPreferences(void)
 {
 	ApplicationPrefs	**AppPrefsHdl;
 	FTPServerPrefs		**FTPPrefsHdl;
-	SessionPrefs		**DefaultSessionPrefs;
-	TerminalPrefs		**DefaultTerminalPrefs;
+	SessionPrefs		**sessPrefs;
+	TerminalPrefs		**termPrefs;
 		
 	// Get the master copies from the application's resource fork
 	
@@ -103,13 +104,34 @@ OSErr NewPreferences(void)
 	if ((ResError() != noErr) || (FTPPrefsHdl == NULL)) return(ResError());
 	DetachResource((Handle)FTPPrefsHdl);
 
-	DefaultSessionPrefs = (SessionPrefs **)GetResource(SESSIONPREFS_RESTYPE, SESSIONPREFS_APPID);
-	if ((ResError() != noErr) || (DefaultSessionPrefs == NULL)) return(ResError());
-	DetachResource((Handle)DefaultSessionPrefs);
+	sessPrefs = (SessionPrefs **)GetResource(SESSIONPREFS_RESTYPE, SESSIONPREFS_APPID);
+	if ((ResError() != noErr) || (sessPrefs == NULL)) return(ResError());
+	DetachResource((Handle)sessPrefs);
 	
-	DefaultTerminalPrefs = (TerminalPrefs **)GetResource(TERMINALPREFS_RESTYPE, TERMINALPREFS_APPID);
-	if ((ResError() != noErr) || (DefaultTerminalPrefs == NULL)) return(ResError());
-	DetachResource((Handle)DefaultTerminalPrefs);
+	termPrefs = (TerminalPrefs **)GetResource(TERMINALPREFS_RESTYPE, TERMINALPREFS_APPID);
+	if ((ResError() != noErr) || (termPrefs == NULL)) return(ResError());
+	DetachResource((Handle)termPrefs);
+
+	// update a few settings
+	HLock((Handle)sessPrefs);
+	HLock((Handle)termPrefs);
+	if ( GetScriptManagerVariable(smRegionCode) == verJapan ) {
+		short familyID;
+		unsigned char *jpfont = "\posaka";
+		GetFNum( jpfont, &familyID );
+		if ( familyID ) {
+			(**termPrefs).fontsize = 12;
+			(**termPrefs).boldFontSize = 12;
+			pstrcpy( (**termPrefs).DisplayFont, jpfont );
+			pstrcpy( (**termPrefs).BoldFont, jpfont );
+		}
+#if GENERATINGPOWERPC
+		// WARNING: this string  must match the one in BuildTranslateMenu
+		pstrcpy( (**sessPrefs).TranslationTable, "\pJIS (ISO-2022-JP)" );
+#endif
+	}
+	HUnlock((Handle)sessPrefs);
+	HUnlock((Handle)termPrefs);
 
 	// Add them to the Preferences file
 	
@@ -119,9 +141,9 @@ OSErr NewPreferences(void)
 	if (ResError() != noErr) return(ResError());
 	AddResource((Handle)FTPPrefsHdl,FTPSERVERPREFS_RESTYPE, FTPSERVERPREFS_ID, "\p");
 	if (ResError() != noErr) return(ResError());
-	AddResource((Handle)DefaultSessionPrefs,SESSIONPREFS_RESTYPE, SESSIONPREFS_APPID, "\p<Default>");
+	AddResource((Handle)sessPrefs,SESSIONPREFS_RESTYPE, SESSIONPREFS_APPID, "\p<Default>");
 	if (ResError() != noErr) return(ResError());
-	AddResource((Handle)DefaultTerminalPrefs,TERMINALPREFS_RESTYPE, TERMINALPREFS_APPID, "\p<Default>");
+	AddResource((Handle)termPrefs,TERMINALPREFS_RESTYPE, TERMINALPREFS_APPID, "\p<Default>");
 	if (ResError() != noErr) return(ResError());
 
 	// Update the preferences file and release the resources
@@ -129,8 +151,8 @@ OSErr NewPreferences(void)
 	UpdateResFile(TelInfo->SettingsFile);
 	ReleaseResource((Handle)AppPrefsHdl);
 	ReleaseResource((Handle)FTPPrefsHdl);
-	ReleaseResource((Handle)DefaultSessionPrefs);
-	ReleaseResource((Handle)DefaultTerminalPrefs);
+	ReleaseResource((Handle)sessPrefs);
+	ReleaseResource((Handle)termPrefs);
 	return(ResError());
 }
 

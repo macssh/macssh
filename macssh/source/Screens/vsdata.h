@@ -63,6 +63,10 @@ typedef struct VSattrline	//CCP 2.7 ANSI needs shorts
 #define DEBUG_CAPTURE
 struct VSscrn {
 	OSType	id;				// VSCR
+	short
+         vtemulation;       /* 0:vt100, 1:vt220, 2:ansi, 3:linux */
+    short
+    	 vteightbits;		/* true if we accept vt200 8-bit codes */
     VSlinePtr
          scrntop,           /* topmost line of the current screen (= linest[0]) */
          buftop,            /* top (i e oldest line) of scrollback buffer 	*/
@@ -117,7 +121,11 @@ struct VSscrn {
     char *tabs;             /* pointer to array for tab settings 			*/
                             /* contains 'x' at each tab position, blanks elsewhere */
 	unsigned long escflags;
-    };
+	short trincount;       /* number of chars pending in translation              */
+	short trinx;           /* number of characters to draw at left of cursor */
+	short trintag;         /* true if waiting for a second multi-byte character */
+	unsigned char trinbuf[4];
+};
 
 
 typedef struct VSscrn VSscrn;
@@ -129,7 +137,7 @@ struct VSscrndata {
     	stat;		/* status of this screen (0=Uninitialized,     */	/* BYU 2.4.18 */
 					/*                        1=In Use             */	/* BYU 2.4.18 */
 					/*                        2=Initialized, but not IU */	/* BYU 2.4.18 */
-    };
+};
 
 typedef struct VSscrndata VSscrndata;
 

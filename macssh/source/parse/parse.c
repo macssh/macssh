@@ -10,6 +10,7 @@
 
 #include "parse.h"				// For our #defines
 #include "wind.h"				/* For WindRec structure */
+#include "translate.h"
 				/* For putln proto */
 
 #include "ae.proto.h"
@@ -42,6 +43,8 @@ static char munger[255];
 
 /*#include <Profiler.h>*/
 
+extern void syslog( int priority, const char *format, ...);
+
 extern short 	scrn;
 extern WindRec	*screens;
 
@@ -63,22 +66,102 @@ static	void	telnet_wont(struct WindRec *tw, short option);
 
 void	Parseunload(void) {}
 
+/*
+ * kbflush
+ */
+void kbflush(struct WindRec *tw)
+{
+	if ( tw->kblen ) {
+		netwrite( tw->port, tw->kbbuf, tw->kblen);
+		tw->kblen = 0;	
+	}
+}
+
+/*
+ * kbwrite
+ */
+void kbwrite(struct WindRec *tw, unsigned char *string, short len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if ( tw->kblen == MAXKB ) {
+			kbflush(tw);
+		}
+		tw->kbbuf[tw->kblen++] = string[i];
+	}
+}
+
 void	SendStringAsIfTyped(struct WindRec *tw, char *string, short len)
 {
-//	trbuf_nat_mac((unsigned char *)string, len, tw->national);
-	trbuf_mac_nat((unsigned char *)string, len, tw->national); // drh - bug fix
+	unsigned char	outbuf[256];
+	unsigned char	trbuf[32];
+	unsigned char	*pbuf;
+	long			inlen;
+	long			outlen;
+	long			buflen;
+	long			trlen;
+	int				i;
+	int				j;
+	int				res;
 
-	netpush(tw->port);
+	trflush_mac_nat(tw);
 
-	if (tw->kblen > 0) { 	/* need to flush buffer */
-		netwrite(tw->port, tw->kbbuf, tw->kblen);
-		tw->kblen=0;
+	while (len) {
+		buflen = len > sizeof(outbuf) ? sizeof(outbuf) : len;
+		for ( i = 0, outlen = 0; i < buflen && outlen < sizeof(outbuf); ++i ) {
+			if ( /*string[i] != ESC &&*/ GetTranslationIndex(tw->outnational) != kTRJIS ) {
+				pbuf = tw->troutbuf;
+				if ( tw->troutcount >= sizeof(tw->troutbuf) ) {
+					// !!!! shouldn't occur...
+					Debugger();
+					tw->troutcount = 0;
+				}
+				pbuf[tw->troutcount++] = string[i];
+				inlen = tw->troutcount;
+				trlen = sizeof(trbuf);
+				res = trbuf_mac_nat( tw, pbuf, &inlen, trbuf, &trlen );
+				if ( res && res != kTECPartialCharErr ) {
+					// translation failed, leave data as-is
+					trlen = tw->troutcount;
+				} else {
+					// translation ok, or no data yet
+					if ( inlen ) {
+						// keep a few chars
+						for (j = inlen; j <= tw->troutcount; j++)
+							pbuf[j - inlen] = pbuf[j];
+						tw->troutcount -= inlen;
+					}
+					if ( !trlen ) {
+						// nothing yet
+						if ( tw->troutcount < sizeof(tw->troutbuf) )
+							continue;
+						// temp translation buffer full, unable to translate...
+						// flush data ?
+						trlen = tw->troutcount;
+						res = trflush_mac_nat( tw );
+					} else {
+						// translation complete
+						pbuf = trbuf;
+					}
+				}
+				tw->troutcount = 0;
+				for ( j = 0; j < trlen; ++j )
+					outbuf[outlen++] = pbuf[j];
+			} else {
+				outbuf[outlen++] = string[i];
+			}
+		}
+		netpush(tw->port);
+		kbflush( tw );
+		netwrite(tw->port, outbuf, outlen);
+		if (tw->echo)
+			parse(tw, (unsigned char *)outbuf, outlen);
+		len -= buflen;
+		string += buflen;
 	}
 
-	netwrite(tw->port, string, len);
-
-	if (tw->echo)
-		parse(tw, (unsigned char *)string, len);
+	tw->troutcount = 0;
 }
 
 // RAB BetterTelnet 2.0b3
@@ -544,15 +627,17 @@ void	telnet_send_initial_options(WindRec *tw)
 	if ((tw->protocol >= 1) && (tw->protocol <= 3)) { // initial rlogin stuff
 		netwrite(tw->port, "\000", 1);
 		if ((tw->protocol == 3) || (!tw->clientuser[0]))
-									// rexec sends username, rlogin/rsh need client username
-									// but we use server username if we don't have a client
-									// username...
+			// rexec sends username, rlogin/rsh need client username
+			// but we use server username if we don't have a client
+			// username...
 			netwrite(tw->port, &tw->username[1], tw->username[0]);
-		else netwrite(tw->port, &tw->clientuser[1], tw->clientuser[0]);
+		else
+			netwrite(tw->port, &tw->clientuser[1], tw->clientuser[0]);
 		netwrite(tw->port, "\000", 1);
 		if (tw->protocol == 3) // rexec sends password, rlogin/rsh send server username
 			netwrite(tw->port, &tw->password[1], tw->password[0]);
-		else netwrite (tw->port, &tw->username[1], tw->username[0]);
+		else
+			netwrite (tw->port, &tw->username[1], tw->username[0]);
 		netwrite(tw->port, "\000", 1);
 		if (tw->protocol == 1) { // rlogin sends terminal type & speed, rsh/rexec send command
 			netwrite(tw->port, &tw->answerback[1], tw->answerback[0]);
@@ -843,11 +928,7 @@ static	void	telnet_dont(struct WindRec *tw, short option)
 			if (tw->lmode)  
 			{
 				send_wont(tw->port, N_LINEMODE);
-				if (tw->kblen > 0)
-				{
-					netpush(tw->port);
-					netwrite(tw->port, tw->kbbuf, tw->kblen);
-				}	
+				kbflush( tw );
 				tw->lmode = 0;
 				tw->lmodeBits = 0;
 				tw->litNext = 0;

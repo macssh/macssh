@@ -21,6 +21,7 @@
 
 
 #include "wind.h"
+#include "translate.h"
 #include "menuseg.proto.h"
 #include "mainseg.proto.h"
 #include "Sets.proto.h"				/* JMB: For Saved Sets functions */
@@ -77,6 +78,7 @@ extern WindRec
 	*screens,			/* The screen array from Maclook */
 	*ftplog;					/* The FTP log screen from Maclook */
 extern	short	nNational;
+extern short	gTableCount;
 
 void CloseCaptureFile(short w)
 {
@@ -866,38 +868,30 @@ void paste( void)
 	long
 		off,				/* offset */
 		length;				/* the lenght of what is on the Scrap */
+	WindRec *tw = &screens[scrn];
 
-	if (screens[scrn].clientflags & PASTE_IN_PROGRESS) {  // One paste at a time, please
+	if (tw->clientflags & PASTE_IN_PROGRESS) {  // One paste at a time, please
 		SysBeep(4);
 		return;
-		}
-		
-	/* Flush the buffer if necessary */ //CCP fix for linemode
-	if (screens[scrn].kblen>0)
-	{	
-		netpush(screens[scrn].port);
-		netwrite( screens[scrn].port, screens[scrn].kbbuf,
-					screens[scrn].kblen);	
-		screens[scrn].kblen=0;
 	}
 
 	if (GetScrap(0L, 'TEXT', &off)<=0L)		/* If there are no TEXT res's */
-			return;						/* then we can't paste it */
+		return;						/* then we can't paste it */
 
-	screens[scrn].outhand=myNewHandle(0L);	/* create a handle to put chars in */
+	/* Flush the buffer if necessary */ //CCP fix for linemode
+	kbflush(tw);
 
-	length= GetScrap( screens[scrn].outhand, 'TEXT',&off);
-											/* Store the scrap into the handle */
-	screens[scrn].outlen = length;			/* Set the length */
-	HLock(screens[scrn].outhand);			/* Lock the Handle down for safety */
-	screens[scrn].outptr=*screens[scrn].outhand;	/* Set the pointer */
-
-	screens[scrn].clientflags |= PASTE_IN_PROGRESS;
-	screens[scrn].isUploading = 0;
-	screens[scrn].incount = 0;
-	screens[scrn].outcount = 0;
-	
-	trbuf_mac_nat((unsigned char *)screens[scrn].outptr,screens[scrn].outlen, screens[scrn].national);	/* LU: translate to national chars */
+	tw->outhand = myNewHandle(0L);	/* create a handle to put chars in */
+	length = GetScrap(tw->outhand, 'TEXT', &off);
+	if ( GetTranslationIndex(tw->outnational) != kTRJIS )
+		tw->outhand = htrbuf_mac_nat(tw, tw->outhand);
+	HLock(tw->outhand);
+	tw->outptr = *tw->outhand;
+	tw->outlen = GetHandleSize(tw->outhand);
+	tw->clientflags |= PASTE_IN_PROGRESS;
+	tw->isUploading = 0;
+	tw->incount = 0;
+	tw->outcount = 0;
 
 	pasteText( scrn);	/* BYU LSC - routine to paste to net, w/echo if neccessary */
 }
@@ -908,8 +902,9 @@ void uploadFile(void) // RAB: routine added in BetterTelnet 1.0fc9
 	StandardFileReply sfr;
 	OSErr err;
 	short refNum;
+	WindRec *tw = &screens[scrn];
 
-	if (screens[scrn].clientflags & PASTE_IN_PROGRESS) {  // One paste at a time, please
+	if (tw->clientflags & PASTE_IN_PROGRESS) {  // One paste at a time, please
 		SysBeep(4);
 		return;
 		}
@@ -921,86 +916,64 @@ void uploadFile(void) // RAB: routine added in BetterTelnet 1.0fc9
 	if (err) return;
 
 	/* Flush the buffer if necessary */ //CCP fix for linemode
-	if (screens[scrn].kblen>0)
-	{	
-		netpush(screens[scrn].port);
-		netwrite( screens[scrn].port, screens[scrn].kbbuf,
-					screens[scrn].kblen);	
-		screens[scrn].kblen=0;
-	}
+	kbflush(tw);
 
-	screens[scrn].outhand=myNewHandle(16384); // for now, upload block is 16K
-	screens[scrn].outptr = *screens[scrn].outhand;
-	HLock(screens[scrn].outhand);			/* Lock the Handle down for safety */
-
-	length = 16384;
-	FSRead(refNum, &length, screens[scrn].outptr);
-
+	length = 16384; // for now, upload block is 16K
+	tw->outhand = myNewHandle(length);
+	HLock( tw->outhand );
+	FSRead(refNum, &length, *tw->outhand);
 	if (length == 0) {
 		FSClose(refNum);
-		HUnlock(screens[scrn].outhand);
-		DisposeHandle(screens[scrn].outhand);
+		HUnlock(tw->outhand);
+		DisposeHandle(tw->outhand);
 		return;
 	}
-
-	screens[scrn].outlen = length;			/* Set the length */
-	HUnlock(screens[scrn].outhand);
-	SetHandleSize(screens[scrn].outhand, length); // now REALLY set the length
-	HLock(screens[scrn].outhand);
-
-	screens[scrn].clientflags |= PASTE_IN_PROGRESS;
+	SetHandleSize(tw->outhand, length); // now REALLY set the length
+	if ( GetTranslationIndex(tw->outnational) != kTRJIS )
+		tw->outhand = htrbuf_mac_nat(tw, tw->outhand);
+	HLock(tw->outhand);
+	tw->outptr = *tw->outhand;
+	tw->outlen = GetHandleSize(tw->outhand);
+	tw->clientflags |= PASTE_IN_PROGRESS;
 	if (length == 16384) {
-		screens[scrn].isUploading = 1;
-		screens[scrn].uploadRefNum = refNum;
+		tw->isUploading = 1;
+		tw->uploadRefNum = refNum;
 	} else {
 		FSClose(refNum);
-		screens[scrn].isUploading = 0;
 	}
-	screens[scrn].incount = 0;
-	screens[scrn].outcount = 0;
-	
-	trbuf_mac_nat((unsigned char *)screens[scrn].outptr,screens[scrn].outlen, screens[scrn].national);	/* LU: translate to national chars */
-
+	tw->incount = 0;
+	tw->outcount = 0;
 	pasteText(scrn);	/* BYU LSC - routine to paste to net, w/echo if neccessary */
-
 }
+
 
 void autoPaste(short vs) // RAB: routine added in BetterTelnet 1.0fc6
 {
 	char **charh;
+	WindRec *tw = &screens[scrn];
 
-	if (screens[scrn].clientflags & PASTE_IN_PROGRESS) {  // One paste at a time, please
+	if (tw->clientflags & PASTE_IN_PROGRESS) {  // One paste at a time, please
 		SysBeep(4);
 		return;
 		}
 
 	/* Flush the buffer if necessary */ //CCP fix for linemode
-	if (screens[scrn].kblen>0)
-	{	
-		netpush(screens[scrn].port);
-		netwrite( screens[scrn].port, screens[scrn].kbbuf,
-					screens[scrn].kblen);	
-		screens[scrn].kblen=0;
-	}
+	kbflush(tw);
 
-	charh=RSGetTextSel(vs,0);		/* Get the text selection */
+	charh = RSGetTextSel(vs,0);		/* Get the text selection */
 
 	if (charh == (char **)-1L)
 		OutOfMemory(400);
 	else if (charh != (char **)0L) {	/* BYU LSC - Can't do anything without characters */
-		HLock(charh);
-		screens[scrn].outhand=charh;
-
-		screens[scrn].outlen = GetHandleSize(charh);			/* Set the length */
-		screens[scrn].outptr=*screens[scrn].outhand;	/* Set the pointer */
-
-		screens[scrn].clientflags |= PASTE_IN_PROGRESS;
-		screens[scrn].isUploading = 0;
-		screens[scrn].incount = 0;
-		screens[scrn].outcount = 0;
-
-		trbuf_mac_nat((unsigned char *)screens[scrn].outptr,screens[scrn].outlen, screens[scrn].national);	/* LU: translate to national chars */
-
+		if ( GetTranslationIndex(tw->outnational) != kTRJIS )
+			tw->outhand = htrbuf_mac_nat(tw, charh);
+		HLock(tw->outhand);
+		tw->outptr = *tw->outhand;
+		tw->outlen = GetHandleSize(tw->outhand);
+		tw->clientflags |= PASTE_IN_PROGRESS;
+		tw->isUploading = 0;
+		tw->incount = 0;
+		tw->outcount = 0;
 		pasteText( scrn);	/* BYU LSC - routine to paste to net, w/echo if neccessary */
 	}
 }
@@ -1087,7 +1060,10 @@ void changeport(short oldprt, short newprt)
 
 	CheckFonts();
 
-	CheckNational(screens[newprt].national);
+	if ( screens[newprt].outnational < 0 )
+		CheckNational( gTableCount - screens[newprt].outnational );
+	else
+		CheckNational( screens[newprt].outnational );
 }
 
 // Returns TRUE if the user cancelled the quit
@@ -1423,12 +1399,10 @@ void HandleMenuCommand( long mResult, short modifiers)
 
 		case EMecho:								/* Toggle Local Echo (if poss.) */
 			if (TelInfo->numwindows < 1) break;
-			if ( screens[scrn].echo && screens[scrn].kblen > 0 ) {
-				netwrite( screens[scrn].port, screens[scrn].kbbuf,
-							screens[scrn].kblen);	/* if not empty send buffer */
-				screens[scrn].kblen = 0;
+			if ( screens[scrn].echo ) {
+				kbflush(&screens[scrn]);
 			}
-			screens[scrn].echo= !screens[scrn].echo;	/* toggle */
+			screens[scrn].echo = !screens[scrn].echo;	/* toggle */
 			if (screens[scrn].echo) {					/* LOCAL ECHO */
 				if (!(modifiers & optionKey) && (screens[scrn].protocol == 0))
 					send_dont(screens[scrn].port,1);
@@ -1584,11 +1558,9 @@ void HandleMenuCommand( long mResult, short modifiers)
 			{	char tmpout[30];						/* Basically the same except for */
 				unsigned char tmp[4];					/* The ftp -n phrase in NEftp */
 
-				if (screens[scrn].echo && (screens[scrn].kblen>0)) {
-					netwrite( screens[scrn].port, screens[scrn].kbbuf,
-								screens[scrn].kblen);/* if not empty send buffer */
-					screens[scrn].kblen=0;
-					}
+				if ( screens[scrn].echo ) {
+					kbflush(&screens[scrn]);
+				}
 				netgetip(tmp);
 				if (theItem == NEftp) {
 					if ((gFTPServerPrefs->ServerState == 1) && !(modifiers & shiftKey))
@@ -1848,10 +1820,12 @@ void HandleMenuCommand( long mResult, short modifiers)
 	case transMenu:
 		if (TelInfo->numwindows>0) {
 			CheckNational(theItem-1);		// Set up the menu
-			transBuffer(screens[scrn].national, theItem-1);	// Translate the scrollback buffer
+			//transBuffer(screens[scrn].outnational, theItem-1);	// Translate the scrollback buffer
+			switchintranslation(&screens[scrn], theItem-1, 0);
+			switchouttranslation(&screens[scrn], theItem-1, 0);
 			// and redraw the screen
 			VSredraw(screens[scrn].vs,0,0,VSmaxwidth(screens[scrn].vs),VSgetlines(screens[scrn].vs)-1);	/* LU */
-			screens[scrn].national = theItem-1;
+			screens[scrn].outnational = theItem-1;
 			}
 		break;
 	case keyMenu:

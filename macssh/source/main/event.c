@@ -27,6 +27,7 @@
 
 #include "VSkeys.h"
 #include "wind.h"
+#include "translate.h"
 #include "event.h" 	//kxplate moved to its own file (CCP 2.7)
 #include "errors.proto.h"
 #include "network.proto.h"
@@ -36,6 +37,7 @@
 #include "InternalEvents.h"
 #include "vsdata.h"
 #include "vsinterf.proto.h"
+#include "vsintern.proto.h"
 #include "menuseg.proto.h"
 #include "vrrgmac.proto.h"
 #include "tekrgmac.proto.h"
@@ -68,6 +70,9 @@ NMRec *nRecPtr;
 extern int gMovableModal;
 
 #include "event.proto.h"
+
+extern void syslog( int priority, const char *format, ...);
+extern long dumpln( long base, char *dest, void *src, long len );
 
 // BetterTelnet 2.0fc1 - integrated DJ's changes for real blink (if you want it :-)
 /* DJ: Blink global */
@@ -330,33 +335,33 @@ Boolean CheckPageKeys(short code)											/* NCSA: SB */
 	switch (code)															/* NCSA: SB */
 		{																	/* NCSA: SB */
 		case VSPGUP:														/* NCSA: SB */
-			RScursblinkoff(ourW);
+			VScursblinkoff(ourW);
 			VSgetrgn(ourW, &x1, &y1, &x2, &y2);                   			// MAT--
 			VSscrolback(ourW, y2 - y1); /* scroll a whole windowful */  	// MAT--
-			RScursblinkon(ourW);
+			VScursblinkon(ourW);
 			return TRUE;                                                   	// MAT--
 			break;															/* NCSA: SB */															
 																			/* NCSA: SB */
 		case VSPGDN:                                                   		// MAT--121 is a PAGE DOWN.		                                                             	 
-			RScursblinkoff(ourW);																// MAT--in rsmac.c
+			VScursblinkoff(ourW);																// MAT--in rsmac.c
 			VSgetrgn(ourW, &x1, &y1, &x2, &y2);                     		// MAT--
 			VSscrolforward(ourW, y2 - y1); /* scroll a whole windowful */   // MAT--
-			RScursblinkon(ourW);
+			VScursblinkon(ourW);
 			return TRUE;                                                    // MAT--
 			break; 															/* NCSA: SB */
 			                                                              	// MAT--
 		case VSHOME:														/* NCSA: SB */
-			RScursblinkoff(ourW);
+			VScursblinkoff(ourW);
 			VSscroltop(ourW);												/* JMB 2.6 -- Created VSscroltop just for this purpose */
-			RScursblinkon(ourW);
+			VScursblinkon(ourW);
 			return TRUE;													/* NCSA: SB */
 			break;                                                     		// MAT--
 		                                                               		// MAT--
 		case VSEND:															/* NCSA: SB */
-			RScursblinkoff(ourW);
+			VScursblinkoff(ourW);
 			VSgetrgn(ourW, &x1, &y1, &x2, &y2);                     		// MAT--
 			VSscrolforward(ourW, 32765); /* scroll a whole BUNCH! */    	// MAT-- kludge time again.  anyone suggest
-			RScursblinkon(ourW);
+			VScursblinkon(ourW);
 			return TRUE;													/* NCSA: SB */
 			break;                                                     		// MAT--  a better way to hack this part?
 		}                                                               	// MAT--
@@ -365,10 +370,13 @@ Boolean CheckPageKeys(short code)											/* NCSA: SB */
 }																			/* NCSA: SB */
 
 
-/*  translatekey --
-		returns ascii code for input code, using the input modifiers.	*/	
+/*
+ * translatekeycode
+ *
+ * returns ascii code for input code, using the input modifiers.
+ */
 
-static unsigned char translatekey(unsigned char code, long modifiers)
+static unsigned char translatekeycode(unsigned char code, long modifiers)
 {
 	Ptr				KCHRPtr;
 	unsigned long	state = 0;
@@ -387,12 +395,17 @@ static unsigned char translatekey(unsigned char code, long modifiers)
 
 void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 {
-	unsigned char ascii, code;
-	unsigned char sendch;
-	long	menuEquiv;
-	short	enterkey = 0;
-	Boolean	commanddown, optiondown, controldown,shifted;
-	ObscureCursor();
+	unsigned char	ascii, code;
+	unsigned char	sendch;
+	long			menuEquiv;
+	short			enterkey = 0;
+	Boolean			commanddown, optiondown, controldown,shifted;
+	unsigned char	trbuf[32];
+	unsigned char	*pbuf;
+	long			inlen;
+	long			trlen;
+	int				res;
+	int				i;
 	
 	ascii = theEvent.message & charCodeMask;
 	code = ((theEvent.message & keyCodeMask) >> 8);
@@ -404,59 +417,26 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 	if (DebugKeys(commanddown, ascii, tw->vs))
 		return;
 
-/* NONO : looks like this attempt is more a bug than a fix, and
-   a goto is maybe not very clean, but in such a code anyway...
+	ObscureCursor();
 
-// RAB BetterTelnet 2.0b4 - ha ha, no hack hack
-// fixed emacs metakey so it works for special keys
-// (and got rid of the goto kludge while I was at it)
-
-	if ((tw->emacsmeta == 2)&&(optiondown)) {
-		char temp = ESC;
-
-		if ((TelInfo->numwindows < 1) || (tw->active != CNXN_ACTIVE)) 
-			return;
-
-		optiondown = 0; // pretend we didn't see option
-// NONO : was wrong !
-		//theEvent.modifiers &= (!optionKey);//since we have a valid ASCII anyway from the KCHR
-		theEvent.modifiers &= ~optionKey;//since we have a valid ASCII anyway from the KCHR
-// NONO 
-		// now we fix a couple of broken items in the emacs KCHR
-		if (code == 0x31) ascii = 32; // space fix
-		if ((code == 0x32) && !shifted) ascii = 0x60; // backquote fix
-		if ((code == 0x1B) && shifted) ascii = 0x5F; // underline fix
-
-		if (tw->kblen > 0)
-		{
-			netwrite( tw->port,tw->kbbuf,tw->kblen);										
-			tw->kblen=0;												
-		}
-
-		netpush(tw->port);
-		netwrite(tw->port, &temp, 1); // send an escape, and deal with the char itself below
-	}
-//		goto emacsHack;  //ha ha hack hack
-*/
 	if ( tw->emacsmeta == 2 && optiondown ) {
-		/* option key as emacs meta key: keep shift and control translation */
-		ascii = translatekey( code, (theEvent.modifiers & (shiftKey|controlKey)) );
-		goto emacsHack;  //ha ha hack hack
+		// option key as emacs meta key: keep shift and control translation
+		ascii = translatekeycode( code, (theEvent.modifiers & (shiftKey|controlKey)) );
+		goto emacsHack;
 	}
-/* NONO */
 
-	if ((code == 0x34)&&(ascii == 3)) //fix for PowerBook 540  bad KCHR
-		ascii = 13; 				//(map control-c to return)
-	else if ((controldown)&&(shifted)&&(ascii == '2'))
-		ascii = 0;//fix bad KCHR control-@
-	else if ((controldown)&&(shifted)&&(ascii == '6'))
-		ascii = 0x1e;//fix bad KCHR control-^
+	if ( code == 0x34 && ascii == 3 )	// fix for PowerBook 540  bad KCHR
+		ascii = 13; 					// (map control-c to return)
+	else if ( controldown && shifted && ascii == '2' )
+		ascii = 0;						// fix bad KCHR control-@
+	else if ( controldown && shifted && ascii == '6' )
+		ascii = 0x1e;					// fix bad KCHR control-^
 
-	if (commanddown) {
+	if ( commanddown ) {
 		if (gApplicationPrefs->CommandKeys) {
 			//if optioned, retranslate so we can do menu commands
 			if ( optiondown ) {
-				ascii = translatekey( code, (theEvent.modifiers & shiftKey) );
+				ascii = translatekeycode( code, (theEvent.modifiers & shiftKey) );
 			}
 			menuEquiv = MenuKey(ascii); //handle menu keys first
 			if ( (menuEquiv & 0xFFFF0000) != 0 ) {
@@ -467,36 +447,33 @@ void HandleKeyDown(EventRecord theEvent,struct WindRec *tw)
 				return;
 			//	Check for EMACS meta key.  
 			if ( tw->emacsmeta && controldown ) {
-				unsigned char temp[2];
-				if (ascii <= 32) //control changed the ascii value
-					ascii |= 0x40; //move back to a non-control
+				if ( ascii <= 32 ) {
+					// control changed the ascii value
+					ascii |= 0x40;	// move back to a non-control
+				}
 				if ( shifted || ascii == 0x5f ) {
 					//so we can get meta -
-					ascii = translatekey( code, (theEvent.modifiers & shiftKey) );
+					ascii = translatekeycode( code, (theEvent.modifiers & shiftKey) );
 				}
 emacsHack:
+				trbuf[0] = ESC;
+				trbuf[1] = ascii;
 				if ( (tw->clientflags & PASTE_IN_PROGRESS) && tw->pastemethod ) {
 					// queue this
-					tw->kbbuf[tw->kblen++] = ESC;
-					tw->kbbuf[tw->kblen++] = ascii;
-					return;
+					kbwrite( tw, trbuf, 2);
 				}
-				if (tw->kblen > 0) {
-					netwrite( tw->port,tw->kbbuf,tw->kblen);										
-					tw->kblen=0;												
-				}
-				temp[0] = ESC;
-				temp[1] = ascii;
-				if (tw->echo && tw->halfdup) 		
-					parse(tw,temp,2);	
-				netpush(tw->port);			
+				kbflush( tw );
+				if ( tw->echo && tw->halfdup ) 		
+					parse( tw, trbuf, 2 );	
+				netpush( tw->port );			
 //				netwrite(tw->port,temp,2);
-				netwrite(tw->port,temp,1); // RAB BetterTelnet 2.0b4
+				// ascii is sent below
+				netwrite( tw->port, trbuf, 1 ); // RAB BetterTelnet 2.0b4
 				controldown = 0;
 //				return;					RAB BetterTelnet 2.0b4 - deal with key below
-			} else if ( ascii >= '0' && ascii <='9' ) {
+			} else if ( ascii >= '0' && ascii <= '9' ) {
 				// now look for macros
-				sendmacro(tw, ascii - '0' + (shifted) ? 10 : 0);
+				sendmacro(tw, ascii - '0' + ((shifted) ? 10 : 0));
 				return;
 			} else if (!((ascii == '`' && gApplicationPrefs->RemapTilde) || code == BScode )) {
 				// remap cmd-pgup/down
@@ -531,7 +508,7 @@ emacsHack:
 		ascii = NULL;				 //a @, takes care of Apple not posting NULL key values
 	
 	//	map '`' to ESC if needed
-	if (ascii == '`' && gApplicationPrefs->RemapTilde && !(commanddown))
+	if (ascii == '`' && gApplicationPrefs->RemapTilde && !commanddown)
 		ascii = ESC;
 
 	// map Del to ^D if the user wants it
@@ -540,38 +517,38 @@ emacsHack:
 		ascii = 4;
 	}
 
-	if (code == BScode) //handle mapping BS to DEL, flipping on option
-	{
-		if (tw->bsdel)
-			if ((optiondown && tw->emacsmeta != 2)||(commanddown))
+	if ( code == BScode ) {
+		// handle mapping BS to DEL, flipping on option
+		if ( tw->bsdel ) {
+			if ( (optiondown && tw->emacsmeta != 2) || commanddown )
 				ascii = BS;
 			else
 				ascii = DEL;
-		else
-			if ((optiondown && tw->emacsmeta != 2)||(commanddown))
+		} else {
+			if ( (optiondown && tw->emacsmeta != 2) || commanddown )
 				ascii = DEL;
 			else
 				ascii = BS;
+		}
 	}
 		
-	if (!tw->enabled) //if we are suspended, and we have negotiated restart_any 
-	{				//with the host, then enable the screen on anything but an XOFF.  We will
-					//eat the XON later if that is what this is. (RFC 1372 --CCP 2.7)
-		if ((tw->restart_any_flow)&&(ascii != tw->TELstop)) {
-			tw->enabled = 1;
-			changeport(scrn, scrn);
-		}
+	if ( !tw->enabled && tw->restart_any_flow && ascii != tw->TELstop  ) {
+		// if we are suspended, and we have negotiated restart_any 
+		// with the host, then enable the screen on anything but an XOFF.  We will
+		// eat the XON later if that is what this is. (RFC 1372 --CCP 2.7)
+		tw->enabled = 1;
+		changeport(scrn, scrn);
 	}
 
 	/* Remap PgUp,PgDown,Home,End if the user wants it that way */
 	// RAB BetterTelnet 2.0b3 - we don't check to see if we're using vt220
-	if (tw->pgupdwn && (code >= KPlowest)) //do page up/down on vt100
-		if (CheckPageKeys(code)) return;		
+	if (tw->pgupdwn && code >= KPlowest) // do page up/down on vt100
+		if ( CheckPageKeys(code) )
+			return;		
 
-	if (code >= KPlowest) 		/* BYU - Handle Keypad */
-	{
+	if ( code >= KPlowest ) {
 /*
-		if (theWorld.keyBoardType == envStandADBKbd)	//standard MacII keyboard has keypad +,- 
+		if (theWorld.keyBoardType == envStandADBKbd)	// standard MacII keyboard has keypad +,- 
 		{												// codes switched	
 			if (code == 0x45)									
 				code = 0x4e;
@@ -579,162 +556,174 @@ emacsHack:
 				code = 0x45;
 		}
 */
-		// RAB BetterTelnet 2.0b3 - who cares if we're using VT220?
-		// RAB BetterTelnet 2.0b4 - fix for the fix
-//		if ((code >= 0x7B)||(code <= 0x60)) //fkeys dont work in vt100
-		if (1)
-		{
-			if ((!tw->keypadmap)||(code == 0x4c)||(code > 0x51)||(code < 0x43)) //dont remap operators
-			{
-				if ((tw->clientflags & PASTE_IN_PROGRESS)&&(tw->pastemethod)) //queue this
-				{
-					tw->kbbuf[tw->kblen++] = 0;
-					tw->kbbuf[tw->kblen++] = kpxlate[shifted][code - KPlowest];
-					return;
-				}
-	
-				if (tw->kblen > 0)
-				{
-					netwrite( tw->port,tw->kbbuf,tw->kblen);										
-					tw->kblen=0;												
-				}
-	
-				ascii = kpxlate[shifted][code - KPlowest];
-				// Should we check here for ascii being zero?
-				VSkbsend(tw->vs, (unsigned char) ascii, tw->echo, shifted);
+		if ( !tw->keypadmap || code == 0x4c || code > 0x51 || code < 0x43 ) {
+			// dont remap operators
+			if ( (tw->clientflags & PASTE_IN_PROGRESS) && tw->pastemethod ) {
+				// queue this
+				trbuf[0] = 0;
+				trbuf[1] = kpxlate[shifted][code - KPlowest];
+				kbwrite( tw, trbuf, 2);
 				return;
 			}
-		}
-		else // we dont handle function keys in vt100
+
+			kbflush( tw );
+			ascii = kpxlate[shifted][code - KPlowest];
+			// Should we check here for ascii being zero?
+			VSkbsend(tw->vs, (unsigned char) ascii, tw->echo, shifted);
 			return;
+		}
 	}
 
 	//	Handle whatever mapping is needed.
-	mac_nat(&ascii, tw->national); /* LU/PM: Convert char from mac to nat */
-	
-	if ((tw->clientflags & PASTE_IN_PROGRESS)&&(tw->pastemethod)) //queue this
-	{
-		tw->kbbuf[tw->kblen++] = ascii;
+//	mac_nat(tw, &ascii); // LU/PM: Convert char from mac to nat
+	if ( GetTranslationIndex(tw->outnational) != kTRJIS ) {
+		if (tw->troutcount >= sizeof(tw->troutbuf)) {
+			// !!!! shouldn't occur...
+			Debugger();
+			tw->troutcount = 0;
+		}
+		pbuf = tw->troutbuf;
+		pbuf[tw->troutcount++] = ascii;
+
+		if ( tw->troutcount < sizeof(tw->troutbuf) - 1 ) {
+			EventRecord nextEvent;
+			if ( EventAvail(keyDownMask|autoKeyMask, &nextEvent) ) {
+				/* wait for next char */
+				return;
+			}
+		}
+
+		inlen = tw->troutcount;
+		trlen = sizeof(trbuf);
+		res = trbuf_mac_nat( tw, pbuf, &inlen, trbuf, &trlen );
+		if ( res && res != kTECPartialCharErr ) {
+			// translation failed, leave data as-is
+			trlen = tw->troutcount;
+		} else {
+			// translation ok, or no data yet
+			if ( inlen ) {
+				// keep a few chars
+				for (i = inlen; i <= tw->troutcount; i++) {
+					pbuf[i - inlen] = pbuf[i];
+				}
+				tw->troutcount -= inlen;
+			}
+			if ( !trlen ) {
+				// nothing yet
+				if ( tw->troutcount < sizeof(tw->troutbuf) ) {
+					return;
+				}
+				// temp translation buffer full, unable to translate...
+				// flush data ?
+				trlen = tw->troutcount;
+				res = trflush_mac_nat( tw );
+			} else {
+				// translation complete
+				pbuf = trbuf;
+			}
+		}
+		tw->troutcount = 0;
+	} else {
+		// send as-is ?
+		if ( !tw->troutcount && !(ascii & 0x80) ) {
+			pbuf = &ascii;
+			trlen = 1;
+		} else {
+			pbuf = tw->troutbuf;
+			pbuf[tw->troutcount++] = ascii;
+			if ( tw->troutcount == 1 )
+				// wait for second byte
+				return;
+			trlen = tw->troutcount;
+			tw->troutcount = 0;
+		}
+	}
+
+	if ( (tw->clientflags & PASTE_IN_PROGRESS) && tw->pastemethod ) {
+		// queue this
+		kbwrite( tw, pbuf, trlen);
+		return;
+	} else if ( tw->lmode ) {
+		for (res = 0; res < trlen; ++res) {
+			// Some form of linemode is active; we dont touch it after them
+			process_key( pbuf[res], tw );
+		}
 		return;
 	}
 
-	if (tw->lmode)	// Some form of linemode is active; we dont touch it after them
-	{
-		process_key(ascii,tw);
-		return;
-	}
-	
 	
 	// BSD-like mapping.... if we don't want this, set chars to zero and it wont work
 	//CCP 2.7: this is now AFTER the linemode stuff, so that linemode can handle it differently 
-	if (ascii == tw->TELstop)
-	{
-		if (tw->allow_flow) //remote flow control can turn this off
-		{
+	if ( ascii == tw->TELstop ) {
+		if ( tw->allow_flow ) {
+			// remote flow control can turn this off
 			tw->enabled = 0;
-			changeport(scrn,scrn);
+			changeport( scrn, scrn );
 			return;
 		}
-	}
-
-	if (ascii == tw->TELgo) 
-	{
-		if (tw->allow_flow) //remote flow control can turn this off
-		{
+	} else if ( ascii == tw->TELgo ) {
+		if ( tw->allow_flow ) {
+			// remote flow control can turn this off
 			tw->enabled = 1;
-			changeport(scrn, scrn);
+			changeport( scrn, scrn );
 			return;
 		}
-	}		
-	if (ascii == tw->TELip)  
-	{
+	} else if ( ascii == tw->TELip ) {
 		char *tellUser = "\n\r[Interrupt Process]\n\r";
-		parse(tw,(unsigned char *)tellUser,23);
-		netpush(tw->port);
-		netwrite(tw->port, "\377\364",2);			//IAC IP 
-		netpush(tw->port);
-		netwrite(tw->port, "\377\375\006",3);		// send Do TM 
-		tw->timing = 1;							// set emulate to TMwait 
+		parse( tw, (unsigned char *)tellUser, 23 );
+		netpush( tw->port );
+		netwrite( tw->port, "\377\364", 2 );			//IAC IP 
+		netpush( tw->port );
+		netwrite( tw->port, "\377\375\006" ,3 );		// send Do TM 
+		tw->timing = 1;									// set emulate to TMwait 
 		return;
 	}
-	
 
-	if (tw->echo && !tw->halfdup)	// Handle klude-linemode
-	{
-		if (ascii>31 && ascii <127 && code < KPlowest)	
-		{
-			if (tw->kblen < (MAXKB -1)) 	/* Add to buffer if not full */
-				tw->kbbuf[tw->kblen++] = ascii;
-			else 
-			{			/* if full send buffer */			
-				netwrite( tw->port, tw->kbbuf,tw->kblen);	
-				tw->kbbuf[0] = ascii;
-				tw->kblen=1;
+	if ( tw->echo && !tw->halfdup ) {
+		// Handle klude-linemode
+		if ( ascii > 31 && ascii < 127 && code < KPlowest ) {
+			// printable key 
+			kbwrite( tw, pbuf, trlen);
+			parse(tw, pbuf, trlen);
+			return;								// OK, were set...
+		} else if ( code == BScode ) {
+			if ( tw->kblen > 0 ) {
+				--tw->kblen;
+				parse( tw, (unsigned char *)"\010 \010", 3 );
 			}
+			return;
+		} else if ( ascii == KILLCHAR ) {
+			while ( tw->kblen > 0 ) {
+				parse( tw, (unsigned char *)"\010 \010", 3 );
+				--tw->kblen;
+			}
+			return;
+		} else if ( code < KPlowest ) {
+			// if full send buffer
+			kbflush( tw );
+			if ( ascii != CR ) {
+				sendch = '@' + ascii;
+				parse( tw, (unsigned char *)"^", 1 );
+				parse( tw, &sendch, 1 );
+			}
+		}
+	} //end if klude-linemode
 
-			sendch=ascii;
-			parse(tw, &sendch, 1);
-			return;								/* OK, were set...*/
-		
-		} //end if printable key 
-		else 
-		{
-			if ( code == BScode ) 
-			{
-				if (tw->kblen>0) 
-				{
-					tw->kblen--;
-					parse(tw,(unsigned char *) "\010 \010",3);	/* BYU LSC */
-				}
-				return;
-			}
-			else if (ascii == KILLCHAR) 
-			{
-				while (tw->kblen >0) 
-				{
-					parse(tw,(unsigned char *) "\010 \010",3);	/* BYU LSC */
-					tw->kblen--;
-				}
-				return;
-			}
-			else if (code <KPlowest) 
-			{
-				netwrite( tw->port, tw->kbbuf,tw->kblen);	/* if full send buffer */
-				tw->kblen=0;
-				if (ascii !=CR) 
-				{
-					sendch='@'+ascii;
-					parse(tw,(unsigned char *) "^",1);	/* BYU LSC */
-					parse(tw, &sendch, 1);
-				}
-			}
-		}//end else non-printable key
-	}//end if klude-linemode
-			
-
-	if (ascii == '\015') //CR
-	{
-		//	If crmap is on, send CR-NULL instead of CR-LF.
+	if (ascii == '\015') {
+		// CR. If crmap is on, send CR-NULL instead of CR-LF.
 		SendCRAsIfTyped(tw);
 		return;
-/*		netpush(tw->port);					
-		if (tw->crmap) 
-			netwrite(tw->port,"\015\0",2);
-		else
-			netwrite(tw->port,"\015\012",2); //UNIVAC fix
-		if (tw->echo) 
-			parse(tw,(unsigned char *) "\012\015",2);	// BYU LSC
-		return; */
 	}
 
 	if (tw->echo && tw->halfdup) 
-		parse(tw, &ascii, 1);
-		
-	if (ascii != 255) 
-		netwrite(tw->port,&ascii,1);
-	else
-		netwrite(tw->port, "\377\377", 2);
-		
+		parse( tw, pbuf, trlen );
+
+	if ( ascii != 255 ) {
+		netwrite( tw->port, pbuf, trlen );
+	} else {
+		netwrite( tw->port, "\377\377", 2 );
+	}
+
 }
 
 void	HandleMouseDown(EventRecord myEvent)
@@ -744,11 +733,14 @@ void	HandleMouseDown(EventRecord myEvent)
 	short 	growErr, i;
 	short	theItem;
 	DialogPtr dlogp;
+	short vs;
 
 	code = FindWindow(myEvent.where, &whichWindow);
 	
 	switch (code) {
 		case inMenuBar:
+			if ( gApplicationPrefs->BlinkCursor && (vs = RSfindvwind(FrontWindow())) >= 0 )
+				VScursblinkoff(vs);
 			if (myEvent.modifiers & optionKey)
 			{
 				switchToOptionMenus(TRUE);
@@ -763,6 +755,8 @@ void	HandleMouseDown(EventRecord myEvent)
 			}
 			else
 				HandleMenuCommand(MenuSelect(myEvent.where),myEvent.modifiers);			
+			if ( gApplicationPrefs->BlinkCursor && (vs = RSfindvwind(FrontWindow())) >= 0 )
+				VScursblinkon(vs);
 			break;
 		case inSysWindow:
 			SystemClick(&myEvent, whichWindow);
@@ -866,24 +860,20 @@ void	DoEvents( EventRecord* theEvent)
 
 	if (gotOne) {
 /* BYU 2.4.11 - Turn the cursor off when the human makes the slightest move. */
-		if (gApplicationPrefs->BlinkCursor) 
-		{								
-			if ( (vs=RSfindvwind(FrontWindow())) >= 0)	
-				if (vs == screens[scrn].vs)				
-					if (!(myEvent.modifiers & cmdKey) &&	
-						((myEvent.what == keyDown) || (myEvent.what == autoKey)))
-						RScursblinkon(vs);				
-					else								
-						RScursblinkoff(vs);				
+		if ( gApplicationPrefs->BlinkCursor ) {
+			if ( (vs = RSfindvwind(FrontWindow())) >= 0 && vs == screens[scrn].vs ) {
+				if (!(myEvent.modifiers & cmdKey) &&	
+					(myEvent.what == keyDown || myEvent.what == autoKey))
+					VScursblinkon(vs);				
+				else
+					VScursblinkoff(vs);
+			}			
 		}
 		HandleEvent(theEvent);
+	} else if (gApplicationPrefs->BlinkCursor && !TelInfo->suspended) {
+		if ( (vs = RSfindvwind(FrontWindow())) >= 0 && vs == screens[scrn].vs )
+			VScursblink(vs);
 	}
-	else if (gApplicationPrefs->BlinkCursor && !TelInfo->suspended) 
-	{	/* BYU 2.4.11 */
-		if ( (vs=RSfindvwind(FrontWindow())) >= 0)		/* BYU 2.4.11 */
-			if (vs == screens[scrn].vs)					/* BYU 2.4.11 */
-				RScursblink(vs);						/* BYU 2.4.11 */
-	}													/* BYU 2.4.11 */
 
 	if (FrontWindow() != TelInfo->macrosModeless) // RAB BetterTelnet 1.2
 		updateCursor(0);
@@ -1149,9 +1139,6 @@ void HandleEvent(EventRecord *myEvent) //CCP split this from DoEvents so we can 
 						DisposePtr(nRecPtr);
 						gHaveInstalledNotification = FALSE;
 					}
-//					DisableItem( myMenus[Edit],EDcut);
-//					DisableItem( myMenus[Edit],EDundo);
-//					DisableItem( myMenus[Edit],EDclear);
 
 					window = FrontWindow();			/* Who's on first */
 					if ( (vs=RSfindvwind(window)) >= 0) 
@@ -1185,9 +1172,6 @@ void HandleEvent(EventRecord *myEvent) //CCP split this from DoEvents so we can 
 						KeyScript(smRoman);	
 					}
 					TelInfo->suspended=TRUE;					/* We be in waitin' */
-//					EnableItem( myMenus[Edit],EDcut);
-//					EnableItem( myMenus[Edit],EDundo);
-//					EnableItem( myMenus[Edit],EDclear);
 
 					window = FrontWindow();			/* Who's on first */
 					if ((window = FrontWindow()) != nil) {

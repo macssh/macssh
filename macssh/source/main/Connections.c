@@ -37,6 +37,7 @@
 #include "prefs.proto.h"
 #include "popup.h"
 #include "popup.proto.h"
+#include "translate.proto.h"
 
 #include "Connections.proto.h"
 #include "tnae.h"
@@ -56,6 +57,7 @@ extern	Cursor	*theCursors[NUMCURS];		/* all the cursors in a nice bundle */
 extern	WindRec	*screens;
 extern	short	scrn;
 extern	short	nNational;				// Number of user-installed translation tables
+extern  short   gTableCount;
 extern	MenuHandle	myMenus[];
 extern	Boolean	authOK;
 extern	Boolean	encryptOK;
@@ -100,6 +102,10 @@ void OpenPortSpecial(MenuHandle menuh, short item)
 	success = CreateConnectionFromParams(theParams);
 }
 
+static Boolean startautocomplete = false;
+static Boolean doneautocomplete = false;
+static unsigned long autoTicks;
+
 SIMPLE_UPP(POCdlogfilter, ModalFilter);
 pascal short POCdlogfilter( DialogPtr dptr, EventRecord *evt, short *item)
 {
@@ -143,28 +149,42 @@ pascal short POCdlogfilter( DialogPtr dptr, EventRecord *evt, short *item)
 //		return(PopupMousedown(dptr, evt, item));
 
 /* NONO */
+/*
 	if ( gApplicationPrefs->parseAliases ) {
 		editField = ((DialogPeek)dptr)->editField + 1;
 		if ( editField == NChostname ) {
-			GetTEText(dptr, NChostname, scratch1Pstring);
+			GetTEText(dptr, editField, scratch1Pstring);
 		}
 	}
+*/
 /* NONO */
 
 // RAB BetterTelnet 1.2 - we let StdFilterProc handle this now
 //	return(DLOGwOK_Cancel(dptr, evt, item));
 	result = CallStdFilterProc(dptr, evt, item);
-	
+
 /* NONO */
+/*
 	if ( gApplicationPrefs->parseAliases ) {
 		if ( editField == NChostname && (evt->what == keyDown || evt->what == autoKey) ) {
-			GetTEText(dptr, NChostname, scratch2Pstring);
+			GetTEText(dptr, editField, scratch2Pstring);
 			if (memcmp(scratch1Pstring, scratch2Pstring, scratch1Pstring[0] + 1)) {
-				*item = NChostname;
-				result = true;
+				// host name changed
+				//*item = editField;
+				//result = true;
+				autoTicks = LMGetTicks();
+				startautocomplete = true;
 			}
 		}
 	}
+*/
+	if ( startautocomplete && LMGetTicks() - autoTicks >= 30 ) {
+		startautocomplete = false;
+		doneautocomplete = true;
+		*item = NChostname;
+		result = -1;
+	}
+
 /* NONO */
 
 	return result;
@@ -232,6 +252,7 @@ Boolean PresentOpenConnectionDialog(void)
 	short			ditem, scratchshort, mystrpos;
 	Boolean			success;
 	long			scratchlong;
+	Str255			hostString;
 	Str255			scratchPstring, terminalPopupString, scritchPstring;
 	Handle			ItemHandle;
 	SessionPrefs	**tempSessHdl;
@@ -316,6 +337,8 @@ Boolean PresentOpenConnectionDialog(void)
 	BlockMoveData("\p<Default>", scratchPstring, 15);
 	SetCurrentSession(dptr, scratchPstring);
 
+	GetTEText(dptr, NChostname, hostString);
+
 //	TerminalIndex = findPopupMenuItem(TermPopupHdl,(**defaultSessHdl).TerminalEmulation);
 //	TPopup[0].choice = TerminalIndex;
 //	PopupInit(dptr, TPopup);
@@ -326,7 +349,10 @@ Boolean PresentOpenConnectionDialog(void)
 
 	ShowWindow(dptr);
 
-	while (ditem > NCcancel) {
+	startautocomplete = false;
+	doneautocomplete = false;
+
+	while (ditem != NCconnect && ditem != NCcancel) {
 		movableModalDialog(POCdlogfilterUPP, &ditem);
 		switch(ditem) 
 		{
@@ -347,16 +373,25 @@ Boolean PresentOpenConnectionDialog(void)
 
 			case    NChostname:
 				if ( gApplicationPrefs->parseAliases ) {
-					// check if the string matches a favorite name
 					typedHost = true;
 					GetTEText(dptr, NChostname, scratchPstring);
-					scratchshort = FindMenuItemText(SessPopupHdl, scratchPstring);
-					if ( scratchshort && sessMark != scratchshort ) {
-						SetItemMark(SessPopupHdl, sessMark, 0);
-						sessMark = scratchshort;
-						SetItemMark(SessPopupHdl, sessMark, 18);
-						GetMenuItemText(SessPopupHdl, scratchshort, scratchPstring);
-						SetCurrentSession(dptr, scratchPstring);
+					if (memcmp(scratchPstring, hostString, scratchPstring[0] + 1)) {
+						// host name changed
+						autoTicks = LMGetTicks();
+						startautocomplete = true;
+						pstrcpy(hostString, scratchPstring);
+					}
+					if ( !startautocomplete && doneautocomplete ) {
+						doneautocomplete = false;
+						// check if the string matches a favorite name
+						scratchshort = FindMenuItemText(SessPopupHdl, scratchPstring);
+						if ( scratchshort /*&& sessMark != scratchshort*/ ) {
+							SetItemMark(SessPopupHdl, sessMark, 0);
+							sessMark = scratchshort;
+							SetItemMark(SessPopupHdl, sessMark, 18);
+							GetMenuItemText(SessPopupHdl, scratchshort, scratchPstring);
+							SetCurrentSession(dptr, scratchPstring);
+						}
 					}
 				}
 				break;
@@ -599,6 +634,7 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	Boolean			scratchBoolean;
 	WindRec			*theScreen;
 	unsigned char	*hostname;
+	unsigned long	flags;
 
 	setLastCursor(theCursors[watchcurs]);					/* We may be here a bit */
 
@@ -806,17 +842,35 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 		return(FALSE);
 		}
 
-
 	GetFNum(TermPtr->DisplayFont, &fontnumber);
 	GetFNum(TermPtr->BoldFont, &otherfnum);
-	
-	theScreen->vs = RSnewwindow(&((**Params).WindowLocation),TermPtr->numbkscroll, TermPtr->vtwidth,
-									TermPtr->vtheight, (**Params).WindowName, TermPtr->vtwrap,
-									fontnumber, TermPtr->fontsize, 0,
-									1, SessPtr->forcesave,cur, TermPtr->allowBold, TermPtr->colorBold,
-									SessPtr->ignoreBeeps, otherfnum, TermPtr->boldFontSize, TermPtr->boldFontStyle,
-									TermPtr->realbold, TermPtr->oldScrollback, TermPtr->jumpScroll,
-									TermPtr->realBlink);
+
+	flags = 0;
+	if (TermPtr->vtwrap)
+		flags |= RSWwrapon;
+	/*flags |= RSWshowit;*/
+	flags |= RSWgoaway;
+	if (SessPtr->forcesave)
+		flags |= RSWforcesave;
+	if (TermPtr->allowBold)
+		flags |= RSWallowBold;
+	if (TermPtr->colorBold)
+		flags |= RSWcolorBold;
+	if (SessPtr->ignoreBeeps)
+		flags |= RSWignoreBeeps;
+	if (TermPtr->realbold)
+		flags |= RSWrealbold;
+	if (TermPtr->oldScrollback)
+		flags |= RSWsavelines;
+	if (TermPtr->jumpScroll)
+		flags |= RSWjumpscroll;
+	if (TermPtr->realBlink)
+		flags |= RSWrealBlink;
+
+	theScreen->vs = RSnewwindow(&((**Params).WindowLocation), TermPtr->numbkscroll, TermPtr->vtwidth,
+									TermPtr->vtheight, (**Params).WindowName, fontnumber,
+									TermPtr->fontsize, cur, otherfnum, TermPtr->boldFontSize,
+									TermPtr->boldFontStyle, TermPtr->vtemulation, flags);
 
 	if (theScreen->vs <0 ) { 	/* we have a problem opening up the virtual screen */
 		OutOfMemory(1011);
@@ -876,16 +930,23 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	theScreen->termstate=VTEKTYPE;	/* BYU */
 	theScreen->echo = 1;
 	theScreen->halfdup = SessPtr->halfdup;	/* BYU */
-	
-	theScreen->national = 0;			// Default to no translation.
+
+	theScreen->innational = 0;			// Default to no translation.
+	theScreen->outnational = 0;			// Default to no translation.
+	theScreen->incharset = 0;
+	theScreen->outcharset = 0;
+	theScreen->toconverter = NULL;
+	theScreen->fromconverter = NULL;
 	// Now see if the desired translation is available, if not use default translation.
-	for(scratchshort = 1; scratchshort <= nNational+1; scratchshort++) {
+	for (scratchshort = 1; scratchshort <= nNational+1; scratchshort++) {
 		GetMenuItemText(myMenus[National], scratchshort, scratchPstring);
-		if (EqualString(SessPtr->TranslationTable, scratchPstring, TRUE, FALSE))
-			theScreen->national = scratchshort-1;
+		if (EqualString(SessPtr->TranslationTable, scratchPstring, TRUE, FALSE)) {
+			theScreen->innational = theScreen->outnational = scratchshort - 1;
+			break;
 		}
-				
-	
+	}
+	inittranslation(theScreen);
+
 	// Set up paste related variables
 	theScreen->incount = 0;
 	theScreen->outcount = 0;
@@ -1263,7 +1324,9 @@ void destroyport(short wind)
 		auth_encrypt_end((tnParams **)&tw->aedata);
  		DisposePtr((Ptr)tw->aedata);
 	}
- 
+
+	disposetranslation(tw);
+
 	/*
 	 * Get handle to the WDEF patch block, kill the window, and then
 	 * release the handle.
@@ -1325,9 +1388,9 @@ void removeport(WindRecPtr tw)
 		DestroyTickets();
 		
 	if (!gApplicationPrefs->WindowsDontGoAway) {
-		short vs = findbyVS(tw->vs);
-		if ( vs > -1 ) {
-			destroyport(vs);
+		short sn = findbyVS(tw->vs);
+		if ( sn >= 0 ) {
+			destroyport(sn);
 		}
 	} else {
 		Str255	temp;

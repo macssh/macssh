@@ -93,48 +93,82 @@ extern unsigned char *VSIkplen;							/* BYU 2.4.12 */
 /*
  *          Definition of attribute bits in the Virtual Screen
  *
- *          0   -   Bold
- *          1   -   faint
- *          2   -   italic
- *          3   -   Underline
- *          4   -   slowly Blinking
- *          5   -   rapidly Blinking
- *          6   -   Reverse
- *          7   -   Graphics character set
- *			8	-	bit 0 of ansi foreground color index
- *			9	-	bit 1 of ansi foreground color index
- *			10	-	bit 2 of ansi foreground color index
- *			11	-	use ansi foreground color
- *			12	-	bit 0 of ansi background color index
- *			13	-	bit 1 of ansi background color index
- *			14	-	bit 2 of ansi background color index
- *			15	-	use ansi background color
+ *          0   - 0x000001 -  Bold
+ *          1   - 0x000002 -  faint
+ *          2   - 0x000004 -  italic
+ *          3   - 0x000008 -  Underline
+ *          4   - 0x000010 -  slowly Blinking
+ *          5   - 0x000020 -  rapidly Blinking
+ *          6   - 0x000040 -  Reverse
+ *          7   - 0x000080 -  Graphics character set
+ *			8	-    bit 0 of ansi foreground color index
+ *			9	-    bit 1 of ansi foreground color index
+ *			10	-    bit 2 of ansi foreground color index
+ *			11	- 0x000800 - use ansi foreground color
+ *			12	-    bit 0 of ansi background color index
+ *			13	-    bit 1 of ansi background color index
+ *			14	-    bit 2 of ansi background color index
+ *			15	- 0x008000 - use ansi background color
+ *			16	- 0x010000 - use 2nd ansi foreground color
+ *			17	- 0x020000 - use 2nd ansi background color
+ *			18	- 0x040000 - has first character in high byte
  *
+ *          8 higher bits: second character in multibyte mode
  */
+
+/* character attributes */
+
 #define VSa(x)          (1 << ((x) - 1))
-#define VSisbold(x)     ((x) & 0x01)
-#define VSisfaint(x)    ((x) & 0x02)
-#define VSisitalic(x)   ((x) & 0x04)
-#define VSisundl(x)     ((x) & 0x08)
-#define VSisblnk(x)     ((x) & 0x10)
-#define VSisfastblnk(x) ((x) & 0x20)
-#define VSisrev(x)      ((x) & 0x40)
-#define VSisgrph(x)     ((x) & 0x80)
-#define VSisansifg(x)   ((x) & 0x0800)
-#define VSisansibg(x)   ((x) & 0x08000)
-#define VSisansi(x)     ((x) & 0x08800)
-#define VSisansifg2(x)  ((x) & 0x10000)
-#define VSisansibg2(x)  ((x) & 0x20000)
 
-//#define VSinattr(x) 	((x) & 0xd9)
-#define VSinattr(x) 	((x) & 0xff)
+#define kVSbold			0x000001
+#define kVSfaint		0x000002
+#define kVSitalic		0x000004
+#define kVSundl			0x000008
+#define kVSblnk			0x000010
+#define kVSfastblnk		0x000020
+#define kVSrev			0x000040
+#define kVSgrph			0x000080
+#define kVSansifg		0x000800
+#define kVSansibg		0x008000
+#define kVSansifg2		0x010000
+#define kVSansibg2		0x020000
+#define kVSansi2b		0x040000
+// 4 bits unused, higher bit (i.e. 0x00800000) MUST be left to 0
 
-#define VSgraph(x)  	((x) | 0x80)
-#define VSnotgraph(x) 	((x) & 0x7F)
+#define VSisbold(x)     ((x) & kVSbold)
+#define VSisfaint(x)    ((x) & kVSfaint)
+#define VSisitalic(x)   ((x) & kVSitalic)
+#define VSisundl(x)     ((x) & kVSundl)
+#define VSisblnk(x)     ((x) & kVSblnk)
+#define VSisfastblnk(x) ((x) & kVSfastblnk)
+#define VSisrev(x)      ((x) & kVSrev)
+#define VSisgrph(x)     ((x) & kVSgrph)
+#define VSisansifg(x)   ((x) & kVSansifg)
+#define VSisansibg(x)   ((x) & kVSansibg)
+#define VSisansi(x)     ((x) & (kVSansifg | kVSansibg))
+#define VSisansifg2(x)  ((x) & kVSansifg2)
+#define VSisansibg2(x)  ((x) & kVSansibg2)
+#define VSisansi2b(x)   ((x) & kVSansi2b)
 
-#define VSansifg(x)  	((x) | 0x00800)
-#define VSansibg(x) 	((x) | 0x08000)
-#define VSansifg2(x)  	((x) | 0x10800)
-#define VSansibg2(x) 	((x) | 0x28000)
+#define VSgraph(x)  	((x) | kVSgrph)
+#define VSnotgraph(x) 	((x) & ~kVSgrph)
+#define VSansifg(x)  	((x) | kVSansifg)
+#define VSansibg(x) 	((x) | kVSansibg)
+#define VSansifg2(x)  	((x) | (kVSansifg2 | kVSansifg))
+#define VSansibg2(x) 	((x) | (kVSansibg2 | kVSansibg))
+#define VSansi2b(x) 	((x) | kVSansi2b)
+
+/* line attributes */
+
+#define kVSdecdhlt		0x0001
+#define kVSdecdhlb		0x0002
+#define kVSwrap			0x0004
+
+#define VSisdecdhlt(x)  (((x) & kVSdecdhlt) && !((x) & kVSdecdhlb))
+#define VSisdecdhlb(x)  (((x) & kVSdecdhlb) && !((x) & kVSdecdhlt))
+#define VSisdecdwl(x)   (((x) & (kVSdecdhlt|kVSdecdhlb)) == (kVSdecdhlt|kVSdecdhlb))
+#define VSisdecdwh(x)  	(((x) & (kVSdecdhlt|kVSdecdhlb)) && !VSisdecdwl(x))
+//#define VSisdecdw(x)  	(((x) & (kVSdecdhlt|kVSdecdhlb)))
+#define VSiswrap(x)  	((x) & kVSwrap)
 
 #endif

@@ -34,6 +34,7 @@
 #include "sshglue.proto.h"
 #include "errors.proto.h"
 #include "macros.proto.h"
+#include "translate.proto.h"
 
 /* ssh2.c */
 extern void clearcachedpassphrase();
@@ -1838,13 +1839,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	
 	UseResFile(TelInfo->ApplicationFile);
 	SPopup[1].h = NewMenu(667, "\p");
-	numberOfTerms = CountResources(USER_TRSL);
-	currentHead  = createSortedList2(USER_TRSL,numberOfTerms,NULL);
-	GetIndString(scratchPstring,MISC_STRINGS,NONE_STRING); //"None" string
-	AppendMenu(SPopup[1].h,scratchPstring);
-	addListToMenu/*3*/(SPopup[1].h, currentHead, 2);
-	EnableItem(SPopup[1].h, 0);		// Make sure the entire menu is enabled
-	deleteList(&currentHead);
+	BuildTranslateMenu(SPopup[1].h);
 
 	UseResFile(TelInfo->SettingsFile);
 	currentHead = savedList;
@@ -1857,9 +1852,8 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 		if (IsDefaultLabel(PrefRecordNamePtr)) {
 			HideDialogItem(dptr, SessAlias);
 			HideDialogItem(dptr, SessAliasStatText);
-			}
 		}
-	else {
+	} else {
 		SessPrefsHdl = GetDefaultSession();
 		IsNewPrefRecord = TRUE;
 		GetIndString(PrefRecordNamePtr, MISC_STRINGS, MISC_NEWSESSION);

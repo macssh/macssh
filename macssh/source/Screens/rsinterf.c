@@ -14,6 +14,7 @@
 
 #include "rsdefs.h"
 #include "vsdata.h"
+#include "vskeys.h"
 #include "wind.h"
 #include "rsmac.proto.h"
 #include "vsinterf.proto.h"
@@ -97,84 +98,103 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 	static	long 	lastClick = 0;
 	static 	Point 	lastClickLoc = {0,0};
 	GrafPtr tempwndo;
-	Point	curr, temp;
+	Point	curr, temp, lastm;
 	long	clickTime;
 	short	shift = (theEvent.modifiers & shiftKey);
+	VSAttrib attrib;
+
+
 	RSsetConst(w);
 	tempwndo = RSlocal[w].window;
 	
 	curr = normalize(pt, w, TRUE);
 	clickTime = LMGetTicks();
 
-	if  ( ( EqualPt(RSlocal[w].anchor, curr) || EqualPt(RSlocal[w].anchor, RSlocal[w].last) )
-			&&  ((clickTime - lastClick) <= GetDblTime())
-			&& EqualPt(curr, lastClickLoc)) {
+	if  ( (EqualPt(RSlocal[w].anchor, curr) || EqualPt(RSlocal[w].anchor, RSlocal[w].last))
+	   &&  clickTime - lastClick <= GetDblTime()
+	   &&  EqualPt(curr, lastClickLoc) ) {
 		/* NCSA: SB - check to see if this is a special click */
 		/* NCSA: SB - It has to be in the right time interval, and in the same spot */
-		curr = RSlocal[w].anchor = RSlocal[w].last = normalize(pt, w,TRUE);
+		curr = RSlocal[w].anchor = RSlocal[w].last = normalize(pt, w, TRUE);
 		HandleDoubleClick(w, theEvent.modifiers);
 		RSlocal[w].selected = 1;
 		lastClick = clickTime;
 		lastClickLoc = curr;
-		}
-	else if (theEvent.modifiers & cmdKey)
-	{ // a command click means we should look for a url
-		if ( RSTextSelected(w) && PointInSelection(curr, w) ) //we have a selection already 
+	} else if ((theEvent.modifiers & cmdKey)) {
+		// a command click means we should look for a url
+		if ( RSTextSelected(w) && PointInSelection(curr, w) ) {
+			// we have a selection already 
 			HandleURL(w);
-		else
-		{ // we need to find the url around this pnt
+		} else {
+			// we need to find the url around this pnt
 			if (FindURLAroundPoint(curr, w))
 				HandleURL(w);
 			else
 				SysBeep(1);
 		}
-	}	
-	else {
+	} else {
 		lastClick = clickTime;
 		lastClickLoc = curr;
 		if (RSlocal[w].selected) {
 			if (!shift) {
 				RSlocal[w].selected = 0;
-			  /* unhighlight current selection */
-				RSinvText(w, RSlocal[ w].anchor, RSlocal[w].last, &noConst);
-			  /* start new selection */
-				curr = RSlocal[w].last = RSlocal[w].anchor = normalize(pt, w,TRUE);
-			}
-			else {
+				// unhighlight current selection
+				RSinvText(w, RSlocal[w].anchor, RSlocal[w].last, &noConst);
+				// start new selection
+				curr = normalize(pt, w, TRUE);
+				RSlocal[w].last = RSlocal[w].anchor = curr;
+			} else {
 				RSsortAnchors(w);
 				if ((curr.v < RSlocal[w].anchor.v) || ((curr.v == RSlocal[w].anchor.v) && (curr.h < RSlocal[w].anchor.h))) {
 					temp = RSlocal[w].anchor;
 					RSlocal[w].anchor = RSlocal[w].last;
 					RSlocal[w].last = temp;
+				}
+			}
+		} else {
+			// start new selection
+			curr = normalize(pt, w, TRUE);
+			RSlocal[w].anchor = RSlocal[w].last = curr;
+		}
+
+		if (EqualPt(RSlocal[w].anchor, RSlocal[w].last) && RSlocal[w].anchor.h > -1) {
+			if (VSgetattr(w, RSlocal[w].anchor.h - 1, curr.v, RSlocal[w].anchor.h, curr.v, &attrib, sizeof(VSAttrib))) {
+				if (VSisansi2b(attrib)) {
+					--RSlocal[w].anchor.h;
+					--RSlocal[w].last.h;
+				}
+			}
+		}
+
+		while ( StillDown() ) {
+			// wait for mouse position to change
+			do {
+				temp = getlocalmouse(tempwndo);
+				curr = normalize(temp, w,TRUE);
+				if ( curr.h > -1 ) {
+					if (VSgetattr(w, curr.h - 1, curr.v, curr.h, curr.v, &attrib, sizeof(VSAttrib))) {
+						if (VSisansi2b(attrib)) {
+							++curr.h;
+						}
 					}
 				}
-		  }
-		else
-		  {
-		  /* start new selection */
-			curr = RSlocal[w].anchor = RSlocal[w].last = normalize(pt, w,TRUE);
+			} while (StillDown() && (EqualPt(curr, RSlocal[w].last) || EqualPt(pt, temp)));
+			if ( !EqualPt(pt, temp) ) {
+				// toggle highlight state of text between current and last mouse positions
+				RSinvText(w, curr, RSlocal[w].last, &noConst);
+				RSlocal[w].last = curr;
+				pt = temp;
 			}
-			
-		while (StillDown())
-		  {
-		  /* wait for mouse position to change */
-			do {
-				curr = normalize(getlocalmouse(tempwndo), w,TRUE);
-				} while (EqualPt(curr, RSlocal[w].last) && StillDown());
-	
-		  /* toggle highlight state of text between current and last mouse positions */
-			RSinvText(w, curr, RSlocal[w].last, &noConst);
-			RSlocal[w].last = curr;
-		  } /* while */
 		}
+	}
 
 	RSlocal[w].selected = !EqualPt(RSlocal[w].anchor, RSlocal[w].last);
 
 	SetMenusForSelection((short)RSlocal[w].selected);
-  } /* RSselect */
-  
-  void FlashSelection(short w)
-  {
+} // RSselect
+
+void FlashSelection(short w)
+{
 	short i;
 	DELAYLONG finalTick;
 	for (i = 0; i < 2; i++) {
@@ -183,7 +203,8 @@ void RSselect( short w, Point pt, EventRecord theEvent)
 		Delay(5, &finalTick);
     	RSinvText(w, RSlocal[ w].anchor, RSlocal[w].last, &noConst);
 	}
-  }
+}
+
 Boolean PointInSelection(Point curr, short w)
 {
   	long beg_offset, end_offset, current_offset;
@@ -231,19 +252,19 @@ void RSzoom
 	ZoomWindow(window, code, shifted);
     EraseRect(&window->portRect);			/* BYU 2.4.15 */
 
-  /* get new window size */
+	/* get new window size */
 	h = window->portRect.right - window->portRect.left;
 	v = window->portRect.bottom - window->portRect.top;
 
 	RSsetsize(w, v, h, -1); /* save new size settings and update scroll bars */
-  /* update the visible region of the virtual screen */
+	/* update the visible region of the virtual screen */
 	VSgetrgn(w, &x1, &y1, &x2, &y2);
 	VSsetrgn(w, x1, y1, (x1 + (h - 16 + CHO) / FWidth -1),
 		(y1 + (v - 16 + CVO) / FHeight - 1));
 	VSgetrgn(w, &x1, &y1, &x2, &y2);		/* Get new region */
-  /* refresh the part which has been revealed, if any */
+	/* refresh the part which has been revealed, if any */
 	VSredraw(w, 0, 0, x2 - x1 + 1, y2 - y1 + 1); 
-  /* window contents are now completely valid */
+	/* window contents are now completely valid */
 	ValidRect(&window->portRect);
   } /* RSzoom */
   
@@ -260,8 +281,8 @@ void RSdrawlocker(short w, RgnHandle visRgn)
 {
 	/* draw locker icon */
 	if ( RSlocal[w].left ) {
-		short screenIndex = findbyVS(w);
-		if ( screenIndex >= 0 && screens[screenIndex].protocol == 4 ) {
+		short sn = findbyVS(w);
+		if ( sn >= 0 && screens[sn].protocol == 4 ) {
 			Rect iconRect = (**RSlocal[w].left).contrlRect;
 			iconRect.top += 1;
 			iconRect.right = iconRect.left;
@@ -410,8 +431,8 @@ short RSsize (GrafPtr window, long *where, long modifiers)
 	short	w, width, lines;
 	short	tw, h, v, x1, x2, y1, y2, th;
 	Boolean	changeVSSize = false;
-	short	screenIndex = 0;
-	Boolean	screenIndexValid = false;
+	short	sn = 0;
+	Boolean	snValid = false;
 	short 	err = noErr;
 	short	cwidth;
 	short		oldlines;
@@ -422,7 +443,7 @@ short RSsize (GrafPtr window, long *where, long modifiers)
 	
 	if (modifiers & cmdKey) return (0);
 	
-	screenIndexValid = (screenIndex = findbyVS(w)) != -1;
+	snValid = (sn = findbyVS(w)) >= 0;
 
 /* NONO */
 	/* inverted window-resize behaviour */
@@ -435,7 +456,7 @@ short RSsize (GrafPtr window, long *where, long modifiers)
 	// should be used by default, and option toggles behaviour.
 	// Maybe it should be user configurable?
 #ifndef DONT_DEFAULT_CHANGE_VS_IF_NAWS
-	if(screenIndexValid && screens[screenIndex].naws) {
+	if(snValid && screens[sn].naws) {
 /* NONO */
 		/* inverted window-resize behaviour */
 		/*changeVSSize = (modifiers & optionKey) != optionKey;*/
@@ -486,7 +507,7 @@ short RSsize (GrafPtr window, long *where, long modifiers)
 		SizeWindow(window, h, v, FALSE);					/* change it */
 		} 	
 
-	RSsetsize(w, v, h, screenIndex); /* save new size settings and update scroll bars */
+	RSsetsize(w, v, h, sn); /* save new size settings and update scroll bars */
 
   /* update the visible region of the virtual screen */
 
@@ -523,13 +544,13 @@ short RSsize (GrafPtr window, long *where, long modifiers)
 				cwidth = 255;
 			}
 			RScalcwsize(w,cwidth);
-			if (screenIndexValid
+			if (snValid
 			 && (oldlines != VSgetlines(w) || oldcols != VSgetcols(w)) ) {
-				if (screens[screenIndex].naws) {
-					SendNAWSinfo(&screens[screenIndex], cwidth, (y2-y1+1));
+				if (screens[sn].naws) {
+					SendNAWSinfo(&screens[sn], cwidth, (y2-y1+1));
 				}
-				if (screens[screenIndex].protocol == 4) {
-					ssh_glue_wresize(&screens[screenIndex]);
+				if (screens[sn].protocol == 4) {
+					ssh_glue_wresize(&screens[sn]);
 				}
 			}
 			return (0);
@@ -554,16 +575,36 @@ void RSshow( short w)		/* reveals a hidden terminal window. */
 	ShowWindow(RScurrent->window);
 }
 
+/*
+ * RSresetcolors:  back to default ANSI colors
+ */
+
+void RSresetcolors( short w )
+{
+	int		i;
+
+    if ( !TelInfo->haveColorQuickDraw || RSsetwind(w) < 0 )
+		return;
+
+	for ( i = 0; i < ANSICOLORSIZE; i++ ) {
+		SetEntryColor(RScurrent->pal, i + WINDCOLORSIZE, &RScurrent->savedColors[i]);
+	}
+}
+
+/*
+ * RSsetcolors:  change one of the window/ANSI colors
+ */
+
 Boolean RSsetcolors
 	(
 	short w, /* window number */
 	short n, /* color entry number */
-	RGBColor	*color
+	RGBColor *color
 	)
   /* sets a new value for the specified color entry of a terminal window. */
   {
-    if ( !(TelInfo->haveColorQuickDraw) || (RSsetwind(w) < 0) || (n > 15) || (n < 0))
-		return(FALSE);
+    if ( !TelInfo->haveColorQuickDraw || RSsetwind(w) < 0 || n < 0 || n >= PALETTESIZE )
+		return FALSE;
 
 	SetEntryColor(RScurrent->pal, n, color);
 
@@ -595,7 +636,7 @@ Boolean RSsetcolors
 	return(TRUE);
   } /* RSsetcolors */
   
-  void RSsendstring
+void RSsendstring
   (
 	short w, /* which terminal window */
 	char *ptr, /* pointer to data */
@@ -603,15 +644,18 @@ Boolean RSsetcolors
   )
   /* sends some data to the host along the connection associated
 	with the specified window. */
-  {
-	short temp;
+{
+	short sn;
+ 	WindRecPtr tw;
 
-	temp = findbyVS(w);
-	if (temp < 0)
+	sn = findbyVS(w);
+	if (sn)
 		return;
-	netpush(screens[temp].port);				/* BYU 2.4.18 - for Diab systems? */		
-	netwrite(screens[temp].port, ptr, len);
-  } /* RSsendstring */
+	tw = &screens[sn];
+	netpush(tw->port);				/* BYU 2.4.18 - for Diab systems? */		
+	netwrite(tw->port, ptr, len);
+} /* RSsendstring */
+
 
 
 short RSnewwindow
@@ -621,26 +665,17 @@ short RSnewwindow
 	short width, /* number of characters per text line (80 or 132) */
 	short lines, /* number of text lines */
 	StringPtr name, /* window name */
-	short wrapon, /* autowrap on by default */
 	short fnum, /* ID of font to use initially */
 	short fsiz, /* size of font to use initially */
-	short showit, /* window initially visible or not */
-	short goaway, /* NCSA 2.5 */
-	short forcesave,		/* NCSA 2.5: force screen save */
   	short screenNumber,
-  	short allowBold,
-  	short colorBold,
-  	short ignoreBeeps,
   	short bfnum,
   	short bfsiz,
   	short bfstyle,
-  	short realbold,
-  	short oldScrollback,
-  	short jump,
-  	short realBlink
+  	short vtemulation,
+	unsigned long flags
   )
   /* creates a virtual screen and a window to display it in. */
-  {
+{
 	GrafPort gp; /* temp port for getting text parameters */
 	short w;
 
@@ -653,13 +688,14 @@ short RSnewwindow
 	WindowPeek	front;
 	WindowPtr	behind;
 
-  /* create the virtual screen */
-	w = VSnewscreen(scrollback, (scrollback != 0), /* NCSA 2.5 */
-		lines, width, forcesave, ignoreBeeps, oldScrollback, jump, realBlink);	/* NCSA 2.5 */
+	/* create the virtual screen */
+	w = VSnewscreen(vtemulation, scrollback, (scrollback != 0), /* NCSA 2.5 */
+		lines, width, flags & RSWforcesave, flags & RSWignoreBeeps,
+		flags & RSWsavelines, flags & RSWjumpscroll, flags & RSWrealBlink);
 	if (w < 0) {		/* problems opening the virtual screen -- tell us about it */
 		return(-1);
-	  	}
-	  
+	}
+
 	RScurrent = RSlocal + w;
 
 	RScurrent->fnum = fnum;
@@ -669,9 +705,9 @@ short RSnewwindow
 	RScurrent->bfstyle = bfstyle;
 
 	OpenPort(&gp);
-	RScurrent->allowBold = allowBold;
-	RScurrent->colorBold = colorBold;
-	RScurrent->realbold = realbold;
+	RScurrent->allowBold = flags & RSWallowBold;
+	RScurrent->colorBold = flags & RSWcolorBold;
+	RScurrent->realbold = flags & RSWrealbold;
 	RSTextFont(fnum,fsiz,0);	/* BYU */
 	TextSize(fsiz);
 	RSfontmetrics();
@@ -700,26 +736,30 @@ short RSnewwindow
 
   /* create the window */
 	if (!TelInfo->haveColorQuickDraw) {
-		RScurrent->window = NewWindow(0L, wDims, name, showit, 8,behind, goaway, (long)w);
+		RScurrent->window = NewWindow(0L, wDims, name, flags & RSWshowit, 8,behind, flags & RSWgoaway, (long)w);
 		RScurrent->pal = NULL;
 		if (RScurrent->window == NULL) {
 			VSdestroy(w);
 			return(-2);
 		}
 	} else {
-		RGBColor scratchRGB;
-		
-		RScurrent->window = NewCWindow(0L, wDims, name, showit, 8,behind, goaway, (long)w);
+		if ( TelInfo->AnsiColors == NULL ) {
+			VSdestroy(w);
+			return(-2);
+		}
+
+		RScurrent->window = NewCWindow(0L, wDims, name, flags & RSWshowit, 8,behind, flags & RSWgoaway, (long)w);
 		if (RScurrent->window == NULL) {
 			VSdestroy(w);
 			return(-2);
 		}
+
 		//note: the ANSI colors are in the top 8 of the palette.  The four telnet colors (settable
 		//in telnet) are in the lower 4 of the palette.  These 4 are set later by a call from 
 		//CreateConnectionFromParams to RSsetColor (ick, but I am not going to add 4 more params to
 		//this ungodly function call (CCP 2.7)
 		ourColorTableHdl = (CTabHandle) myNewHandle((long) (sizeof(ColorTable) + 
-									PALSIZE * sizeof(CSpecArray)));
+									(PALETTESIZE - 1) * sizeof(CSpecArray)));
 		if (ourColorTableHdl == NULL) 
 		{
 			DisposeWindow(RScurrent->window);
@@ -728,25 +768,24 @@ short RSnewwindow
 		}
 		HLock((Handle) ourColorTableHdl);
 			
-		(*ourColorTableHdl)->ctSize = PALSIZE-1;		// Number of entries minus 1
+		(*ourColorTableHdl)->ctSize = PALETTESIZE - 1;		// Number of entries minus 1
 		(*ourColorTableHdl)->ctFlags = 0;
 		
-		for (i=0; i <4; i++) //set the ctTable.value field to zero for our four
+		for (i = 0; i < WINDCOLORSIZE; i++) // set the ctTable.value field to zero for our four
 			(*ourColorTableHdl)->ctTable[i].value = 0;
 		
-		if (TelInfo->AnsiColors==NULL) 
-			return(-2); //BUGG CHANGE THIS ONCE WE ARE WORKING
-		
-		for (i=0; i < MAXATTR*2; i++) //get the ANSI colors from the palette
-		{
-			GetEntryColor(TelInfo->AnsiColors, i, &(*ourColorTableHdl)->ctTable[i+4].rgb);
-			(*ourColorTableHdl)->ctTable[i+4].value = 0;
+		for (i = 0; i < ANSICOLORSIZE; i++) {
+			// get the ANSI colors from the palette
+			GetEntryColor(TelInfo->AnsiColors, i, &(*ourColorTableHdl)->ctTable[i + WINDCOLORSIZE].rgb);
+			(*ourColorTableHdl)->ctTable[i + WINDCOLORSIZE].value = 0;
+			RScurrent->savedColors[i] = (*ourColorTableHdl)->ctTable[i + WINDCOLORSIZE].rgb;
 		}
-		
-		RScurrent->pal = NewPalette(PALSIZE, ourColorTableHdl, pmCourteous, 0);
-		DisposeHandle((Handle) ourColorTableHdl);
-		if (RScurrent->pal == NULL) 
-		{
+
+		RScurrent->pal = NewPalette(PALETTESIZE, ourColorTableHdl, pmCourteous, 0);
+
+		DisposeHandle((Handle)ourColorTableHdl);
+
+		if (RScurrent->pal == NULL) {
 			DisposeWindow(RScurrent->window);
 			VSdestroy(w);
 			return(-2);
@@ -771,8 +810,6 @@ short RSnewwindow
 		pRect.right = TelInfo->screenRect.right;
 
 	pRect.bottom = pRect.top + RMAXWINDOWHEIGHT;
-
-/*	BlockMoveData(&wstate->stdState, &pRect, 8); uh ? */
 
   /* create scroll bars for window */
 	pRect.top = -1 + CVO;
@@ -820,7 +857,7 @@ short RSnewwindow
 	else
 		TextMode(srcCopy);
 
-	if (wrapon)
+	if (flags & RSWwrapon)
 	  /* turn on autowrap */
 		VSwrite(w, "\033[?7h",5);
 
@@ -844,10 +881,14 @@ void RSkillwindow
   )
   /* closes a terminal window. */
   {
+  	short sn;
  	WindRecPtr tw;
  	RSdata *temp;
 
- 	tw = &screens[findbyVS(w)];
+ 	sn = findbyVS(w);
+ 	if ( sn < 0 )
+ 		return;
+	tw = &screens[sn];
 
  	--((*topLeftCorners)[tw->positionIndex]); //one less window at this position
 
@@ -917,14 +958,14 @@ char **RSGetTextSel
 	if (realsiz < 0)
 		realsiz = - realsiz;
 	realsiz ++;								/* lines 2,3 selected can be 2 lines */
-	realsiz *= (maxwid + 2);
+	realsiz *= (maxwid * 2 + 2);
 	charh = myNewHandle(realsiz);
 	if (charh == 0L)
 		return((char **) -1L);				/* Boo Boo return */
 	HLock((Handle)charh);
 	charp = *charh;
 	realsiz = VSgettext(w, Anchor.h, Anchor.v, Last.h, Last.v,
-		charp, realsiz, "\015", table);
+		charp, realsiz, "\015", table, 1);
 	HUnlock((Handle)charh);
 	mySetHandleSize((Handle)charh, realsiz);
 	return(charh);
@@ -1058,19 +1099,53 @@ short RSfindvwind
 		return(i);
   } /* RSfindvwind */
 
-void RSdeactivate
-  (
-	short w
-  )
- /* handles a deactivate event for the specified window. */
-  {
+
+/*
+ * RSactivate
+ *
+ * handles an activate event for the specified window
+ */
+
+void RSactivate( short w )
+{
+	RSsetConst(w);
+	/* display the grow icon */
+	DrawGrowIcon(RSlocal[w].window);
+	/* and activate the scroll bars */
+	if (RSlocal[w].scroll != 0L) {
+		ShowControl(RSlocal[w].scroll);
+	}
+	if (RSlocal[w].left != 0L) {
+		ShowControl(RSlocal[w].left);
+	}
+
+	RSlocal[w].active = 1;
+
+	if ( gApplicationPrefs->BlinkCursor ) {
+    	TelInfo->blinktime = LMGetTicks() - CURS_BLINK_PERIOD;
+	}
+} /* RSactivate */
+
+
+/*
+ * RSdeactivate
+ *
+ * handles a deactivate event for the specified window
+ */
+
+void RSdeactivate( short w )
+{
 	GrafPtr port;
 	GetPort(&port);
 	SetPort(RSlocal[w].window);
 
 	RSsetConst(w);
 
-	RScursoff(w);
+	RSlocal[w].active = 0;
+
+	if ( gApplicationPrefs->BlinkCursor ) {
+		RScursoff( w );
+	}
 
 	BackColor(whiteColor);
 
@@ -1090,8 +1165,6 @@ void RSdeactivate
 	} else {
 		BackColor(blackColor);
 	}
-
-	RSlocal[w].active = 0;
 
  	SetPort(port);
 } /* RSdeactivate */
@@ -1120,7 +1193,12 @@ void RScursblink( short w )
 {
 	unsigned long	now;
 
-	if (VSvalids(w) || !VSIcursorvisible())
+	if (!gApplicationPrefs->BlinkCursor
+	 || VSvalids(w)
+	 || !VSIcursorvisible()
+	 || ((!RSlocal[w].active
+	 ||   TelInfo->suspended)
+	  && !RSlocal[w].cursorstate))
 		return;
 	if ( (now = LMGetTicks()) - TelInfo->blinktime >= CURS_BLINK_PERIOD ) {
 		GrafPtr savePort;
@@ -1140,10 +1218,14 @@ void RScursblink( short w )
 
 void RScursblinkon( short w )
 {
-	if (VSvalids(w) || !VSIcursorvisible())
+	if (!gApplicationPrefs->BlinkCursor
+	 || VSvalids(w)
+	 || !VSIcursorvisible()
+	 || !RSlocal[w].active
+	 || TelInfo->suspended)
   		return;
 	TelInfo->blinktime = LMGetTicks();
-  	if (!RSlocal[w].cursorstate) {
+  	if ( !RSlocal[w].cursorstate ) {
 		GrafPtr savePort;
 		GetPort(&savePort);
 		RSlocal[w].cursorstate = 1;
@@ -1160,9 +1242,10 @@ void RScursblinkon( short w )
 
 void RScursblinkoff( short w )
 {
-	if (VSvalids(w) || !VSIcursorvisible())
+
+	if (!gApplicationPrefs->BlinkCursor || VSvalids(w) || !VSIcursorvisible())
 		return;
-  	if (RSlocal[w].cursorstate) {
+  	if ( RSlocal[w].cursorstate ) {
 		GrafPtr savePort;
 		GetPort(&savePort);
 		RSlocal[w].cursorstate = 0;
@@ -1301,7 +1384,7 @@ void RScalcwsize(short w, short width)
 	ValidRect(&RScurrent->window->portRect); /* no need to do it again */
 	DrawControls(RScurrent->window);
 	
-	RScursoff(w);
+//	RScursoff(w);
 }
 
 /* handles a click in a terminal window. */
@@ -1385,25 +1468,6 @@ short RSclick( GrafPtr window, EventRecord theEvent)
 		0;
   } /* RSclick */
 
-void RSactivate
-  (
-	short w
-  )
-  /* handles an activate event for the specified window. */
-  {
-	RSsetConst(w);
-  /* display the grow icon */
-	DrawGrowIcon(RSlocal[w].window);
-  /* and activate the scroll bars */
-	if (RSlocal[w].scroll != 0L) {
-		ShowControl(RSlocal[w].scroll);
-	}
-	if (RSlocal[w].left != 0L) {
-		ShowControl(RSlocal[w].left);
-	}
-	RSlocal[w].active = 1;
-  } /* RSactivate */
-
 /*--------------------------------------------------------------------------*/
 /* HandleDoubleClick														*/
 /* This is the routine that does the real dirty work.  Since it is not a	*/
@@ -1417,111 +1481,126 @@ static	void HandleDoubleClick(short w, short modifiers)
 	Point	leftLoc, rightLoc, curr, oldcurr;													
 	long	mySize;															
 	char	theChar[5];															
-	short	mode = -1, newmode, foundEnd=0;															
-	RSsetConst(w);																/* get window dims */							
-	leftLoc = RSlocal[w].anchor;									/* these two should be the same */							
+	short	mode = -1, newmode, foundEnd=0;	
+	Point	pt;														
+	Point	temp;														
+	VSAttrib attrib;
+
+
+	RSsetConst(w);								// get window dims
+	leftLoc = RSlocal[w].anchor;				// these two should be the same
 	rightLoc = RSlocal[w].last;									
 																				
-	while(!foundEnd)															/* scan to the right first */														
+	while(!foundEnd)							// scan to the right first
 		{																		
 		mySize = VSgettext(w,rightLoc.h, rightLoc.v, rightLoc.h+1, rightLoc.v,	
-			theChar,(long)1,"\015",0);									
-		if(mySize ==0 || isspace(*theChar))									/* stop if not a letter */			
+			theChar, (long)1, "\015", 0, 0);									
+		if(mySize ==0 || isspace(*theChar))		// stop if not a letter
 			foundEnd =1;														
 		else rightLoc.h++;														
 		}																		
 																				
 	foundEnd =0;																
-	while(!foundEnd)															/* ...and then scan to the left */															
+	while(!foundEnd)							// ...and then scan to the left
 		{																		
 		mySize = VSgettext(w,leftLoc.h-1, leftLoc.v, leftLoc.h, leftLoc.v,		
-			theChar,(long)1,"\015",0);									
-		if(mySize ==0 || isspace(*theChar))										/* STOP! */		
+			theChar, (long)1, "\015", 0, 0);									
+		if(mySize ==0 || isspace(*theChar))		// STOP!
 			foundEnd =1;														
 		else leftLoc.h--;														
 		}																		
 																				
-	if (leftLoc.h != rightLoc.h) {		/* we selected something */
+	if (leftLoc.h != rightLoc.h) {				// we selected something
 
 		HiliteThis(w, leftLoc, rightLoc);
 
-		if (modifiers & cmdKey)		// Possible URL selection
+		if (modifiers & cmdKey)					// Possible URL selection
 			HandleURL(w);
 		else {																		
 	
 			curr.h = 0; curr.v = 0;
 	
+			pt = getlocalmouse(RSlocal[w].window);
 			while (StillDown()) {
-			  /* wait for mouse position to change */
+				// wait for mouse position to change
 				do {
 					oldcurr = curr;
-					curr = normalize(getlocalmouse(RSlocal[w].window), w,TRUE);
-					} while (EqualPt(curr, oldcurr) && StillDown());
+					temp = getlocalmouse(RSlocal[w].window);
+					curr = normalize(temp, w,TRUE);
+					if ( curr.h > -1 ) {
+						if (VSgetattr(w, curr.h - 1, curr.v, curr.h, curr.v, &attrib, sizeof(VSAttrib))) {
+							if (VSisansi2b(attrib)) {
+								++curr.h;
+							}
+						}
+					}
+				} while (StillDown() && (EqualPt(curr, oldcurr) || EqualPt(pt, temp)));
+
+				if ( !EqualPt(pt, temp) ) {
+					pt = temp;
+				
+					if ((curr.v < leftLoc.v) || ((curr.v == leftLoc.v) && (curr.h < leftLoc.h))) {
+						newmode = 1;	// up
+					} else if ((curr.v > leftLoc.v) || ((curr.v == leftLoc.v) && (curr.h > rightLoc.h))) {
+						newmode = 2;	// down
+					} else 
+						newmode = -1;	// inside dbl-clicked word
+						
+					/* toggle highlight state of text between current and last mouse positions */
+					if (mode == -1) {
+						if (newmode == 2) {
+							RSlocal[w].anchor = leftLoc;
+							RSinvText(w, curr, rightLoc, &noConst);
+							RSlocal[w].last = curr;
+						}
+						if (newmode == 1) {
+							RSlocal[w].anchor = rightLoc;
+							RSinvText(w, curr, leftLoc, &noConst);
+							RSlocal[w].last = curr;
+						}
+					}
 		
-				
-				if ((curr.v < leftLoc.v) || ((curr.v == leftLoc.v) && (curr.h < leftLoc.h))) {
-					newmode = 1;	// up
-					}
-				else if ((curr.v > leftLoc.v) || ((curr.v == leftLoc.v) && (curr.h > rightLoc.h))) {
-					newmode = 2;	// down
-					}
-				else 
-					newmode = -1;	// inside dbl-clicked word
-					
-				/* toggle highlight state of text between current and last mouse positions */
-				if (mode == -1) {
-					if (newmode == 2) {
-						RSlocal[w].anchor = leftLoc;
-						RSinvText(w, curr, rightLoc, &noConst);
-						RSlocal[w].last = curr;
+					if (mode == 1) {
+						if (newmode == 2) {
+							RSlocal[w].anchor = leftLoc;
+							RSinvText(w, oldcurr, leftLoc, &noConst);
+							RSinvText(w, rightLoc, curr, &noConst);
+							RSlocal[w].last = curr;
 						}
-					if (newmode == 1) {
-						RSlocal[w].anchor = rightLoc;
-						RSinvText(w, curr, leftLoc, &noConst);
-						RSlocal[w].last = curr;
+						if (newmode == -1) {
+							RSlocal[w].anchor = leftLoc;
+							RSinvText(w, oldcurr, leftLoc, &noConst);
+							RSlocal[w].last = rightLoc;
 						}
-					}
-	
-				if (mode == 1) {
-					if (newmode == 2) {
-						RSlocal[w].anchor = leftLoc;
-						RSinvText(w, oldcurr, leftLoc, &noConst);
-						RSinvText(w, rightLoc, curr, &noConst);
-						RSlocal[w].last = curr;
-						}
-					if (newmode == -1) {
-						RSlocal[w].anchor = leftLoc;
-						RSinvText(w, oldcurr, leftLoc, &noConst);
-						RSlocal[w].last = rightLoc;
-						}
-					if (newmode == mode) {
-						RSinvText(w, oldcurr, curr, &noConst);
-						RSlocal[w].last = curr;
-						}
-					}
-				
-				if (mode == 2) {
-					if (newmode == 1) {
-						RSlocal[w].anchor = rightLoc;
-						RSinvText(w, oldcurr, rightLoc, &noConst);
-						RSinvText(w, leftLoc, curr, &noConst);
-						RSlocal[w].last = curr;
-						}
-					if (newmode == -1) {
-						RSlocal[w].anchor = leftLoc;
-						RSinvText(w, oldcurr, rightLoc, &noConst);
-						RSlocal[w].last = rightLoc;
-						}
-					if (newmode == mode) {
-						RSinvText(w, oldcurr, curr, &noConst);
-						RSlocal[w].last = curr;
+						if (newmode == mode) {
+							RSinvText(w, oldcurr, curr, &noConst);
+							RSlocal[w].last = curr;
 						}
 					}
 					
-				mode = newmode;
-				} /* while */
+					if (mode == 2) {
+						if (newmode == 1) {
+							RSlocal[w].anchor = rightLoc;
+							RSinvText(w, oldcurr, rightLoc, &noConst);
+							RSinvText(w, leftLoc, curr, &noConst);
+							RSlocal[w].last = curr;
+						}
+						if (newmode == -1) {
+							RSlocal[w].anchor = leftLoc;
+							RSinvText(w, oldcurr, rightLoc, &noConst);
+							RSlocal[w].last = rightLoc;
+						}
+						if (newmode == mode) {
+							RSinvText(w, oldcurr, curr, &noConst);
+							RSlocal[w].last = curr;
+						}
+					}
+						
+					mode = newmode;
+				}
 			}
-		}	
+		}
+	}	
 }
 
 Point getlocalmouse(GrafPtr wind)
@@ -1856,14 +1935,14 @@ void calculateWindowPosition(WindRec *theScreen,Rect *whereAt, short colsHigh, s
 void RSUpdatePalette(void)  //called when ANSI colors have changed, and we need to update each
 {							//windows palette
 	GrafPtr oldPort;
-	int screenIndex;
+	int sn;
 	WindRec	*w;
 	
 
 	GetPort(&oldPort);
-	for (screenIndex = 0; screenIndex < TelInfo->numwindows; screenIndex++)
+	for (sn = 0; sn < TelInfo->numwindows; sn++)
 	{
-		w = &screens[screenIndex];
+		w = &screens[sn];
 		if ((w->active == CNXN_ACTIVE)||
 			(w->active == CNXN_OPENING))
 		{

@@ -72,41 +72,29 @@ void initLinemode(struct WindRec *tw)
 
 void process_key(unsigned char ascii,struct WindRec *tw)
 {
-	if (tw->litNext) //do no processing on next key
-	{
+	if (tw->litNext) {
+		//do no processing on next key
 		tw->litNext = FALSE;
-		if (tw->kblen < (MAXKB -1)) 	/* Add to buffer if not full */
-			tw->kbbuf[tw->kblen++] = ascii;
-		else 
-		{				
-			netpush(tw->port);
-			netwrite( tw->port, tw->kbbuf, tw->kblen);	/* if full send buffer */
-			tw->kbbuf[0]=ascii;
-			tw->kblen=1;
-		}
-		if (tw->echo)
-		{
-			if (ascii>31 && ascii <127)	/* add these chars to buffer */
-			{
+
+		kbwrite(tw, &ascii, 1);
+
+		if (tw->echo) {
+			if (ascii>31 && ascii <127) {
+				/* add these chars to buffer */
 				parse(tw, &ascii, 1);
-				return;
 			}
-			else
-				return;
+			return;
 		}
 	}
 
-	if (tw->lmodeBits & 2) // TRAPSIG mode active
-	{		
+	if (tw->lmodeBits & 2) {		
+		// TRAPSIG mode active
 		unsigned char toSend[2] = {IAC,0};
 		short whichSignal = 0;
-		if (ascii == tw->slc[SLC_IP])
-		{
+		if (ascii == tw->slc[SLC_IP]) {
 			whichSignal = SLC_IP;
-			toSend[1] = TEL_IP; // RAB BetterTelnet 2.0b1
-		}
-		else if (ascii == tw->slc[SLC_SUSP]) // RAB BetterTelnet 2.0b1
-		{
+			toSend[1] = TEL_IP;
+		} else if (ascii == tw->slc[SLC_SUSP]) {
 			whichSignal = SLC_SUSP;
 			toSend[1] = TEL_SUSP;
 		}
@@ -151,19 +139,9 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 	if ((tw->lmodeBits & L_SOFT_TAB)&&(ascii == 0x09)) // SOFT_TAB mode active; expand tab into spaces
 	{
 		short numSpaces = VSIgetNextTabDistance();
-		while (numSpaces > 0)
-		{
-			while ((numSpaces > 0)&&(tw->kblen < (MAXKB -1)))
-			{
-				tw->kbbuf[tw->kblen++] = 0x20; //space
-				numSpaces--;
-			}
-			if (tw->kblen == (MAXKB -1))
-			{
-				netpush(tw->port);
-				netwrite( tw->port, tw->kbbuf, tw->kblen);	/* if full send buffer */
-				tw->kblen=0;
-			}
+		unsigned char spacechar = ' ';
+		while (numSpaces > 0) {
+			kbwrite(tw, &spacechar, 1);
 		}
 		if (tw->echo)
 			parse(tw, &ascii, 1);
@@ -178,11 +156,9 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 
 		if (ascii == '\015') //CR
 		{ //since we are in edit, send the buffer and CR-LF
-			if (tw->kblen > 0)
-				netwrite(tw->port, tw->kbbuf, tw->kblen);
+			kbflush(tw);
 			netpush(tw->port);
 			netwrite(tw->port,"\015\012",2);
-			tw->kblen = 0;
 			if (tw->echo)
 				parse(tw,(unsigned char *) "\012\015",2);
 			return;
@@ -218,8 +194,7 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 		else if ((ascii == tw->slc[SLC_EOF]) && (tw->lmodeBits & 2))
 		{ //push the buffer, send IAC EOF (RAB BetterTelnet 2.0b1 - only under TRAPSIG)
 			char eofString[2] = { IAC, TEL_EOF };
-			if (tw->kblen > 0)
-				netwrite(tw->port, tw->kbbuf, tw->kblen);
+			kbflush(tw);
 // RAB BetterTelnet 2.0b1 - BAD! BAD! BAD!
 // Fix for *BSD (and probably others):
 // Putting ^D into Telnet's key buffer after sending an EOF could make it pop up later, so
@@ -227,7 +202,6 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 // after a cat command which terminated with ^D caused a logout. Yuck.
 //			tw->kbbuf[0]=ascii;
 //			tw->kblen=1;
-			tw->kblen = 0;
 			netpush(tw->port);
 			netwrite(tw->port,eofString, 2);
 			return;
@@ -282,26 +256,15 @@ void process_key(unsigned char ascii,struct WindRec *tw)
 		}
 		else if ((ascii == tw->slc[SLC_FORW1])||(ascii == tw->slc[SLC_FORW1]))
 		{
-			if (tw->kblen > 0)
-				netwrite(tw->port, tw->kbbuf, tw->kblen);
-			netpush(tw->port);
+			kbflush(tw);
 			netwrite(tw->port,&ascii,1);
-			tw->kblen = 0;
 			return;
 
 		}
 		//ok, at this point, we are past all local editing functions.  Now, add the character to the buffer.
 		else
 		{
-			if (tw->kblen < (MAXKB -1)) 	// Add to buffer if not full
-				tw->kbbuf[tw->kblen++] = ascii;
-			else 
-			{				
-				netpush(tw->port);
-				netwrite( tw->port, tw->kbbuf, tw->kblen);	// if full send buffer 
-				tw->kbbuf[0]=ascii;
-				tw->kblen=1;
-			}
+			kbwrite(tw, &ascii, 1);
 		}
 
 	}

@@ -28,14 +28,15 @@
 #define CVO 0
 #define CHO (-2)
 
-#define LOCKWIDTH 16
+#define LOCKWIDTH				16		// width of the ssh locker
 
 #define CURS_BLINK_PERIOD		30
 
+#define INFINITY				32000	// Will screens ever be this large?
+#define WINDCOLORSIZE			4
+#define ANSICOLORSIZE			16
+#define PALETTESIZE				(WINDCOLORSIZE + ANSICOLORSIZE)
 
-#define INFINITY	20000		// Will screens ever be this large?
-#define MAXATTR 16
-#define PALSIZE (MAXATTR*2+4*2)	//this is ANSI colors plus our four.
 
 /*------------------------------------------------------------------------*/
 /* Now we have some externs, packed away neatly from the rest of the code */
@@ -98,6 +99,8 @@ struct RSdata {
 		active;		/* true if window is currently active */
 	short
 		cursType;
+	RGBColor
+		savedColors[16];
 };
 
 typedef struct RSdata RSdata;

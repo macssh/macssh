@@ -404,7 +404,7 @@ int WriteCharsToTTY(int id, void *ctx, char *buffer, int n)
 		written = n;
 	}
 /*
-	syslog( 0, "write\n");
+	syslog( 0, "from ssh\n");
 	dumpln(0, 0, buffer, written);
 */
 	return written;
@@ -456,7 +456,7 @@ int ReadCharsFromTTY(int id, void *ctx, char *buffer, int n)
 		buffer[0] = EOF;
 	}
 /*
-	syslog( 0, "read\n");
+	syslog( 0, "to ssh\n");
 	dumpln(0, 0, buffer, len);
 */
 	return len;

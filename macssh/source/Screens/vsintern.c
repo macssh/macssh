@@ -35,6 +35,7 @@
 #include "rsmac.proto.h"
 #include "rsinterf.proto.h"
 #include "maclook.proto.h"
+#include "translate.proto.h"
 #include "wind.h"
 #include "rsdefs.h"
 #include "Vers.h"
@@ -42,7 +43,7 @@
 #define ScrollbackQuantum 100
 
 //#define VSIclrattrib 0
-#define VSIclrattrib VSIw->attrib
+#define VSIclrattrib (VSIw->attrib & 0x0003ffff)
 
 #include "vsintern.proto.h"
 
@@ -172,11 +173,7 @@ void VSIcurson
 	if (!VSIw->DECCM) return; // Bri 970610
 	if (VSIw->disableCursor) return; // RAB BetterTelnet 2.0b4
 
-	if (VSIw->oldScrollback) {
-		lattr = VSIw->attrst[y]->lattr;
-	} else {
-		lattr = VSIw->linest[y]->lattr;
-	}
+	lattr = VSIw->linest[y]->lattr;
 
 	if (!VSIclip(&x, &y, &x2, &y2, &n, &offset)) {
 		/* cursor already lies within visible region */
@@ -240,8 +237,6 @@ short VSIcursorenabled( void )
 		return 0; // Bri 970610
 	if (VSIw->disableCursor)
 		return 0; // RAB BetterTelnet 2.0b4
-	if (!RSisInFront(VSIwn))
-		return 0;
 	return 1;
 }
 
@@ -261,6 +256,85 @@ short VSIcursorvisible( void )
 		return 0;
 	return 1;
 }
+
+/*
+ * VScursblink
+ */
+
+void VScursblink( short w )
+{
+	unsigned long	now;
+	short
+		x = VSIw->x,
+		y = VSIw->y,
+		x2,
+		y2,
+		n = 1,
+		offset;
+
+	if (!gApplicationPrefs->BlinkCursor
+	 || VSvalids(w)
+	 || !VSIcursorvisible()
+	 || ((!RSlocal[w].active || TelInfo->suspended) && !RSlocal[w].cursorstate))
+		return;
+	if ( (now = LMGetTicks()) - TelInfo->blinktime >= CURS_BLINK_PERIOD ) {
+		GrafPtr savePort;
+		GetPort(&savePort);
+		TelInfo->blinktime = now;
+		RSlocal[w].cursorstate ^= 1;
+		SetPort(RSlocal[w].window);
+		InvertRect(&RSlocal[w].cursor);
+		SetPort(savePort);
+	}
+} /* VScursblink */
+
+
+/*
+ * VScursblinkon
+ */
+
+void VScursblinkon( short w )
+{
+	if (!gApplicationPrefs->BlinkCursor
+	 || VSvalids(w)
+	 || !VSIcursorvisible()
+	 || !RSlocal[w].active
+	 || TelInfo->suspended)
+  		return;
+	TelInfo->blinktime = LMGetTicks();
+  	if ( !RSlocal[w].cursorstate ) {
+		GrafPtr savePort;
+		GetPort(&savePort);
+		RSlocal[w].cursorstate = 1;
+		SetPort(RSlocal[w].window);
+		InvertRect(&RSlocal[w].cursor);
+		SetPort(savePort);
+	}
+} /* VScursblinkon */
+
+
+/*
+ * VScursblinkoff
+ */
+
+void VScursblinkoff( short w )
+{
+
+	if (!gApplicationPrefs->BlinkCursor || VSvalids(w) || !VSIcursorvisible())
+		return;
+  	if ( RSlocal[w].cursorstate ) {
+		GrafPtr savePort;
+		GetPort(&savePort);
+		RSlocal[w].cursorstate = 0;
+		TelInfo->blinktime = LMGetTicks() - CURS_BLINK_PERIOD;
+		SetPort(RSlocal[w].window);
+		InvertRect(&RSlocal[w].cursor);
+		SetPort(savePort);
+	}
+} /* VScursblinkoff */
+
+
+
 
 VSlineArray VSInewlinearray
   (
@@ -629,11 +703,10 @@ void VSIelo
 	if (s < 0)
 		s = VSIw->y;
 
+	VSIw->linest[s]->lattr = 0;
 	if (VSIw->oldScrollback) {
-		VSIw->attrst[s]->lattr = 0;
 		ta = &VSIw->attrst[s]->text[0];
 	} else {
-		VSIw->linest[s]->lattr = 0;
 		ta = &VSIw->linest[s]->attr[0];
 	}
 	tt = &VSIw->linest[s]->text[0];
@@ -730,12 +803,15 @@ void VSIreset
 	VSIw->DECPAM = 0;
 	VSIw->DECORG = 0;		/* NCSA: SB -- is this needed? */
 	VSIw->DECCM = 1; // Bri 970610
-	VSIw->Pattrib = 0xffff;		/* NCSA: SB -- is this needed? */
+	VSIw->Pattrib = 0xffffffff;		/* NCSA: SB -- is this needed? */
 	VSIw->IRM = 0;
 	VSIw->attrib = 0;
 	VSIw->x = 0;
 	VSIw->y = 0;
 	VSIw->charset = 0;
+	VSIw->trincount = 0;
+	VSIw->trinx = 0;
+	VSIw->trintag = 0;
 	VSIw->prbuf=0;										/* LU */
 	if (VSIw->prredirect) {								/* LU - kill redirection */
 		VSIw->prredirect=0;								/* LU */
@@ -851,7 +927,9 @@ void VSOdellines
 	short i, j;
 	char *tt;
 	VSAttrib *ta;
-	VSlinePtr  as, ts, TD, BD, TI, BI, itt, ita;
+	VSlinePtr  as, ts, TD, BD, TI, BI, itt;
+	VSattrlinePtr ita;
+
 	if (s < 0)
 		s = VSIw->y;
 	if (s + n - 1 > VSIw->bottom)
@@ -897,13 +975,12 @@ void VSOdellines
 		VSIlistmove(TD, BD, TI, BI);
 
   /* blank out the newly-created replacement lines */
-	ita = TD; /* start of attribute lines to be blanked out */
+	ita = (VSattrlinePtr)TD; /* start of attribute lines to be blanked out */
 	for (i = 0; i < n; i++)
 	  {
-		ta = ((VSattrlinePtr)ita)->text;
-		ita->lattr = 0;
 		itt->lattr = 0;
 		tt = itt->text;
+		ta = ita->text;
 		for (j = 0; j <= VSIw->allwidth; j++)
 		  {
 			*tt++ = ' ';
@@ -1059,10 +1136,9 @@ void VSOinslines
 	ita = aTD; /* start of attribute lines to be blanked out */
 	for (i = 0; i < n; i++)
 	  {
+		itt->lattr = 0;
 		tt = itt->text;
 		ta = ita->text;
-		itt->lattr = 0;
-		ita->lattr = 0;
 		for (j = 0; j <= VSIw->allwidth; j++)
 		  {
 			*tt++ = ' ';
@@ -1312,7 +1388,6 @@ void VSOscroll
 		else
 			VSIw->vistop = VSIw->vistop->next; /* consistent with changed display */
 	  /* blank out newly-revealed bottom line */
-		VSIw->attrst[VSIw->lines]->lattr = 0;
 		VSIw->linest[VSIw->lines]->lattr = 0;
 		tempa = VSIw->attrst[VSIw->lines]->text;
 		temp = VSIw->linest[VSIw->lines]->text;
@@ -1373,7 +1448,9 @@ void VSIindex
   /* moves cursor down one line, unless it's at the bottom of
 	the scrolling region, in which case scrolls up one. */
 	// RAB BetterTelnet 2.0b3 - added jump scrolling so it runs faster
-  {
+{
+	short sn = findbyVS(VSIwn);
+
 	if (VSIw->y == VSIw->bottom) {	/* BYU - changed "==" to ">=" and back again */
 		if (VSIw->jumpScroll)
 		if (VSIw->linesjumped || !RSlocal[VSIwn].skip)
@@ -1389,6 +1466,12 @@ void VSIindex
 
 	VSIw->lattrib = 0;
 
+	// back to default input translation ?
+	if ( sn >= 0 ) {
+		WindRec *tw = &screens[sn];
+		switchintranslation(tw, tw->outnational, tw->outcharset);
+	}
+
 } /* VSIindex */
 
 void VSIwrapnow(short *xp, short *yp)
@@ -1399,7 +1482,7 @@ void VSIwrapnow(short *xp, short *yp)
   {
 	short mw = VSIw->maxwidth;
 
-	if ((VSIw->lattrib & 3)) {
+	if (VSisdecdwh(VSIw->lattrib)) {
 		mw >>= 1;
 		if ( !(VSIw->maxwidth & 1) )
 			mw -= 1;
@@ -1448,11 +1531,10 @@ void VSIeeol
 		}
 		savedTextPtr = savedTextBlock;
 		for (i = 0; i <= VSIw->lines; i++) {
+			savedTextPtr->lattr = VSIw->linest[i]->lattr;
 			if (VSIw->oldScrollback) {
-				savedTextPtr->lattr = VSIw->attrst[i]->lattr;
 				BlockMoveData(VSIw->attrst[i]->text, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 			} else {
-				savedTextPtr->lattr = VSIw->linest[i]->lattr;
 				BlockMoveData(VSIw->linest[i]->attr, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 			}
 			if (savedTextPtr->next) savedTextPtr = savedTextPtr->next;
@@ -1467,11 +1549,10 @@ void VSIeeol
 		}
 		savedTextPtr = savedTextBlock;
 		for (i = 0; i <= VSIw->lines; i++) {
+			VSIw->linest[i]->lattr = savedTextPtr->lattr;
 			if (VSIw->oldScrollback) {
-				VSIw->attrst[i]->lattr = savedTextPtr->lattr;
 				BlockMoveData(savedTextPtr->attr, VSIw->attrst[i]->text, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 			} else {
-				VSIw->linest[i]->lattr = savedTextPtr->lattr;
 				BlockMoveData(savedTextPtr->attr, VSIw->linest[i]->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 			}
 			if (savedTextPtr->next) savedTextPtr = savedTextPtr->next;
@@ -1482,11 +1563,10 @@ void VSIeeol
 	VSIwrapnow(&x1, &y1);
 	y2 = y1;
   /* clear out screen line */
+  	//VSIw->linest[y1]->lattr = 0;
   	if (VSIw->oldScrollback) {
-  		VSIw->attrst[y1]->lattr = 0;
   		ta = &VSIw->attrst[y1]->text[x1];
 	} else {
-  		VSIw->linest[y1]->lattr = 0;
 		ta = &VSIw->linest[y1]->attr[x1];
 	}
 	tt = &VSIw->linest[y1]->text[x1];
@@ -1496,8 +1576,10 @@ void VSIeeol
 		*tt++ = ' ';
 	  }
   /* update display */
-	if (!VSIclip(&x1, &y1, &x2, &y2, &n, &offset)) 
-		RSerase(VSIwn, x1, y1, x2, y2);
+	if (!VSIclip(&x1, &y1, &x2, &y2, &n, &offset)) {
+		//RSerase(VSIwn, x1, y1, x2, y2);
+		VSredraw(VSIwn, x1, y1, x2, y2);
+	}
   } /* VSIeeol */
 
 void VSIdelchars
@@ -1528,12 +1610,11 @@ void VSIdelchars
 
 	if (x > VSIw->maxwidth)
 		x = VSIw->maxwidth;
+	lattr = VSIw->linest[y1]->lattr;
 	if (VSIw->oldScrollback) {
 		tempa = VSIw->attrst[y1]->text;
-		lattr = VSIw->attrst[y1]->lattr;
 	} else {
 		tempa = VSIw->linest[y1]->attr;
-		lattr = VSIw->linest[y1]->lattr;
 	}
 	temp = VSIw->linest[y1]->text;
 	for (i = x1; i <= VSIw->maxwidth - x; i++)
@@ -1635,11 +1716,10 @@ void VSIebol
 	VSIwrapnow(&x2, &y1);
 	y2 = y1;
   /* clear from beginning of line to cursor */
+	//VSIw->linest[y1]->lattr = 0;
 	if (VSIw->oldScrollback) {
-		//VSIw->attrst[y1]->lattr = 0;
 		ta = &VSIw->attrst[y1]->text[0];
 	} else {
-		//VSIw->attrst[y1]->lattr = 0;
 		ta = &VSIw->linest[y1]->attr[0];
 	}
 	tt = &VSIw->linest[y1]->text[0];
@@ -1671,11 +1751,10 @@ void VSIel
 		x1 = 0;
 	  } 
   /* clear out line */
+	//VSIw->linest[s]->lattr = 0;
 	if (VSIw->oldScrollback) {
-		//VSIw->attrst[s]->lattr = 0;
 		ta = &VSIw->attrst[s]->text[0];
 	} else {
-		//VSIw->linest[s]->lattr = 0;
 		ta = &VSIw->linest[s]->attr[0];
 	}
 	tt = &VSIw->linest[s]->text[0];
@@ -1773,7 +1852,7 @@ void VSIrange
 	short wrap = (VSIw->DECAWM) ? 1 : 0;
 	short mw = VSIw->maxwidth;
 
-	if ((VSIw->lattrib & 3)) {
+	if (VSisdecdwh(VSIw->lattrib)) {
 		mw >>= 1;
 		if ( !(VSIw->maxwidth & 1) )
 			mw -= 1;
@@ -1803,7 +1882,7 @@ void VTsendpos( void )
 		y = VSIw->y;
 	short mw = VSIw->maxwidth;
 
-	if ((VSIw->lattrib & 3)) {
+	if (VSisdecdwh(VSIw->lattrib)) {
 		mw >>= 1;
 		if ( !(VSIw->maxwidth & 1) )
 			mw -= 1;
@@ -1872,7 +1951,12 @@ void VTsendstat( void )
 
 void VTsendident( void )
 {
-	if (screens[findbyVS(VSIwn)].vtemulation)
+	short sn = findbyVS(VSIwn);
+
+	if ( sn < 0 )
+		return;
+
+	if (screens[sn].vtemulation)
 		//RSsendstring(VSIwn, "\033[?62;1;6c", 10);			// VT200-series
 		RSsendstring(VSIwn, "\033[?62;1;2;6;7;8c", 16);		// VT200-series
 	else
@@ -2014,7 +2098,8 @@ void VSItab //BUGG
 
 void VSIinschar
   (
-	short x /* number of blanks to insert */
+	short x, /* number of blanks to insert */
+	short clear
   )
   /* inserts the specified number of blank characters at the
 	current cursor position, moving the rest of the line along,
@@ -2031,19 +2116,19 @@ void VSIinschar
 	else
 		tempa = VSIw->linest[VSIw->y]->attr;
 	temp = VSIw->linest[VSIw->y]->text;
-	for (i = VSIw->maxwidth - x; i >= VSIw->x; i--)
-	  {
-	  /* move along remaining characters on line */
+	for (i = VSIw->maxwidth - x; i >= VSIw->x; i--) {
+		/* move along remaining characters on line */
 		temp[x + i] =temp[i];
 		tempa[x + i] = tempa[i];
-	  } /* for */
-	for (i = VSIw->x; i < VSIw->x + x; i++)
-	  {
-	  /* insert appropriate number of blanks */
-		temp[i] = ' ';
-		tempa[i] = VSIclrattrib;
-	  } /* for */
-  } /* VSIinschar */
+	}
+	if ( clear ) {
+		for (i = VSIw->x; i < VSIw->x + x; i++) {
+			/* insert appropriate number of blanks */
+			temp[i] = ' ';
+			tempa[i] = VSIclrattrib;
+		}
+	}
+} /* VSIinschar */
 
 void VSIinsstring
   (
@@ -2077,7 +2162,7 @@ void VSIrestore
   )
   /* restores the last-saved cursor position and attribute settings. */
   {
-	if (VSIw->Pattrib == 0xffff)
+	if (VSIw->Pattrib == 0xffffffff)
 	  /* no previous save */
 		return;
 
@@ -2086,7 +2171,9 @@ void VSIrestore
 	VSIw->x = VSIw->Px;
 	VSIw->y = VSIw->Py;
 	VSIrange();
-	VSIw->attrib = VSinattr(VSIw->Pattrib); /* hmm, this will clear the graphics character set selection */
+	// keep the graphics character set selection
+	VSIw->attrib &= kVSgrph;
+	VSIw->attrib |= VSIw->Pattrib;
   } /* VSIrestore */
 
 void VSIdraw

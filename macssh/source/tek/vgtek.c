@@ -269,7 +269,15 @@ short	drawc(short vw, short c) /* character to draw */
 	if ((c < 32) || (c > 137))
 		return(0);					// Is this return value correct?
 	c -= 32;
-	pstroke = (VGwin[vw]->TEKtype) ? VGTEKfont[c] : VGfont[c];
+
+	/* bounds checking to avoid crash... */
+	//pstroke = (VGwin[vw]->TEKtype) ? VGTEKfont[c] : VGfont[c];
+	if (VGwin[vw]->TEKtype) {
+		pstroke = (c < (sizeof(VGTEKfont) / sizeof(VGTEKfont[0]))) ? VGTEKfont[c] : "";
+	} else {
+		pstroke = (c < (sizeof(VGfont) / sizeof(VGfont[0]))) ? VGfont[c] : "";
+	}
+
 	while (*pstroke)
 	{
 		strokex = x;
@@ -383,6 +391,10 @@ short VGnewwin
 	short	vw = 0;
 	short	theScrn;
 
+	theScrn = findbyVS(theVS);
+	if (theScrn < 0)
+		return(-1);
+
 	while ((vw < MAXVG) && (VGwin[vw] != nil)) vw++;
 	if (vw == MAXVG)
 		return(-1);
@@ -403,7 +415,6 @@ short VGnewwin
 	VGwin[vw]->RGdevice = device;
 	VGwin[vw]->RGnum = (*RG[device].newwin)();
 
-	theScrn = findbyVS(theVS);
 	VGwin[vw]->TEKtype = screens[theScrn].tektype;	// 0 = 4014, 1 = 4105
 
 	if (VGwin[vw]->RGnum < 0)
@@ -518,6 +529,7 @@ void	VGdumpstore(short vw, short (*func )(short))
  */
 void VGdraw(short vw, char c)			/* the latest input char */
 {
+	short		sn;
 	char		cmd;
 	char		value;
 	char		goagain;	/* true means go thru the function a second time */
@@ -528,9 +540,13 @@ void VGdraw(short vw, char c)			/* the latest input char */
 
 	if (VGcheck(vw)) {
 		return;
-		}
+	}
 
 	vp = VGwin[vw];		/* BYU */
+
+ 	sn = findbyVS(vp->theVS);
+ 	if (sn < 0)
+ 		return;
 
 	temp[0] = c;
 	temp[1] = (char) 0;
@@ -808,7 +824,7 @@ void VGdraw(short vw, char c)			/* the latest input char */
 				state[vw] = DONE;
 				break;
 			case 12: /* form feed = clrscr */
-				if (screens[findbyVS(vp->theVS)].tekclear) {
+				if (sn >= 0 && screens[sn].tekclear) {
 					VGpage(vw);
 					VGclrstor(vw);
 				}

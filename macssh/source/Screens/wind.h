@@ -6,6 +6,7 @@
 #define __WIND__
 
 #include <pthread.h>
+#include <TextEncodingConverter.h>
 
 #define	MAXKB	256			// BYU mod 
 
@@ -48,7 +49,8 @@ short
 	vtemulation,	// 0 = VT100, 1 = VT 220 
 	bsdel,			// backspace or delete is default 
 	eightbit,		// eight bit font displayed (false is seven bit display
-	national,		// LU/MP: translation table to use for this connection 
+	innational,		// translation table to use for this connection for input
+	outnational,	// translation table to use for this connection for output
 	arrowmap,		// MAT: should we allow the arrow keys to be mapped?? 
 	showErrors,		// show ALL errors if this is set 
 	pgupdwn,		// JMB/MAT: should we have page up/down do local window movement? 
@@ -249,6 +251,18 @@ short
 	remoteport;
 char
 	remotehost[180];
+
+short
+	incharset,		// current translation state for multi-byte translation
+	outcharset,		// current translation state for multi-byte translation
+	troutcount;
+
+unsigned char
+	troutbuf[16];	// chars pending in translation
+
+TECObjectRef
+	fromconverter,
+	toconverter;
 	
 /* NONO */
 

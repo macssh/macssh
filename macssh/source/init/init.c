@@ -61,6 +61,8 @@ extern char *getprefsd(char *name, char * buf, size_t size, short *vRefNum, long
 
 //extern	char *tempspot;		 	/* for temp storage only */
 
+Boolean gInitialized = 0;
+
 extern	Cursor *theCursors[];
 
 extern	WindRec
@@ -111,15 +113,20 @@ void initftplog( void)
 	TerminalPrefs **termHdl;
 	Boolean scratchBoolean;
 	Str255 tempString;
+	unsigned long flags;
 	
 	SetRect(&prect, 300,256,512,384);
 
 	ftplog = (WindRec *) myNewPtr(sizeof(WindRec));
 	
 	GetIndString(tempString,MISC_STRINGS,FTP_LOG_STRING);
-	ftplog->vs=RSnewwindow( &prect, 50, 80, 24,
-					tempString, 1, DefFONT, DefSIZE, gFTPServerPrefs->ShowFTPlog,
-						1,0,0,0,0,1, DefFONT, DefSIZE, 0, 0, 1, 0, 0);	/* NCSA 2.5 */
+
+	flags = RSWwrapon | RSWgoaway | RSWignoreBeeps | RSWsavelines;
+	if (gFTPServerPrefs->ShowFTPlog)
+		flags |= RSWshowit;
+
+	ftplog->vs=RSnewwindow( &prect, 50, 80, 24, tempString, DefFONT, DefSIZE, 0,
+							DefFONT, DefSIZE, 0, 0, flags);
 
 	ftplog->wind = RSgetwindow( ftplog->vs);
 	((WindowPeek)ftplog->wind)->windowKind = WIN_LOG;
@@ -521,4 +528,5 @@ void init (void)
     }
 	loadWDEF(); //this just loads the WDEF code in so that it doesnt fragment the heap later
 	loadErrors(); //ditto for the error code
+	gInitialized = true;
 }

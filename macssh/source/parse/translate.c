@@ -21,16 +21,29 @@
 
 #include "wind.h"
 #include "vsdata.h"
+#include "translate.h"
 #include "translate.proto.h"
 #include "vsinterf.proto.h"
 #include "LinkedList.proto.h"
 
+#include "TextCommon.h"
+#include "TextEncodingConverter.h"
+
+extern void syslog( int priority, const char *format, ...);
+extern long dumpln( long base, char *dest, void *src, long len );
+
+void VSprintf(char *fmt, ...);
+void VSdump(char *p, int len);
+
+static void trTECInit();
+
 //#define	DEBUG_TRANSLATION
 /*************** external variables ***************/
 
-
 extern 	WindRec *screens;		/* The screen array from maclook.c */
 extern	short scrn;				/* The current screen from maclook.c */
+
+extern int gVSemlogging;
 
 /*************** global variables ***************/
 
@@ -39,34 +52,9 @@ BytePtr	DefaultTable,
 		FTPoutTable;
 		
 Handle	transTablesHdl;
-short	nNational;
+short	nNational = 0;
+short	gTableCount;
 
-#if 0
-Boolean get_trsl (short id, Byte **table)
-{
-	Handle h;
-	long size;
-
-	h = GetResource (TRSL,id);
-
-	if ((h==NULL) || (ResError()!=noErr)) 
-		{
-		DoError(106 | RESOURCE_ERRORCLASS, LEVEL2, NULL);
-		return (FALSE);
-		}
-		
-	size = GetHandleSize(h);
-	if (size != 256) 
-		{
-		DoError(107 | RESOURCE_ERRORCLASS, LEVEL2, NULL);
-		return (FALSE);
-		}
-
-	HLockHi(h);
-	*table = (Byte *) *h;
-	return (TRUE);
-}
-#endif
 
 short	transBuffer(short oldtable, short newtable)		/* translate entire buffer */
 {
@@ -102,38 +90,58 @@ short	transBuffer(short oldtable, short newtable)		/* translate entire buffer */
 		/*sprintf(tmp,"lineNo:%d, p:%08x, starts with:%c%c%c%c",lineNo,p,*(p->text),*(p->text+1),*(p->text+2),*(p->text+3)); putln(tmp);*/
 		if (p==NULL) { putln ("p is NULL"); return (-1); }
 		if (p->text==NULL) { putln ("p->text is NULL"); return (-1); }
-		
+
 		// First convert the line back to Mac US format, and then to the new format.
-		trbuf_nat_mac((unsigned char *)p->text,width, oldtable);
-		trbuf_mac_nat((unsigned char *)p->text,width, newtable);
-		
+		// FIXME: cashes with 2 bytes characters...
+		// switchintranslation
+		//trbuf_mac_nat(tw, (unsigned char *)p->text, width, (unsigned char *)p->text, &outlen);
+		// switchintranslation
+		//trbuf_nat_mac((unsigned char *)p->text, width, (unsigned char *)p->text, &outlen);
+
 		p = p->next;
 	}
 	sprintf (tmp, "transBuffer:did convert %d lines", lineNo-1); putln (tmp);
 	return (0);
 }
 
-BytePtr		GetTranslationResource(short id)
+
+short GetTranslationIndex(short table)
 {
-	Handle	h;
-	
-	h = GetResource(MY_TRSL, id);
-	
-	if ((h == NULL) || (ResError() != noErr)) {
-		// Do nasty mean error here. BUGG
-		}
-	
-	DetachResource(h);
-	HLockHi(h);
-	return((BytePtr) *h);
+	if ( table > gTableCount ) {
+		return gTableCount - table;
+	}
+	return table;
 }
 
-//	table #'s 1...n correspond to tables in our master array, table #0 is the default table
-BytePtr		ReturnTablePtr(short table, Boolean out)
+
+BytePtr GetTranslationResource(short id)
 {
-	if (table > nNational || table < 1) return(DefaultTable + ((out == TRUE) * 256));
-	return((BytePtr)(*transTablesHdl + ((table - 1) * 512) + ((out == TRUE) * 256)));
+	Handle	h;
+
+	h = GetResource(MY_TRSL, id);
+	if ( h == NULL || ResError() != noErr ) {
+		return NULL;
+	}
+	DetachResource(h);
+	HLockHi(h);
+	return (BytePtr)*h;
 }
+
+
+//	table #'s 1...n correspond to tables in our master array, table #0 is the default table
+BytePtr ReturnTablePtr(short table, Boolean out)
+{
+	BytePtr ptable;
+
+	if (table < 1 || table > gTableCount)
+		ptable = DefaultTable;
+	else
+		ptable = (BytePtr)*transTablesHdl + (table - 1) * 512;
+	if ( out && ptable )
+		ptable += 256;
+	return ptable;
+}
+
 
 //	The Default table (i.e. no translation) and the two FTP tables are stored in the 
 //	 Application's resource fork as resources of type TRSL.  The
@@ -147,143 +155,563 @@ void	Setup_Default_Tables(void)
 	FTPoutTable = FTPinTable + 256;
 }
 
-/* 
-*	Be very careful with calling putln from this procedure, since
-*	putln uses the translation tables. If the tables are not setup
-*	garbage output will appear. This is not harmful, but very
-*	annoying.
-*/
 
-void trInit (MenuHandle	whichMenu)
+void BuildTranslateMenu(MenuHandle whichMenu)
+{
+	Str255		scratchPstring;
+
+	short numberOfTerms = CountResources(USER_TRSL);
+	LinkedListNode *theHead = createSortedList2(USER_TRSL, numberOfTerms, NULL);
+	GetIndString(scratchPstring, MISC_STRINGS, NONE_STRING); //"None" string
+	AppendMenu(whichMenu, scratchPstring);
+	addListToMenu/*3*/(whichMenu, theHead, 2);
+	EnableItem(whichMenu, 0);		// Make sure the entire menu is enabled
+	deleteList(&theHead);
+	if ( gTableCount < nNational ) {
+		// append hard-coded translations
+		AppendMenu(whichMenu, "\p ");
+		// WARNING: this string  must match the one in NewPreferences
+		SetMenuItemText(whichMenu, gTableCount + 2, "\pJIS (ISO-2022-JP)");
+		AppendMenu(whichMenu, "\p ");
+		SetMenuItemText(whichMenu, gTableCount + 3, "\pEUC-JP");
+		AppendMenu(whichMenu, "\p ");
+		SetMenuItemText(whichMenu, gTableCount + 4, "\pShift-JIS");
+	}
+}
+
+#pragma mark -
+/* 
+ *	Be very careful with calling putln from this procedure, since
+ *	putln uses the translation tables. If the tables are not setup
+ *	garbage output will appear. This is not harmful, but very
+ *	annoying.
+ */
+
+void trInit(MenuHandle whichMenu)
 {
 	short	i, numTables;		
 	Handle	h;
 	LinkedListNode *theHead;
 		
- 	nNational = 0;
+	trTECInit();
+
 	Setup_Default_Tables();
-	transTablesHdl = myNewHandle(0);
 	UseResFile(TelInfo->ApplicationFile);
-	numTables = CountResources(USER_TRSL);
-	if (numTables)
-	{
-		Str255 NoneString;
-		theHead = createSortedList2(USER_TRSL,numTables,NULL); //now we have a sorted linked list of the names
-		GetIndString(NoneString,MISC_STRINGS,NONE_STRING);
-		AppendMenu(whichMenu,NoneString);
-		addListToMenu/*3*/(whichMenu, theHead, 2);
-		deleteList(&theHead);
-		
-		for (i = 2; i <= numTables + 1; i++) //start adding things from the second menu item (first is none)
-		{
+	gTableCount = CountResources(USER_TRSL);
+	if (gTableCount) {
+		transTablesHdl = myNewHandle(512 * gTableCount);
+		HLockHi(transTablesHdl);
+		nNational += gTableCount;
+		BuildTranslateMenu(whichMenu);
+		for (i = 0; i < gTableCount; i++) {
+			// start adding things from the second menu item (first is none)
 			Str255 menuItemName;
-			GetMenuItemText(whichMenu, i,menuItemName);
-			h = GetNamedResource(USER_TRSL,menuItemName);
+			GetMenuItemText(whichMenu, i + 2, menuItemName);
+			h = GetNamedResource(USER_TRSL, menuItemName);
 			if (h != NULL && ResError() == noErr) {
-				if ( GetHandleSize(h) == 512) {
-					nNational++;
-					// Append the table's data to the master array of table data
-					HUnlock(transTablesHdl);
-					if (mySetHandleSize(transTablesHdl, (nNational * 512))) {
-						ReleaseResource(h);
-						break;
-					}
-					HLockHi(transTablesHdl);
+				if ( GetHandleSize(h) == 512 ) {
 					HLock(h);
-					BlockMoveData(*h, (*transTablesHdl) + ((nNational - 1) * 512), 512);
+					BlockMoveData(*h, *transTablesHdl + i * 512, 512);
 				}
-				// Release the resource
 				ReleaseResource(h);
 			}
 		}
-
 	}
 	UseResFile(TelInfo->SettingsFile);
 }
 
-/*	Converts a char from 8-bit National to 8-bit Macintosh */
-void	trbuf_nat_mac(unsigned char *buf, short len, short table)
-{
-	short			i;
-	unsigned char	*p;
-	BytePtr			table_data;
 
-	table_data = ReturnTablePtr(table, FALSE);
-	
-	for (i=0,p=buf; i<len; i++,p++)
-	{
-		*p = table_data[(short)*p];
+
+
+static void trTECInit()
+{
+#if GENERATINGPOWERPC
+	CFragConnectionID connID;
+#endif
+	OSStatus 		theErr = noErr;
+	OSStatus		res = noErr;
+	TextEncoding	outputEncoding;
+	TextEncoding	inputEncoding;
+
+#if GENERATINGPOWERPC
+	if (GetSharedLibrary("\pTextCommon", kPowerPCCFragArch, kFindCFrag, &connID, NULL, NULL))
+		return;
+	if (FindSymbol( connID, "\pCreateTextEncoding", NULL, NULL ) != noErr)
+		return;
+	if (GetSharedLibrary("\pTextEncodingConverter", kPowerPCCFragArch, kFindCFrag, &connID, NULL, NULL))
+		return;
+	if (FindSymbol( connID, "\pTECCreateConverter", NULL, NULL ) != noErr)
+		return;
+ 	nNational = 3;	// 3 hard-coded translations actually
+#endif
+}
+
+
+/*
+ * inittranslation
+ */
+void inittranslation(WindRec *tw)
+{
+	short national = tw->innational;
+
+	tw->fromconverter = NULL;
+	tw->toconverter = NULL;
+	tw->innational = 0x7fff;	// force converter to load
+	tw->incharset = -1;
+	tw->outnational = 0x7fff;	// force converter to load
+	tw->outcharset = -1;
+	switchintranslation(tw, national, kASCII);
+	switchouttranslation(tw, national, kASCII);
+}
+
+/*
+ * disposetranslation
+ */
+void disposetranslation(WindRec *tw)
+{
+#if GENERATINGPOWERPC
+	if ( tw->fromconverter ) {
+		TECDisposeConverter(tw->fromconverter);
+		tw->fromconverter = NULL;
 	}
-			
-}
-
-unsigned char	ftp_iso_mac(unsigned char *ascii)
-{
-	short	b;
-	
-	b = (short) *ascii;
-	*ascii = FTPinTable[b];
-	return (*ascii);
-}
-
-
-void	trbuf_ftp_mac(unsigned char *buf, short len)
-{
-	short			i;
-	unsigned char	ascii;
-	unsigned char	*p;
-
-	for (i=0,p=buf; i<len; i++,p++)
-	{
-		ascii = *p;
-		*p = ftp_iso_mac(&ascii);
+	if ( tw->toconverter ) {
+		TECDisposeConverter(tw->toconverter);
+		tw->toconverter = NULL;
 	}
-			
+#endif
+}
+
+/*
+ * switchintranslation
+ */
+void switchintranslation(WindRec *tw, short national, short charset)
+{
+#if GENERATINGPOWERPC
+	short			table;
+	OSStatus		res;
+	TextEncoding	outputEncoding;
+	TextEncoding	inputEncoding;
+
+	if (gVSemlogging)
+		return;
+
+	table = GetTranslationIndex(national);
+
+	//VSprintf("switchintranslation : %d, %d\n", table, charset);
+
+	if ( tw->innational != national ) {
+		switch ( table ) {
+			case kTRJIS:
+				// kTextEncodingJIS_X0208_90 ?
+				// kTextEncodingJIS_X0212_90 ?
+				// kTextEncodingJIS_C6226_78 ?
+				inputEncoding  = kTextEncodingISO_2022_JP;
+				outputEncoding = kTextEncodingMacJapanese;
+				break;
+			case kTREUC_JP:
+				inputEncoding  = kTextEncodingEUC_JP;
+				outputEncoding = kTextEncodingMacJapanese;
+				break;
+			case kTShiftJIS:
+				inputEncoding  = kTextEncodingShiftJIS;
+				outputEncoding = kTextEncodingMacJapanese;
+				break;
+/*
+			case JISX0212:
+				inputEncoding  = kTextEncodingJIS_X0212_90;
+				outputEncoding = kTextEncodingMacJapanese;
+				break;
+*/
+			default:
+				inputEncoding = 0;
+				break;
+		}
+		if ( tw->fromconverter ) {
+			TECDisposeConverter(tw->fromconverter);
+			tw->fromconverter = NULL;
+		}
+
+		VSIw->trincount = 0;
+		VSIw->trinx = 0;
+		VSIw->trintag = 0;
+
+		if ( inputEncoding ) {
+			outputEncoding = CreateTextEncoding(outputEncoding, kTextEncodingDefaultVariant, kTextEncodingDefaultFormat);
+			res = TECCreateConverter(&tw->fromconverter, inputEncoding, outputEncoding);
+		}
+		tw->innational = national;
+		tw->incharset = -1;
+	}
+
+	switch ( table ) {
+		case kTRJIS:
+			if ( tw->incharset != charset ) {
+				tw->incharset = charset;
+				if ( tw->fromconverter ) {
+					short srclen;
+					short dstlen;
+					unsigned char buf[4];
+					char *cname = NULL;
+					dstlen = 4;
+					res = TECFlushText(tw->fromconverter, buf, dstlen, &dstlen);
+					switch (charset) {
+						case kASCII:
+							cname = "kASCII";
+							buf[0] = 0x1b;
+							buf[1] = '(';
+							buf[2] = 'B';
+							break;
+						case kJISX0201_1976:
+							cname = "kJISX0201_1976";
+							buf[0] = 0x1b;
+							buf[1] = '(';
+							buf[2] = 'J';
+							break;
+						case kJISX0208_1978:
+							cname = "kJISX0208_1978";
+							buf[0] = 0x1b;
+							buf[1] = '$';
+							buf[2] = '@';
+							break;
+						case kJISX0208_1983:
+							cname = "kJISX0208_1983";
+							buf[0] = 0x1b;
+							buf[1] = '$';
+							buf[2] = 'B';
+							break;
+						case kJISX0201_1976Kana:	// [Not Std ISO-2022-JP]
+							cname = "kJISX0201_1976Kana";
+							buf[0] = 0x1b;
+							buf[1] = '(';
+							buf[2] = 'I';
+							break;
+						case kJISX0212_1990:		// [Not Std ISO-2022-JP]
+							cname = "kJISX0212_1990";
+							buf[0] = 0x1b;
+							buf[1] = '$';
+							buf[2] = 'D';
+							break;
+						default:
+							return;
+					}
+					srclen = 3;
+					dstlen = 4;
+					res = TECConvertText(tw->fromconverter, buf, srclen, &srclen, buf, dstlen, &dstlen);
+					if ( res && res != kTECPartialCharErr ) {
+						VSprintf("TECConvertText switch %s failed : %d\n", cname, res);
+					}
+				}
+			}
+			break;
+	}
+#else
+	if (gVSemlogging)
+		return;
+	tw->innational = national;
+	tw->incharset = charset;
+#endif
+}
+
+/*
+ * switchouttranslation
+ */
+void switchouttranslation(WindRec *tw, short national, short charset)
+{
+#if GENERATINGPOWERPC
+	short			table;
+	OSStatus		res;
+	TextEncoding	outputEncoding;
+	TextEncoding	inputEncoding;
+
+	if (gVSemlogging)
+		return;
+
+	table = GetTranslationIndex(national);
+
+	//VSprintf("switchouttranslation : %d, %d\n", table, charset);
+
+	if ( tw->outnational != national ) {
+		switch ( table ) {
+			case kTRJIS:
+				// kTextEncodingJIS_X0208_90 ?
+				// kTextEncodingJIS_X0212_90 ?
+				// kTextEncodingJIS_C6226_78 ?
+				inputEncoding  = kTextEncodingMacJapanese;
+				outputEncoding = kTextEncodingISO_2022_JP;
+				break;
+			case kTREUC_JP:
+				inputEncoding  = kTextEncodingMacJapanese;
+				outputEncoding = kTextEncodingEUC_JP;
+				break;
+			case kTShiftJIS:
+				inputEncoding  = kTextEncodingMacJapanese;
+				outputEncoding = kTextEncodingShiftJIS;
+				break;
+/*
+			case JISX0212:
+				inputEncoding  = kTextEncodingMacJapanese;
+				outputEncoding = kTextEncodingJIS_X0212_90;
+				break;
+*/
+			default:
+				inputEncoding = 0;
+				break;
+		}
+		if ( tw->toconverter ) {
+			TECDisposeConverter(tw->toconverter);
+			tw->toconverter = NULL;
+		}
+		if ( inputEncoding ) {
+			tw->troutcount = 0;
+			inputEncoding = CreateTextEncoding(inputEncoding, kTextEncodingDefaultVariant, kTextEncodingDefaultFormat);
+			res = TECCreateConverter(&tw->toconverter, inputEncoding, outputEncoding);
+		}
+		tw->outnational = national;
+		tw->outcharset = charset;
+	}
+
+#else
+	if (gVSemlogging)
+		return;
+	tw->outnational = national;
+	tw->outcharset = charset;
+#endif
+}
+
+/*	flush input translation */
+int trflush_nat_mac(WindRec *tw)
+{
+	OSStatus	res = 0;
+#if GENERATINGPOWERPC
+	short		table;
+	char		buf[32];
+	ByteCount	len;
+	short		charset;
+	
+	//tw->trincount = 0;
+	//tw->trinx = 0;
+	//tw->trintag = 0;
+	table = GetTranslationIndex(tw->innational);
+	if ( table < 0 ) {
+		if ( tw->fromconverter ) {
+			len = sizeof(buf);
+			res = TECFlushText(tw->fromconverter, buf, len, &len);
+			charset = tw->incharset;
+			tw->incharset = -1;
+			switchintranslation(tw, tw->innational, charset);
+		}
+	}
+#endif
+	return res;
+}
+
+/*	flush output translation */
+int trflush_mac_nat(WindRec *tw)
+{
+	OSStatus	res = 0;
+#if GENERATINGPOWERPC
+	short		table;
+	char		buf[32];
+	ByteCount	len;
+	short		charset;
+	
+	tw->troutcount = 0;
+	table = GetTranslationIndex(tw->outnational);
+	if ( table < 0 ) {
+		if ( tw->toconverter ) {
+			len = sizeof(buf);
+			res = TECFlushText(tw->toconverter, buf, len, &len);
+			charset = tw->outcharset;
+			tw->outcharset = -1;
+			switchintranslation(tw, tw->outnational, charset);
+		}
+	}
+#endif
+	return res;
 }
 
 
-/*	Converts a char from 8-bit Macintosh to 8-bit National */
-unsigned char	mac_nat(unsigned char *ascii, short table)
+/*	Converts a buffer from 8/16-bit National to 8/16-bit Macintosh */
+/* WARNING: ouptut size can be twice as big as input */
+int trbuf_nat_mac(WindRec *tw, unsigned char *buf, long *len, unsigned char *out, long *outlen)
 {
-	short	b;
-	BytePtr	table_data = ReturnTablePtr(table, TRUE);
-	
-	b = (short) *ascii;
-	*ascii = table_data[b];
-	return (*ascii);
+	OSStatus	res = 0;
+	short		table;
+	long		i = *len;
+
+	table = GetTranslationIndex(tw->innational);
+	if ( table >= 0 ) {
+		BytePtr table_data = ReturnTablePtr(table, FALSE);
+		if ( table_data ) {
+			while (i--)
+				*out++ = table_data[*buf++];
+		} else {
+			memcpy(out, buf, *len);
+		}
+		*outlen = *len;
+#if GENERATINGPOWERPC
+	} else {
+		switch ( table ) {
+			case kTRJIS:
+				switch (tw->incharset) {
+				    case kASCII:
+				    case kJISX0201_1976:
+				    case kJISX0208_1978:
+				    case kJISX0208_1983:
+				    case kJISX0212_1990:
+						if ( tw->fromconverter ) {
+							res = TECConvertText(tw->fromconverter, buf, *len, len, out, *outlen, outlen);
+						} else {
+							memcpy(out, buf, *len);
+							*outlen = *len;
+						}
+						break;
+				    case kJISX0201_1976Kana:
+				    	// single byte
+				    	// FIXME
+						memcpy(out, buf, *len);
+						*outlen = *len;
+						break;
+					default:
+						memcpy(out, buf, *len);
+						*outlen = *len;
+						break;
+				}
+				break;
+			case kTREUC_JP:
+			case kTShiftJIS:
+			case JISX0212:
+				if ( tw->fromconverter ) {
+					res = TECConvertText(tw->fromconverter, buf, *len, len, out, *outlen, outlen);
+				} else {
+					memcpy(out, buf, *len);
+					*outlen = *len;
+				}
+				break;
+			default:
+				memcpy(out, buf, *len);
+				*outlen = *len;
+				break;
+		}
+#endif
+	}
+	return res;
 }
 
-unsigned char	ftp_mac_iso(unsigned char *ascii)
+/*	Converts a buffer from 8/16-bit Macintosh to 8/16-bit National */
+/* WARNING: ouptut size can be twice as big as input */
+int trbuf_mac_nat(WindRec *tw, unsigned char *buf, long *len, unsigned char *out, long *outlen)
 {
-	short	b;
-	
-	b = (short) *ascii;
-	*ascii = FTPoutTable[b];
-	return (*ascii);
+	OSStatus	res = 0;
+	short		table;
+	short		i = *len;
+
+	table = GetTranslationIndex(tw->outnational);
+	if ( table >= 0 ) {
+		BytePtr table_data = ReturnTablePtr(table, TRUE);
+		if ( table_data ) {
+			while (i--)
+				*out++ = table_data[*buf++];
+		} else {
+			memcpy(out, buf, *len);
+		}
+		*outlen = *len;
+#if GENERATINGPOWERPC
+	} else {
+		switch ( table ) {
+			case kTRJIS:
+			case kTREUC_JP:
+			case kTShiftJIS:
+			case JISX0212:
+				if ( tw->toconverter ) {
+					res = TECConvertText(tw->toconverter, buf, *len, len, out, *outlen, outlen);
+				} else {
+					memcpy(out, buf, *len);
+					*outlen = *len;
+				}
+				break;
+			default:
+				memcpy(out, buf, *len);
+				*outlen = *len;
+				break;
+		}
+#endif
+	}
+	return res;
 }
 
-void	trbuf_mac_nat(unsigned char *buf, short len, short table)
+
+/*	Converts a handle from 8/16-bit National to 8/16-bit Macintosh */
+Handle htrbuf_nat_mac(WindRec *tw, Handle hin)
 {
-	short			i;
-	unsigned char	ascii;
-	unsigned char	*p;
-	
-	for (i=0,p=buf; i<len; i++,p++)
-	{
-		ascii = *p;
-		*p = mac_nat(&ascii, table);
+	long len = GetHandleSize(hin);
+	long outlen = len * 2;
+	Handle hout = NewHandle(outlen);
+	if (hout) {
+		HLock(hin);
+		HLock(hout);
+		trbuf_nat_mac(tw, (unsigned char *)*hin, &len, *hout, &outlen);
+		DisposeHandle(hin);
+		HUnlock(hout);
+		SetHandleSize(hout, outlen);
+		return hout;
+	} else {
+		/* failed ... */
+		return hin;
 	}
 }
 
-void	trbuf_mac_ftp(unsigned char *buf, short len)
+
+/*	Converts a handle from 8/16-bit Macintosh to 8/16-bit National */
+Handle htrbuf_mac_nat(WindRec *tw, Handle hin)
 {
-	short			i;
-	unsigned char	ascii;
-	unsigned char	*p;
-	
-	for (i=0,p=buf; i<len; i++,p++)
-	{
-		ascii = *p;
-		*p = ftp_mac_iso(&ascii);
+	long len = GetHandleSize(hin);
+	long outlen = len * 2;
+	Handle hout = NewHandle(outlen);
+	if (hout) {
+		HLock(hin);
+		HLock(hout);
+		trbuf_mac_nat(tw, (unsigned char *)*hin, &len, *hout, &outlen);
+		DisposeHandle(hin);
+		HUnlock(hout);
+		SetHandleSize(hout, outlen);
+		return hout;
+	} else {
+		/* failed ... */
+		return hin;
 	}
+}
+
+
+unsigned char ftp_iso_mac(unsigned char *ascii)
+{
+	if ( FTPinTable ) {
+		*ascii = FTPinTable[*ascii];
+	}
+	return *ascii;
+}
+
+
+unsigned char ftp_mac_iso(unsigned char *ascii)
+{
+	if ( FTPoutTable ) {
+		*ascii = FTPoutTable[*ascii];
+	}
+	return *ascii;
+}
+
+
+void trbuf_ftp_mac(unsigned char *buf, short len)
+{
+	if ( FTPinTable )
+		while (len--)
+			*buf++ = FTPinTable[*buf];
+}
+
+void trbuf_mac_ftp(unsigned char *buf, short len)
+{
+
+	if ( FTPoutTable )
+		while (len--)
+			*buf++ = FTPoutTable[*buf];
 }

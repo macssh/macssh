@@ -1,6 +1,24 @@
 /* rsinterf.proto.h */
 
-void	RSunload(void);
+
+/* RSnewwindow Flags */
+enum {
+	RSWwrapon		=	0x00000001,
+	RSWshowit		=	0x00000002,
+	RSWgoaway		=	0x00000004,
+	RSWforcesave 	=	0x00000008,
+	RSWallowBold	=	0x00000010,
+	RSWcolorBold	=	0x00000020,
+	RSWignoreBeeps	=	0x00000040,
+	RSWrealbold		=	0x00000080,
+	RSWsavelines	=	0x00000100,
+	RSWjumpscroll	=	0x00000200,
+	RSWrealBlink	=	0x00000400
+};
+
+
+
+void RSunload(void);
 void RSselect(short w, Point pt, EventRecord theEvent);
 void RSzoom(GrafPtr window, short code, short shifted);
 void RSdrawlocker(short w, RgnHandle visRgn);
@@ -10,11 +28,12 @@ short RSTextSelected(short w);
 void RSskip(short w, Boolean on);
 short RSsize(GrafPtr window, long *where, long modifiers);
 void RSshow(short w);
+void RSresetcolors(short w);
 Boolean RSsetcolors(short w, short n, RGBColor *color);
 void RSsendstring(short w, char *ptr, short len);
-short RSnewwindow(RectPtr wDims,short scrollback, short width, short lines, StringPtr name, short wrapon, 
-	short fnum, short fsiz, short showit, short goaway, short forcesave, short screenNumber, short allowBold,
-	short colorBold, short ignoreBeeps, short bfnum, short bfsiz, short bfstyle, short realbold, short oldScrollback, short jump, short);
+short RSnewwindow(RectPtr wDims, short scrollback, short width, short lines, StringPtr name,
+	short fnum, short fsiz, short screenNumber, short bfnum, short bfsiz, short bfstyle,
+	short vtemulation, unsigned long flags);
 short RSmouseintext(short w, Point myPoint);
 void RSkillwindow(short w);
 void RSgetcolors(short w, short n, RGBColor *color);

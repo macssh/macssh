@@ -213,12 +213,14 @@ short RSsetwind
 	return(0);
   } /* RSsetwind */
 
-void RSbell
-  (
-	short w
-  )
-  /* gives an audible signal associated with the specified window. */
-  {
+/*
+ * RScursoff
+ *
+ * gives an audible signal associated with the specified window.
+ */
+
+void RSbell( short w )
+{
 
 /* NONO : #@%! bell ! I'm not deaf, It's my autokey buffer... */
 	static unsigned long sLastBellTicks = 0;
@@ -247,34 +249,51 @@ void RSbell
 		SysBeep(8);
      NotifyUser();
 
-  } /* RSbell */
+} /* RSbell */
 
 
-void RScursoff
-  (
-	short w
-  )
-  /* hides the text cursor for the specified window. Assumes it
-	is currently being shown. */
-  {
+/*
+ * RScursison
+ *
+ */
+
+Boolean RScursison( short w )
+{
+	return RSlocal[w].cursorstate;
+} /* RScursison */
+
+
+/*
+ * RScursoff
+ *
+ * hides the text cursor for the specified window. Assumes it
+ * is currently being shown.
+ */
+
+void RScursoff( short w )
+{
 	if (RSlocal[w].skip || !RSlocal[w].cursorstate)		/* BYU 2.4.11 */
 		return;
-    RSsetwind(w);
-    RScurrent->cursorstate = 0;							/* BYU 2.4.11 */
-	InvertRect(&RScurrent->cursor);
-  } /* RScursoff */
 
-void RScurson
-  (
-	short w,
-	short la,
-	short x,
-	short y
-  )
-  /* displays the text cursor for the specified window, at the
-	specified position. Assumes it isn't currently being shown. */
-  {
-	short xw;
+    RSsetwind(w);
+
+    RScurrent->cursorstate = 0;							/* BYU 2.4.11 */
+
+	InvertRect(&RScurrent->cursor);
+
+} /* RScursoff */
+
+/*
+ * RScurson
+ *
+ * displays the text cursor for the specified window, at the
+ * specifified position. Assumes it isn't currently being off.
+ */
+
+void RScurson( short w, short la, short x, short y )
+{
+	short		xw;
+	VSAttrib	attrib;
 
 	if ( RSlocal[w].skip || RSlocal[w].cursorstate )
 		return;
@@ -282,22 +301,25 @@ void RScurson
     RSsetwind(w);
 
 	xw = RScurrent->fwidth;
-	if ((la & 3)) {
+	if (VSisdecdwh(la)) {
 		// double width
 		xw <<= 1;
-
-
-	if (x > ((VSIw->maxwidth + 1) >> 1) - 1) {
-		x = ((VSIw->maxwidth + 1) >> 1) - 1;
 	}
-
-
-
-	}
-
 
     RScurrent->cursor.left = x * xw;
     RScurrent->cursor.top  = y * RScurrent->fheight;
+
+	if ( y <= VSIw->lines ) {
+	  	if (VSIw->oldScrollback) {
+	  		attrib = VSIw->attrst[y]->text[x];
+	  	} else {
+			attrib = VSIw->linest[y]->attr[x];
+		}
+		if ((attrib & kVSansi2b)) {
+			// double width
+			xw <<= 1;
+		}
+	}
 
 	switch (RScurrent->cursType) {
 		case UNDERSCORECURSOR:
@@ -337,18 +359,12 @@ void RScurson
     }
 	if ( VSIcursorvisible() ) {
 		if ( !gApplicationPrefs->BlinkCursor ) {
-	    	RScurrent->cursorstate = 1;
 	    	InvertRect(&RScurrent->cursor);
-		} else {
-			if ( RScurrent->cursorstate ) {
-				// refresh right now
-				RScurrent->cursorstate = 1;
-		    	InvertRect(&RScurrent->cursor);
-		    	TelInfo->blinktime = LMGetTicks();
-		    } else {
-				// refresh as soon as possible
-		    	TelInfo->blinktime = LMGetTicks() - CURS_BLINK_PERIOD;
-		    }
+	    	RScurrent->cursorstate = 1;
+		} else if ( w == screens[scrn].vs && RScurrent->active ) {
+	    	InvertRect(&RScurrent->cursor);
+	    	TelInfo->blinktime = LMGetTicks();
+			RScurrent->cursorstate = 1;
 		}
 	}
 } /* RScurson */
@@ -369,21 +385,11 @@ void RSsetattr(short la, VSAttrib a)
 	RSla = la;				
 	RSa = a;				
 
-	size = ((la & 3)) ? RScurrent->fsiz * 2 : RScurrent->fsiz;
+	size = (VSisdecdwh(la)) ? RScurrent->fsiz * 2 : RScurrent->fsiz;
 	if ( VSisgrph(a) ) {
-		//GetFNum("\p%NCSA VT", &tempFontID); // RAB BetterTelnet 1.0fc4
-        //TextFont(tempFontID); /* use "NCSA VT" (74) font for special graphics */
         TextFont( gNCSAFontID );
     } else {
 		RSTextFont( RScurrent->fnum, size, VSisbold(a) && RScurrent->allowBold );
-/*
-		if ((la & 3)) {
-			GetFNum( (la & 2) ? "\pANSI/PC Bottom" : "\pANSI/PC Top", &tempFontID);
-			RSTextFont(tempFontID,RScurrent->fsiz,VSisbold(a) && RScurrent->allowBold);
-		} else {
-			RSTextFont(RScurrent->fnum,RScurrent->fsiz,VSisbold(a) && RScurrent->allowBold);
-		}
-*/
 	}
 	TextSize(size);
 
@@ -584,7 +590,7 @@ void RSinvText
 
 		if (lb.v - ub.v > 1) {
 			/* highlight extends across more than two lines */
-		  /* highlight complete in-between lines */
+			/* highlight complete in-between lines */
 			MYSETRECT
 			  (
 				temp,
@@ -597,11 +603,8 @@ void RSinvText
 			DoHiliteMode();						/* BYU LSC */
 			InvertRect(&temp2);
 
-		} /* if */
-	} /* if */
-
-	RSsetattr(VSIw->lattrib, VSIw->attrib);
-
+		}
+	}
 } /* RSinvText */
 
 
@@ -633,7 +636,7 @@ void RSdraw
     RSsetwind(w);
 
 	xw = RScurrent->fwidth;
-	if ((la & 3)) {
+	if (VSisdecdwh(la)) {
 		// double width
 		xw <<= 1;
 	}
@@ -667,7 +670,7 @@ void RSdraw
 	if (rect.bottom >= RScurrent->height)
 		rect.bottom = RScurrent->height;
 
-	if ((la & 1)) {
+	if (VSisdecdhlt(la)) {
 		// Upper part
 		ys += RScurrent->fheight;
 	}
@@ -727,20 +730,6 @@ static void ScrollRectInRgn( WindowPtr window, Rect *inRect, short dh, short dv)
 
 
 /*
- * RSdefaultattr()
- */
-
-void RSdefaultattr(short w)
-{
-	short screenIndex;
-
-	if ( screens[findbyVS(w)].vtemulation < 2 )
-	    RSsetattr(VSIw->lattrib, 0);
-	else
-	    RSsetattr(VSIw->lattrib, VSIw->attrib);
-}
-
-/*
  * RSdelcols()
  */
 
@@ -762,7 +751,7 @@ void RSdelcols
 
 	xw = RScurrent->fwidth;
 /*
-	if ((la & 3)) {
+	if (VSisdecdwh(la)) {
 		// double width
 		xw <<= 1;
 	}
@@ -809,11 +798,12 @@ void RSdelchars
 	if (RSlocal[w].skip)
 		return;
     RSsetwind(w);
-//    RSsetattr(VSIw->lattrib, 0); /* avoid funny pen modes */
-	RSdefaultattr(w);
+
+//	RSsetattr(VSIw->lattrib, VSIw->attrib & ~kVSblnk);
+	RSsetattr(0, 0);
 
 	xw = RScurrent->fwidth;
-	if ((la & 3)) {
+	if (VSisdecdwh(la)) {
 		// double width
 		xw <<= 1;
 	}
@@ -881,8 +871,9 @@ void RSdellines
 
     RSsetwind(w);
 	RSsetConst(w);
-//    RSsetattr(VSIw->lattrib, 0); /* avoid funny pen modes */
-	RSdefaultattr(w);
+
+//	RSsetattr(VSIw->lattrib, VSIw->attrib & ~kVSblnk);
+	RSsetattr(0, 0);
 
 	if (scrolled)
 	  {
@@ -910,7 +901,7 @@ void RSdellines
 	ScrollRectInRgn(RScurrent->window, &rect, 0, -RScurrent->fheight * n);
 
     RSsetattr(VSIw->lattrib, VSIw->attrib); /* restore mode for text drawing */
-  } /* RSdellines */
+} /* RSdellines */
 
 void RSerase
   (
@@ -929,8 +920,8 @@ void RSerase
 		return;
     RSsetwind(w);
 
-//    RSsetattr(VSIw->lattrib, 0); /* avoid funny pen modes */
-	RSdefaultattr(w);
+	RSsetattr(VSIw->lattrib, VSIw->attrib & ~kVSblnk);
+//	RSsetattr(0, 0);
 
     MYSETRECT
 	  (
@@ -952,9 +943,9 @@ void RSerase
 	  /* highlight any part of the selection within the cleared area */
 		RSinvText(w, RScurrent->anchor, RScurrent->last, &rect);
 
-    RSsetattr(VSIw->lattrib, VSIw->attrib); /* restore mode for text drawing */
+//    RSsetattr(VSIw->lattrib, VSIw->attrib); /* restore mode for text drawing */
 
-  } /* RSerase */
+} /* RSerase */
 
 void RSinslines
   (
@@ -973,8 +964,9 @@ void RSinslines
 		return;
     RSsetwind(w);
 	RSsetConst(w);
-//    RSsetattr(VSIw->lattrib, 0); /* avoid funny pen modes */
-	RSdefaultattr(w);
+
+//	RSsetattr(VSIw->lattrib, VSIw->attrib & ~kVSblnk);
+	RSsetattr(0, 0);
 
 	if (RScurrent->selected && (scrolled < 0))
 	  {
@@ -994,7 +986,7 @@ void RSinslines
 	ScrollRectInRgn(RScurrent->window, &rect, 0, RScurrent->fheight * n);
 
     RSsetattr(VSIw->lattrib, VSIw->attrib); /* restore mode for text drawing */
-  } /* RSinslines */
+} /* RSinslines */
 
 void RSinscols
   (
@@ -1011,13 +1003,6 @@ void RSinscols
 	if (RSlocal[w].skip)
 		return;
     RSsetwind(w);
-
-/*
-	if ((VSIw->lattrib & 3)) {
-		// double width
-		xw <<= 1;
-	}
-*/
 
     MYSETRECT /* bounds of entire text area */
 	  (
@@ -1061,7 +1046,7 @@ void RSinsstring
     RSsetwind(w);
 
 	xw = RScurrent->fwidth;
-	if ((la & 3)) {
+	if (VSisdecdwh(la)) {
 		// double width
 		xw <<= 1;
 	}
@@ -1093,7 +1078,7 @@ void RSinsstring
 	if (rect.left <= 0)
 		rect.left = 0;
 
-	if ((la & 1)) {
+	if (VSisdecdhlt(la)) {
 		// Upper part
 		ys += RScurrent->fheight;
 	}
@@ -1240,45 +1225,35 @@ Point normalize(Point in, short w, Boolean autoScroll)
 	to the specified window. Constrains the position to lie within
 	the currently-visible region of the screen, autoscrolling the
 	screen if necessary (and if autoScroll = TRUE). */
-  {
-
-	if (in.v <0)
-	  {
+{
+	if (in.v < 0) {
 		in.v = 0;
 		if (autoScroll)
 			VSscrolback(w, 1);
-	  } /* if */
-	if (in.v > RSlocal[w].height)
-	  {
+	}
+	if (in.v > RSlocal[w].height) {
 		in.v = RSlocal[w].height;
 		if (autoScroll)
 			VSscrolforward(w, 1);
-	  } /* if */
+	}
 	in.v = in.v / FHeight;
 
-	if (in.h < 0)
-	  {
-		in.h = -1;
+	if (in.h < 0) {
+		in.h = 0;
 		if (autoScroll)
 			VSscrolleft(w, 1);
-	  } /* if */
-	if (in.h > RSlocal[w].width)
-	  {
+	} else if (in.h > RSlocal[w].width) {
 		in.h = RSlocal[w].width;
 		if (autoScroll)
 			VSscrolright(w, 1);
-	  } /* if */
-  	/* in.h = (in.h + Fwidthhalf) / FWidth - 1; */
-	/* the MPW C 3.0 compiler has a bug in its register allocation */
-	/* which keeps the above line from working. So, replace it with this: */
-	in.h = in.h + Fwidthhalf;
-	in.h = in.h / FWidth - 1;
-	/* note the bug has been fixed in the 3.1 compiler. */
+	}
+	in.h = ((in.h + Fwidthhalf) / FWidth) - 1;
+
 	/* convert to virtual screen coordinates */
 	in.v += RSlocal[w].topline;
 	in.h += RSlocal[w].leftmarg;
-	return(in);
-  } /* normalize */
+	return in;
+} /* normalize */
 
 	
 
@@ -1303,6 +1278,9 @@ void	RSsetsize( short w, short v, short h, short screenIndex)
 /*	saves the new size settings for a window, and repositions
 	the scroll bars accordingly. */
 {
+	if ( VSIcursorvisible() )
+		RScursoff( w );
+
 	RSlocal[w].height = ((v - 16 + CVO) / FHeight) * FHeight;
 	RSlocal[w].width = ((h - 16 + CHO) / FWidth) * FWidth;
 	RSlocal[w].rheight = v - 16;
@@ -1328,7 +1306,7 @@ void	RSsetsize( short w, short v, short h, short screenIndex)
 		}
 	if ( RSlocal[w].left != NULL ) {
 		short i;
-		if (screenIndex == -1)
+		if (screenIndex < 0)
 			screenIndex = findbyVS(w);
 		if ( screenIndex >= 0 && screens[screenIndex].protocol == 4 ) {
 			i = LOCKWIDTH + 1;

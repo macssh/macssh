@@ -120,7 +120,7 @@ void	main(void)
 		if (!TelInfo->done) {
 			DoNetEvents();
 		}
-		ssh2_sched();
+		//ssh2_sched();
 
 		memOK = RecoverReserveMemory();
 		if (memOK) 

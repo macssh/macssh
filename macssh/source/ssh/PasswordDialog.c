@@ -41,6 +41,8 @@ extern WindRec *ssh2_window();
 extern void setctxprompt(const char *prompt);
 extern char *getctxprompt();
 
+extern pthread_key_t ssh2threadkey;
+
 extern TelInfoRec	*TelInfo;
 extern Boolean		gAEavail;
 
@@ -390,12 +392,19 @@ static void GetLabelFromPrompt(const char *prompt, StringPtr host, StringPtr use
 		memcpy( host, p, *p + 1 );
 		p = wind->sshdata.login;
 		memcpy( user, p, *p + 1 );
-	} else {
+	} else if (pthread_getspecific(ssh2threadkey)) {
 		/* use key label as both host name and user name */
 		int l = strlen(prompt);
 		*host = 4 + l;
 		memcpy(host + 1, "Key ", 4);
 		memcpy(host + 5, prompt, l);
+		*user = l;
+		memcpy(user + 1, prompt, l);
+	} else {
+		int l = strlen(prompt);
+		*host = 6 + l;
+		memcpy(host + 1, "Macro ", 6);
+		memcpy(host + 7, prompt, l);
 		*user = l;
 		memcpy(user + 1, prompt, l);
 	}
@@ -460,10 +469,14 @@ static void AddPassToKeychain(const char *prompt, StringPtr password)
 			*password, password + 1, &theItem);
 		if (theStatus == noErr) {
 			unsigned char *theDescriptionText;
-			if (strstr(prompt, "assword for"))
-				theDescriptionText = "\pMacSSH password";
-			else
-				theDescriptionText = "\pMacSSH passphrase";
+			if (pthread_getspecific(ssh2threadkey)) {
+				if (strstr(prompt, "assword for"))
+					theDescriptionText = "\pMacSSH password";
+				else
+					theDescriptionText = "\pMacSSH passphrase";
+			} else {
+				theDescriptionText = "\pMacSSH macro password";
+			}
 			theAttribute.tag = kDescriptionKCItemAttr;
 			theAttribute.length = *theDescriptionText;
 			theAttribute.data = theDescriptionText + 1;
@@ -510,11 +523,14 @@ Boolean SSH2PasswordDialog(const char *prompt, StringPtr password)
 	Boolean			addKey = false;
 	ModalFilterUPP  internalBufferFilterUPP;
 	ConstStringPtr	keyPrompt = "\pEnter passphrase for private key ";
+	ConstStringPtr	macroPrompt = "\pEnter password for macro ";
 	WindRec			*wind;
 
 #if GENERATINGCFM
-	if ( strcmp(prompt, getctxprompt()) && GetPassFromKeychain(prompt, password) ) {
-		setctxprompt(prompt);
+	if ( (!pthread_getspecific(ssh2threadkey) || strcmp(prompt, getctxprompt()))
+	   && GetPassFromKeychain(prompt, password) ) {
+		if (pthread_getspecific(ssh2threadkey))
+			setctxprompt(prompt);
 		return true;
 	}
 #endif
@@ -536,8 +552,12 @@ Boolean SSH2PasswordDialog(const char *prompt, StringPtr password)
 		if ( wind && strstr(prompt, "assword for") ) {
 			pprompt[0] = strlen(prompt);
 			memcpy(pprompt + 1, prompt, pprompt[0]);
-		} else {
+		} else if (pthread_getspecific(ssh2threadkey)) {
 			memcpy(pprompt, keyPrompt, keyPrompt[0] + 1);
+			memcpy(pprompt + pprompt[0] + 1, prompt, strlen(prompt));
+			pprompt[0] += strlen(prompt);
+		} else {
+			memcpy(pprompt, macroPrompt, macroPrompt[0] + 1);
 			memcpy(pprompt + pprompt[0] + 1, prompt, strlen(prompt));
 			pprompt[0] += strlen(prompt);
 		}

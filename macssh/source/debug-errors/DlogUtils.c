@@ -459,6 +459,8 @@ WindowPtr GetNewMyDialog(short template,Ptr wStorage,WindowPtr behind,
 	win = GetNewDialog(template, wStorage, behind);
 	if (win==nil) return(nil);
 	SetPort(win);
+	TextFont(systemFont);
+	TextSize(12);
 /*	win->contR = ((GrafPtr)win)->portRect; */
 /*	win->qWindow.refCon = CREATOR; */
 	return(win);

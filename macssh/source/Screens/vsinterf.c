@@ -275,11 +275,10 @@ void VSIclrbuf
 	register VSAttrib *ta;
 	for (i = 0; i <= VSIw->lines; i++)
 	  {
+	  	VSIw->linest[i]->lattr = 0;
 	  	if (VSIw->oldScrollback) {
-	  		VSIw->attrst[i]->lattr = 0;
 	  		ta = &VSIw->attrst[i]->text[0];
 	  	} else {
-	  		VSIw->linest[i]->lattr = 0;
 			ta = &VSIw->linest[i]->attr[0];
 		}
 		tx = &VSIw->linest[i]->text[0];
@@ -293,6 +292,7 @@ void VSIclrbuf
 
 short VSnewscreen
   (
+	short vtemulation,
 	short maxlines, /* max lines to save in scrollback buffer */
 	short screensave, /* whether to have a scrollback buffer */
 	short numLines, //numLines initially on screen  (CCP 2.7)
@@ -305,7 +305,6 @@ short VSnewscreen
   )
   /* creates a new virtual screen, and returns its number. */
   {
-
 	if (maxlines < VSDEFLINES)
 		maxlines = VSDEFLINES;
 
@@ -348,9 +347,12 @@ short VSnewscreen
 	if ((VSscreens[VSIwn].loc = VSIw = (VSscrn *) myNewPtr(sizeof(VSscrn))) == 0L)
 		return(-2);
 
+	VSIw->vtemulation = vtemulation;
+
 	VSIw->oldScrollback = oldScrollback;
 	VSIw->lines = numLines;
 	//VSIw->lines = 23; CCP 2.7 set this from the start
+
 
 	VSIw->linest = VSInewlinearray(VSIw->lines + 1);
 	if (VSIw->linest == NULL)
@@ -454,10 +456,13 @@ short VSnewscreen
 	VSIw->savelines = screensave;
 	VSIw->forcesave = forcesave;		/* NCSA 2.5 */
 	VSIw->attrib = 0;
-	VSIw->Pattrib = -1; /* initially no saved attribute */
+	VSIw->Pattrib = 0xffffffff; /* initially no saved attribute */
 	VSIw->x = 0;
 	VSIw->y = 0;
 	VSIw->charset = 0;
+	VSIw->trincount = 0;
+	VSIw->trinx = 0;
+	VSIw->trintag = 0;
 	VSIw->G0 = 0;
 	VSIw->G1 = 1;
 	VSIw->DECAWM = 0;
@@ -532,11 +537,10 @@ void VSrealloc(short w)
 	}
 	savedTextPtr = savedTextBlock;
 	for (i = 0; i <= VSIw->lines; i++) {
+		savedTextPtr->lattr = VSIw->linest[i]->lattr;
 		if (VSIw->oldScrollback) {
-			savedTextPtr->lattr = VSIw->attrst[i]->lattr;
 			BlockMoveData(VSIw->attrst[i]->text, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 		} else {
-			savedTextPtr->lattr = VSIw->linest[i]->lattr;
 			BlockMoveData(VSIw->linest[i]->attr, savedTextPtr->attr, (VSIw->allwidth + 1) * sizeof(VSAttrib));
 		}
 		if (savedTextPtr->next) savedTextPtr = savedTextPtr->next;
@@ -591,7 +595,6 @@ void VSredrawLine(short w) //redraws current line
 		VSIcuroff(w);
 }
 
-
 short VSredraw
   (
 	short w, 		// window to redraw */
@@ -605,6 +608,10 @@ short VSredraw
 	VSlinePtr ypt;
 	short y;
 	short tx1, tx2, ty1, ty2, tn, offset;
+	short sx1;
+	short sx2;
+	Boolean cursOff;
+
 
 	if (VSvalids(w) != 0)
 		return(-3);
@@ -633,9 +640,12 @@ short VSredraw
 	tn = -1;		// so we include more than 1 line
 	
 //	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
-	
-	if (VSIcursorenabled())
+
+	cursOff = 0;
+	if ( VSIcursorenabled() && RScursison(w) ) {
+		cursOff = 1;
 		VSIcuroff(w); 						// temporarily hide cursor
+	}
 
 	// draw visible part of scrollback buffer
 	if (y1 < 0) {
@@ -648,6 +658,9 @@ short VSredraw
 		
 		if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
 
+			sx1 = tx1;
+			sx2 = tx2;
+
 			ypt = VSIw->vistop;
 			for(y=VSIw->Rtop; y<y1; y++)
 				ypt = ypt->next;		// Get pointer to top line we need
@@ -657,34 +670,39 @@ short VSredraw
 				VSAttrib *pa;
 				VSAttrib lasta;
 				short x, lastx;
+				short chw;
 
 				pt = ypt->text + VSIw->Rleft;
 				pa = ypt->attr + VSIw->Rleft;
-				
+
 				// if double size, we must shift width
-				if (ypt->lattr & 3) {
+				if (VSisdecdwh(ypt->lattr)) {
 					tx1 >>= 1;
 					tx2 >>= 1;
-				}
+					chw = 2;
+				} else
+					chw = 1;
+
+				// multi-byte
+				if ( tx1 > 0 && (pa[tx1-1] & kVSansi2b) )
+					--tx1;
+				if ( tx2 < VSIw->maxwidth && (pa[tx2] & kVSansi2b) )
+					++tx2;
 
 				lastx = tx1;
-				lasta = pa[tx1];
-				for(x=tx1+1; x<=tx2; x++) {
-					if (pa[x]!=lasta) {
+				lasta = pa[tx1] & ~kVSansi2b;
+				for(x = tx1+1; x <= tx2; x++) {
+					if ( (pa[x] & ~kVSansi2b) != lasta ) {
 						RSdraw(w, lastx, y, ypt->lattr, lasta, x-lastx, pt + lastx);
 						lastx = x;
-						lasta = pa[x];
+						lasta = pa[x] & ~kVSansi2b;
 					}
 				}
 				if (lastx<=tx2)
 					RSdraw(w, lastx, y, ypt->lattr, lasta, tx2-lastx+1, pt + lastx);
-				
-				// if double size, we must shift width
-				if (ypt->lattr & 3) {
-					tx1 <<= 1;
-					tx2 <<= 1;
-				}
 
+				tx1 = sx1;
+				tx2 = sx2;
 				ypt = ypt->next;
 			}
 		}
@@ -702,6 +720,9 @@ short VSredraw
 
 		if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
 
+			sx1 = tx1;
+			sx2 = tx2;
+
 			ypt = VSIw->linest[VSIw->Rtop+ty1];
 			
 			for (y=ty1; y<=ty2; y++) {
@@ -709,43 +730,49 @@ short VSredraw
 				VSAttrib *pa;
 				VSAttrib lasta;
 				short x, lastx;
+				short chw;
 			
 				pt = ypt->text + VSIw->Rleft;
 				pa = ypt->attr + VSIw->Rleft;
 				
 				// if double size, we must shift width
-				if (ypt->lattr & 3) {
+				if (VSisdecdwh(ypt->lattr)) {
 					tx1 >>= 1;
 					tx2 >>= 1;
-				}
+					chw = 2;
+				} else
+					chw = 1;
+
+				// multi-byte
+				if ( tx1 > 0 && (pa[tx1-1] & kVSansi2b) )
+					--tx1;
+				if ( tx2 < VSIw->maxwidth && (pa[tx2] & kVSansi2b) )
+					++tx2;
 
 				lastx = tx1;
-				lasta = pa[tx1];
-				for(x=tx1+1; x<=tx2; x++) {
-					if (pa[x]!=lasta) {
+				lasta = pa[tx1] & ~kVSansi2b;
+				for(x = tx1+1; x <= tx2; x++) {
+					if ( (pa[x] & ~kVSansi2b) != lasta ) {
 						RSdraw(w, lastx, y, ypt->lattr, lasta, x-lastx, pt + lastx);
 						lastx = x;
-						lasta = pa[x];
+						lasta = pa[x] & ~kVSansi2b;
 					}
 				}
 				if (lastx<=tx2)
 					RSdraw(w, lastx, y, ypt->lattr, lasta, tx2-lastx+1, pt + lastx);
-				
-				// if double size, we must shift width
-				if (ypt->lattr & 3) {
-					tx1 <<= 1;
-					tx2 <<= 1;
-				}
 
+				tx1 = sx1;
+				tx2 = sx2;
 				ypt = ypt->next;
 			}
 		}
 	}
 
-	if (VSIcursorenabled())
+	if (VSIcursorenabled() && cursOff)
 		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
 	return(0);
-  } /* VSredraw */
+} /* VSredraw */
+
 
 short VSOredraw
   (
@@ -761,6 +788,11 @@ short VSOredraw
 	VSattrlinePtr ypa;
 	short y;
 	short tx1, tx2, ty1, ty2, tn, offset;
+	short sx1;
+	short sx2;
+	Boolean cursOff;
+
+	// this fails for multi-bytes character set...
 
 	if (VSvalids(w) != 0)
 		return(-3);
@@ -786,11 +818,14 @@ short VSOredraw
 	tn = -1;		// so we include more than 1 line
 	
 //	if (VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)!=0) return 0;		// test clip region
-	
-	if (VSIcursorenabled())
-		VSIcuroff(w); 						// temporarily hide cursor
 
-	RSerase(w, tx1, ty1, tx2, ty2);		// Erase the offending area
+	cursOff = 0;
+	if ( VSIcursorenabled() && RScursison(w) ) {
+		cursOff = 1;
+		VSIcuroff(w); 						// temporarily hide cursor
+	}
+
+//	RSerase(w, tx1, ty1, tx2, ty2);		// Erase the offending area
 
 	// draw visible part of scrollback buffer
 	if (y1 < 0) {
@@ -802,6 +837,9 @@ short VSOredraw
 		tn = -1;
 		
 		if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
+			sx1 = tx1;
+			sx2 = tx2;
+
 			ypt = VSIw->vistop;
 			for(y=VSIw->Rtop; y<y1; y++)
 				ypt = ypt->next;		// Get pointer to top line we need
@@ -809,17 +847,18 @@ short VSOredraw
 			for (y=ty1; y<=ty2; y++) {
 
 				// if double size, we must shift width
-				if (ypt->lattr & 3) {
-					tx1 >>= 1;
-					tx2 >>= 1;
+				if (VSisdecdwh(ypt->lattr)) {
+					tx1 = (tx1 & 1) ? (tx1 >> 1) - 1 : (tx1 >> 1);
+					tx2 = (tx2 & 1) ? (tx2 >> 1) + 1 : (tx2 >> 1);
 				}
 
+				/* no attributes... */
 				RSdraw(w, tx1, y, ypt->lattr, 0, tn, ypt->text + VSIw->Rleft +tx1);
 
 				// if double size, we must shift width
-				if (ypt->lattr & 3) {
-					tx1 <<= 1;
-					tx2 <<= 1;
+				if (VSisdecdwh(ypt->lattr)) {
+					tx1 = sx1;
+					tx2 = sx2;
 				}
 
 				ypt = ypt->next;
@@ -839,6 +878,9 @@ short VSOredraw
 
 		if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
 		
+			sx1 = tx1;
+			sx2 = tx2;
+
 			ypt = VSIw->linest[VSIw->Rtop+ty1];
 			ypa = VSIw->attrst[VSIw->Rtop+ty1];
 			
@@ -852,28 +894,34 @@ short VSOredraw
 				pa = ypa->text + VSIw->Rleft;
 				
 				// if double size, we must shift width
-				if (ypa->lattr & 3) {
-					tx1 >>= 1;
-					tx2 >>= 1;
+				if (VSisdecdwh(ypt->lattr)) {
+					tx1 = (tx1 & 1) ? (tx1 >> 1) - 1 : (tx1 >> 1);
+					tx2 = (tx2 & 1) ? (tx2 >> 1) + 1 : (tx2 >> 1);
 				}
 
 				lastx = tx1;
-				lasta = pa[tx1];
-
+				lasta = pa[tx1] & ~kVSansi2b;
 				for(x=tx1+1; x<=tx2; x++) {
-					if (pa[x]!=lasta) {
-						RSdraw(w, lastx, y, ypa->lattr, lasta, x-lastx, pt + lastx);
+					if ( (pa[x] & ~kVSansi2b) != lasta ) {
+						if (lastx == tx1 && tx1 > 0 && (pa[tx1-1] & kVSansi2b))
+							RSdraw(w, lastx-1, y, ypt->lattr, lasta, x-lastx+1, pt + lastx-1);
+						else
+							RSdraw(w, lastx, y, ypt->lattr, lasta, x-lastx, pt + lastx);
 						lastx = x;
-						lasta = pa[x];
+						lasta = pa[x] & ~kVSansi2b;
 					}
 				}
-				if (lastx<=tx2)
-					RSdraw(w, lastx, y, ypa->lattr, lasta, tx2-lastx+1, pt + lastx);
+				if (lastx<=tx2) {
+					if (lastx == tx1 && tx1 > 0 && (pa[tx1-1] & kVSansi2b))
+						RSdraw(w, lastx-1, y, ypt->lattr, lasta, tx2-lastx+2, pt + lastx-1);
+					else
+						RSdraw(w, lastx, y, ypt->lattr, lasta, tx2-lastx+1, pt + lastx);
+				}
 				
 				// if double size, we must shift width
-				if (ypa->lattr & 3) {
-					tx1 <<= 1;
-					tx2 <<= 1;
+				if (VSisdecdwh(ypt->lattr)) {
+					tx1 = sx1;
+					tx2 = sx2;
 				}
 
 				ypt = ypt->next;
@@ -882,7 +930,7 @@ short VSOredraw
 		}
 	}
 
-	if (VSIcursorenabled())
+	if (VSIcursorenabled() && cursOff)
 		VSIcurson(w, VSIw->x, VSIw->y, 0); /* restore cursor at original position */
 
 	return(0);
@@ -896,27 +944,34 @@ short VSwrite
 	short len  /* length of text string */
   )
   /* sends a stream of characters to the specified window. */
-  {
+{
+	int cursOff;
+
 //  	_profile = 1;
 	if (len == 0)
 		return 0;
 	if (VSvalids(w) != 0)
 		return(-3);
-	if (VSIcursorenabled())
-		VSIcuroff(w); /* hide cursor momentarily */
+	cursOff = 0;
+	if ( VSIcursorenabled() ) {
+		cursOff = 1;
+		VSIcuroff(w); // hide cursor momentarily
+	}
 	VSIcursdisable(); // RAB BetterTelnet 2.0b4
 	VSem((unsigned char *) ptr, len);	/* BYU LSC - interpret the character stream */
 	VSIflush(); // RAB BetterTelnet 2.0b3
 	VSIcursenable();
-	if (VSIcursorenabled())
+	if ( VSIcursorenabled() && cursOff )
 		VSIcurson(w, VSIw->x, VSIw->y, 1); /* restore cursor, force it to be visible. */
 //	_profile = 0;
 	return(0);
-  } /* VSwrite */
+} /* VSwrite */
+
 
 // RAB BetterTelnet 2.0b3
 // The same VSwrite you know and love, except it doesn't flush.
 // This is for parse() to use so it doesn't flush every time it hits an escape.
+
 short VSwritefast
   (
 	short w, /* screen to draw into */
@@ -926,12 +981,13 @@ short VSwritefast
   /* sends a stream of characters to the specified window. */
   {
 //  	_profile = 1;
-	if (len == 0)
+	if ( len == 0 )
 		return 0;
-	if (VSvalids(w) != 0)
+	if ( VSvalids(w) != 0 )
 		return(-3);
-	if (VSIcursorenabled())
+	if ( VSIcursorenabled() ) {
 		VSIcuroff(w); /* hide cursor momentarily */
+	}
 	VSIcursdisable();
 	VSem((unsigned char *) ptr, len);	/* BYU LSC - interpret the character stream */
 
@@ -951,10 +1007,11 @@ void VSflushwrite(short w) {
 
 	VSIflush();
 	VSIcursenable();
-	if (VSIcursorenabled())
+	if ( VSIcursorenabled() ) {
 		VSIcurson(w, VSIw->x, VSIw->y, 1);
-
+	}
 }
+
 // Utility routine: BetterTelnet 1.0fc3 (RAB)
 
 void VSsetprintmode(short w, short printMode) {
@@ -1066,6 +1123,7 @@ void VSpossend
   /* sends a stream of VT100 cursor-movement sequences to move the
 	cursor on the specified screen to the specified position. */
 {
+	short sn;
 	static char
 		VSkbax[] = "\033O ",		/* prefix for auxiliary code */
 		VSkban[] = "\033[ ";		/* prefix for arrows normal */
@@ -1076,8 +1134,9 @@ void VSpossend
 	
 	
 /* NCSA: SB - This would bomb before.  You need to get the screens # from the 
-				translation routine before you access the record! */  	
-	if (screens[findbyVS(w)].arrowmap) {    /* NCSA: SB - get the CORRECT screens # */
+				translation routine before you access the record! */  
+	sn = findbyVS(w);	
+	if (sn >= 0 && screens[sn].arrowmap) {    /* NCSA: SB - get the CORRECT screens # */
 		VSpossendEM(w,x,y,echo);            // MAT--  call our cursor movement routine
 		return;                             // MAT--  then exit
 	}
@@ -1147,6 +1206,7 @@ char VSkbsend
 //		VSkban[] = "\033[ ",		/* prefix for arrows normal */
 //		VSkbfn[] = "\033O ",		/* prefix for function keys */		/* BYU 2.4.12 */
 //		VSk220[] = "\033[  ~";		/* prefix for vt220 keys */			/* BYU 2.4.12 */
+	short sn;
 	char *vskptr;
 	short vskplen;
 	short macronum;
@@ -1154,7 +1214,10 @@ char VSkbsend
 	if (VSvalids(w) != 0)
 		return(-3);
 
-	if ( screens[findbyVS(w)].arrowmap && (k <= VSLT) && (k >= VSUP) )	// MAT--
+	sn = findbyVS(w);
+	if (sn < 0)
+		return;
+	if ( screens[sn].arrowmap && (k <= VSLT) && (k >= VSUP) )	// MAT--
 										// MAT-- important...we need to check this first before
 		{								// MAT-- the next if(É) statement gets its hands on the string.
 			switch (k) {				// MAT--  do the mapping from arrowkeys -> EMACS ctrl keys.
@@ -1239,7 +1302,7 @@ char VSkbsend
 	else if ((k == VSKE) && !VSIw->DECPAM) // Enter (!AM)
 		macronum++;
 
-	sendmacro(&screens[findbyVS(VSIwn)], macronum); // and actually send it, the NEW way!
+	sendmacro(&screens[sn], macronum); // and actually send it, the NEW way!
 
 	return 0;
   } /* VSkbsend */
@@ -1636,7 +1699,7 @@ char *VSIstrcopy(char *src, short len, char *dest, short table, short noClip)
 
 	p = src + len - 1;
   /* skip trailing blanks, but only if !noClip */
-  	if ((!noClip) || table || gApplicationPrefs->clipTrailingSpaces)
+  	if (!noClip && (table || gApplicationPrefs->clipTrailingSpaces))
   											// RAB BetterTelnet 1.0fc7, 1.1
 		while ((*p == ' ') && (p >= src))
 			p--;
@@ -1671,7 +1734,8 @@ char *VSIstrcopy(char *src, short len, char *dest, short table, short noClip)
 	return(dest);
   } /* VSIstrcopy */
 
-long VSgettext(short w, short x1, short y1, short x2, short y2, char *charp, long max, char *EOLS, short table)
+
+long VSOgettext(short w, short x1, short y1, short x2, short y2, char *charp, long max, char *EOLS, short table)
   /* copies a portion of text from the specified virtual screen into
 	the *charp buffer. table, if nonzero, is the minimum length of
 	runs of spaces to be replaced with single tabs. Returns the
@@ -1679,11 +1743,11 @@ long VSgettext(short w, short x1, short y1, short x2, short y2, char *charp, lon
 	length to copy, but this is currently ignored!
 	EOLS is the end-of-line sequence to insert at line boundaries.
 	This is currently assumed to be exactly one character long. */
-  {
+{
 	UNUSED_ARG(max) /* !! */
 	short EOLlen;
 	short lx,ly,					/* Upper bounds of selection */
-		ux,uy;					/* Lower bounds of selection */
+		  ux,uy;					/* Lower bounds of selection */
 	short maxwid;
 	char *origcp;
 	VSlinePtr t;
@@ -1694,29 +1758,37 @@ long VSgettext(short w, short x1, short y1, short x2, short y2, char *charp, lon
 	maxwid = VSIw->maxwidth;
 	origcp = charp;
 
-	if (y1 < -VSIw->numlines)
-	  {
-		y1 = -VSIw->numlines;
-		x1 = -1;
-	  } /* if */
-	if (y1 == y2)
+	// this fails for multi-bytes character set...
+
+	/* Order the lower and upper bounds */
+	if (x1 < x2) {
+		ux = x1;
+		lx = x2;
+	} else {
+		ux = x2;
+		lx = x1;
+	}
+
+	if (y1 < y2) {
+		uy = y1;
+		ly = y2;
+	} else {
+		uy = y2;
+		ly = y1;
+	}
+
+	if (uy < -VSIw->numlines) {
+		uy = -VSIw->numlines;
+		ux = -1;
+	}
+	if (ly < -VSIw->numlines) {
+		ly = -VSIw->numlines;
+	}
+
+	if (uy == ly)
 	  {
 	  /* copying no more than a single line */
-		t = VSIGetLineStart(w, y1);
-		if (x1 < x2)	/* Order the lower and upper bounds */
-		  {
-			ux = x1;
-			uy = y1;
-			lx = x2;
-			ly = y2;
-		  }
-		else
-		  {
-			ux = x2;
-			uy = y2;
-			lx = x1;
-			ly = y1;
-		  } /* if */
+		t = VSIGetLineStart(w, uy);
 
 		if ((long)(lx-ux) < max)
 			charp=VSIstrcopy(&t->text[ux+1], lx-ux, charp, table, 1);
@@ -1728,20 +1800,6 @@ long VSgettext(short w, short x1, short y1, short x2, short y2, char *charp, lon
 	else
 	  {
 	  /* copying more than one line */
-		if (y1 < y2)	/* Order the lower and upper bounds */
-		  {
-			ux = x1;
-			uy = y1;
-			lx = x2;
-			ly = y2;
-		  }
-		else
-		  {
-			ux = x2;
-			uy = y2;
-			lx = x1;
-			ly = y1;
-		  } /* if */
 		t = VSIGetLineStart(w, uy);
 		if (((long) (maxwid-ux) < max))
 			charp=VSIstrcopy(&t->text[ux+1],maxwid-ux,charp,table, 0);
@@ -1772,7 +1830,243 @@ long VSgettext(short w, short x1, short y1, short x2, short y2, char *charp, lon
 			*charp++ = *EOLS; /* assumes it's only one character! */
 	  } /* if */
 	return(charp - origcp);
-  } /* VSgettext */
+} /* VSgettext */
+
+
+long VSgettext(short w, short x1, short y1, short x2, short y2,
+			char *charp, long max, char *EOLS, short table, short clipspaces)
+  /* copies a portion of text from the specified virtual screen into
+	the *charp buffer. table, if nonzero, is the minimum length of
+	runs of spaces to be replaced with single tabs. Returns the
+	length of the copied text. max is supposed to be the maximum
+	length to copy, but this is currently ignored!
+	EOLS is the end-of-line sequence to insert at line boundaries.
+	This is currently assumed to be exactly one character long. */
+{
+	short mw;
+	short lx,ly,					/* Upper bounds of selection */
+		  ux,uy;					/* Lower bounds of selection */
+	char *origcp;
+	short elen;
+	short outlen;
+	short i;
+	VSlinePtr ypt;
+	VSattrlinePtr ypa;
+	char *pt;
+	VSAttrib *pa;
+
+	if (VSvalids(w) != 0)
+		return(-3);
+
+	if (VSIw->oldScrollback)
+		return VSOgettext(w, x1, y1, x2, y2, charp, max, EOLS, table);
+	
+	mw = VSIw->maxwidth;
+
+	/* limit the lower and upper bounds */
+	if (x1 < -1)
+		x1 = -1;
+	else if (x1 > mw)
+		x1 = mw;
+	if (x2 < -1)
+		x2 = -1;
+	else if (x2 > mw)
+		x2 = mw;
+	if (y1 < -VSIw->numlines) {
+		y1 = -VSIw->numlines;
+		x1 = -1;
+	} else if (y1 > VSIw->lines) {
+		y1 = VSIw->lines;
+		x1 = mw;
+	}
+	if (y2 < -VSIw->numlines) {
+		y2 = -VSIw->numlines;
+		x2 = -1;
+	} else if (y2 > VSIw->lines) {
+		y2 = VSIw->lines;
+		x2 = mw;
+	}
+
+	origcp = charp;
+	elen = strlen(EOLS);
+
+	/* Order the lower and upper bounds */
+	ux = x1;
+	lx = x2;
+	uy = y1;
+	ly = y2;
+	if ( y1 == y2 ) {
+		if ( x1 > x2 ) {
+			ux = x2;
+			lx = x1;
+		}
+	} else if (y1 > y2) {
+		uy = y2;
+		ly = y1;
+		ux = x2;
+		lx = x1;
+	}
+
+	x1 = ux + 1;
+
+	// get text from scrollback buffer
+	if (uy < 0) {
+		x2 = mw;
+		y2 = (ly >= 0) ? -1 : ly;
+		ypt = VSIGetLineStart(w, uy);
+		for ( y1 = uy; y1 <= y2 && max >= elen; y1++, x1 = 0, x2 = mw, ypt = ypt->next ) {
+			pt = ypt->text;
+//			pa = ypt->attr;
+			if (y1 == ly)
+				x2 = lx; // end last line
+			outlen = x2 - x1 + 1;
+			if (outlen > max) {
+				outlen = max;
+			}
+			charp = VSIstrcopy(pt + x1, outlen, pt = charp, table, !clipspaces);
+			max -= charp - pt;
+			if (max >= elen && !VSiswrap(ypt->lattr) && y1 != ly) {
+				strcpy(charp, EOLS);
+				charp += elen;
+				max -= elen;
+			}
+		}
+		uy = 0; // continue with on-screen buffer, if any
+	}
+
+	// get text from on-screen buffer
+	if (ly >= 0) {
+		x2 = mw;
+		ypt = VSIw->linest[uy];
+		for ( y1 = uy; y1 <= ly && max >= elen; y1++, x1 = 0, x2 = mw, ypt = ypt->next ) {
+			pt = ypt->text;
+//			pa = ypt->attr;
+			if (y1 == ly)
+				x2 = lx;
+			outlen = x2 - x1 + 1;
+			if (outlen > max) {
+				outlen = max;
+			}
+			charp = VSIstrcopy(pt + x1, outlen, pt = charp, table, !clipspaces);
+			max -= charp - pt;
+			if (max >= elen && !VSiswrap(ypt->lattr) && y1 != ly) {
+				strcpy(charp, EOLS);
+				charp += elen;
+				max -= elen;
+			}
+		}
+	}
+
+	return charp - origcp;
+}
+
+
+long VSgetattr(short w, short x1, short y1, short x2, short y2,
+			VSAttrib *attrp, long max)
+{
+	short mw;
+	short lx,ly;					// Lower bounds of selection
+	short ux,uy;					// Upper bounds of selection
+	VSAttrib *origap;
+	short outlen;
+	short i;
+	VSlinePtr ypt;
+	VSAttrib *pa;
+
+	if (VSvalids(w) != 0)
+		return(-3);
+
+	if (VSIw->oldScrollback)
+		return 0;	// not coded...
+	
+	mw = VSIw->maxwidth;
+
+	/* limit the lower and upper bounds */
+	if (x1 < -1)
+		x1 = -1;
+	else if (x1 > mw)
+		x1 = mw;
+	if (x2 < -1)
+		x2 = -1;
+	else if (x2 > mw)
+		x2 = mw;
+	if (y1 < -VSIw->numlines) {
+		y1 = -VSIw->numlines;
+		x1 = -1;
+	} else if (y1 > VSIw->lines) {
+		y1 = VSIw->lines;
+		x1 = mw;
+	}
+	if (y2 < -VSIw->numlines) {
+		y2 = -VSIw->numlines;
+		x2 = -1;
+	} else if (y2 > VSIw->lines) {
+		y2 = VSIw->lines;
+		x2 = mw;
+	}
+
+	origap = attrp;
+
+	/* Order the lower and upper bounds */
+	ux = x1;
+	lx = x2;
+	uy = y1;
+	ly = y2;
+	if ( y1 == y2 ) {
+		if ( x1 > x2 ) {
+			ux = x2;
+			lx = x1;
+		}
+	} else if (y1 > y2) {
+		uy = y2;
+		ly = y1;
+		ux = x2;
+		lx = x1;
+	}
+
+	x1 = ux + 1;
+
+	// get attributes from scrollback buffer
+	if (uy < 0) {
+		x2 = mw;
+		y2 = (ly >= 0) ? -1 : ly;
+		ypt = VSIGetLineStart(w, uy);
+		for ( y1 = uy; y1 <= y2 && max >= sizeof(VSAttrib); y1++, x1 = 0, x2 = mw, ypt = ypt->next ) {
+			pa = ypt->attr;
+			if (y1 == ly)
+				x2 = lx; // end last line
+			outlen = (x2 - x1 + 1) * sizeof(VSAttrib);
+			if (outlen > max / sizeof(VSAttrib)) {
+				outlen = max / sizeof(VSAttrib);
+			}
+			memcpy(attrp, pa + x1, outlen * sizeof(VSAttrib));
+			attrp += outlen;
+			max -= outlen * sizeof(VSAttrib);
+		}
+		uy = 0; // continue with on-screen buffer, if any
+	}
+
+	// get attributes from on-screen buffer
+	if (ly >= 0) {
+		x2 = mw;
+		ypt = VSIw->linest[uy];
+		for ( y1 = uy; y1 <= ly && max >= sizeof(VSAttrib); y1++, x1 = 0, x2 = mw, ypt = ypt->next ) {
+			pa = ypt->attr;
+			if (y1 == ly)
+				x2 = lx;
+			outlen = (x2 - x1 + 1) * sizeof(VSAttrib);
+			if (outlen > max / sizeof(VSAttrib)) {
+				outlen = max / sizeof(VSAttrib);
+			}
+			memcpy(attrp, pa + x1, outlen * sizeof(VSAttrib));
+			attrp += outlen;
+			max -= outlen * sizeof(VSAttrib);
+		}
+	}
+
+	return attrp - origap;
+}
+
 
 short VSgetnumlines
   (
@@ -2073,7 +2367,6 @@ short VSOsetlines
   /* initialize the new screen lines to blank text and no attributes */
 	for (i = 0; i <= lines; i++)
 	  {
-	  	VSIw->attrst[i]->lattr = 0;
 	  	VSIw->linest[i]->lattr = 0;
 		tempa = VSIw->attrst[i]->text;
 		temp = VSIw->linest[i]->text;
@@ -2154,6 +2447,8 @@ short VSPulseOne
 	VSattrlinePtr ypa;
 	short y;
 	short tx1, tx2, ty1, ty2, tn, offset;
+	short sx1;
+	short sx2;
 	short cursOff;
 
 	if (VSvalids(w) != 0)
@@ -2188,8 +2483,11 @@ short VSPulseOne
 
 	cursOff = 0;
 
-	// draw visible part of scrollback buffer
+	// we need to access only the visible part
 	
+	sx1 = tx1;
+	sx2 = tx2;
+
 	ypt = VSIw->vistop;
 	for(y=VSIw->Rtop; y<y1; y++)
 		ypt = ypt->next;		// Get pointer to top line we need
@@ -2204,9 +2502,9 @@ short VSPulseOne
 		pa = ypt->attr + VSIw->Rleft;
 
 		// if double size, we must shift width
-		if (ypt->lattr & 3) {
-			tx1 >>= 1;
-			tx2 >>= 1;
+		if (VSisdecdwh(ypt->lattr)) {
+			tx1 = (tx1 & 1) ? (tx1 >> 1) - 1 : (tx1 >> 1);
+			tx2 = (tx2 & 1) ? (tx2 >> 1) + 1 : (tx2 >> 1);
 		}
 
 		lastx = tx1;
@@ -2245,15 +2543,16 @@ short VSPulseOne
 		}
 
 		// if double size, we must shift width
-		if (ypt->lattr & 3) {
-			tx1 <<= 1;
-			tx2 <<= 1;
+		if (VSisdecdwh(ypt->lattr)) {
+			tx1 = sx1;
+			tx2 = sx2;
 		}
 
 		ypt = ypt->next;
 	}
 
 	/* back to default window colors */
+    RSsetwind(w);
 	RSsetattr( 0, 0 );
 
 	return 0;
@@ -2274,6 +2573,8 @@ short VSOPulseOne
 	short y;
 	short tx1, tx2, ty1, ty2, tn, offset;
 	short cursOff;
+	short sx1;
+	short sx2;
 
 	if (VSvalids(w) != 0)
 		return(-3);
@@ -2304,7 +2605,9 @@ short VSOPulseOne
 
 	cursOff = 0;
 
-	if(y1<0) y1=0;
+	if (y1 < 0)
+		y1 = 0;
+
 	// draw visible part of on-screen buffer, taking account of attributes
 	if (y2 >= 0) {
 
@@ -2315,6 +2618,9 @@ short VSOPulseOne
 		tn = -1;
 
 		if (!VSIclip(&tx1, &ty1, &tx2, &ty2, &tn, &offset)) {
+
+			sx1 = tx1;
+			sx2 = tx2;
 
 			ypt = VSIw->linest[VSIw->Rtop+ty1];
 			ypa = VSIw->attrst[VSIw->Rtop+ty1];
@@ -2329,9 +2635,9 @@ short VSOPulseOne
 				pa = ypa->text + VSIw->Rleft;
 
 				// if double size, we must shift width
-				if (ypa->lattr & 3) {
-					tx1 >>= 1;
-					tx2 >>= 1;
+				if (VSisdecdwh(ypt->lattr)) {
+					tx1 = (tx1 & 1) ? (tx1 >> 1) - 1 : (tx1 >> 1);
+					tx2 = (tx2 & 1) ? (tx2 >> 1) + 1 : (tx2 >> 1);
 				}
 
 				lastx = tx1;
@@ -2344,7 +2650,7 @@ short VSOPulseOne
 								cursOff = 1;
 								VSIcuroff(w);
 							}
-							RSdraw(w, lastx, y, ypa->lattr, lasta, x-lastx, pt + lastx);
+							RSdraw(w, lastx, y, ypt->lattr, lasta, x-lastx, pt + lastx);
 							if ( cursOff ) {
 								// restore cursor at original position
 								cursOff = 0;
@@ -2361,7 +2667,7 @@ short VSOPulseOne
 						cursOff = 1;
 						VSIcuroff(w);
 					}
-					RSdraw(w, lastx, y, ypa->lattr, lasta, tx2-lastx+1, pt + lastx);
+					RSdraw(w, lastx, y, ypt->lattr, lasta, tx2-lastx+1, pt + lastx);
 					if ( cursOff ) {
 						// restore cursor at original position
 						cursOff = 0;
@@ -2370,9 +2676,9 @@ short VSOPulseOne
 				}
 
 				// if double size, we must shift width
-				if (ypa->lattr & 3) {
-					tx1 <<= 1;
-					tx2 <<= 1;
+				if (VSisdecdwh(ypt->lattr)) {
+					tx1 = sx1;
+					tx2 = sx2;
 				}
 
 				ypt = ypt->next;
@@ -2382,7 +2688,10 @@ short VSOPulseOne
 	}
 
 	/* back to default window colors */
+    RSsetwind(w);
 	RSsetattr( 0, 0 );
 
 	return 0;
 }
+
+

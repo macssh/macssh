@@ -29,9 +29,13 @@
 #include "vsinterf.proto.h"
 
 #include "macros.proto.h"
+#include "netevent.proto.h"
 
 #include "Sets.proto.h" //for CStringToFile
 #include "movableModal.h"
+#include "PasswordDialog.h"
+
+extern void ssh2_sched();
 
 /* Macro Defines */
 #define MACRO_IP		0xff	/* Send IP number here */
@@ -379,6 +383,9 @@ short	sendmacro(struct WindRec *tw, short n)				/* send macro number n */
 	unsigned char	myipnum[4];
 	Handle			mh, ph;
 	short			i, num, pos, escape, length;
+	char			*plabel;
+	Str255			password;
+	unsigned long	startTicks;
 	
 	// Invalid number
 	if (n < 0 || n >= NUM_MACROS) {
@@ -402,7 +409,7 @@ short	sendmacro(struct WindRec *tw, short n)				/* send macro number n */
 
 	s = (unsigned char *)*mh;
 
-	ph = myNewHandle(GetHandleSize(mh));
+	ph = myNewHandle(GetHandleSize(mh) + 256);
 	if (!ph) return 0; // ouch
 	HLock(ph);
 	first = p = (unsigned char *)*ph;
@@ -417,8 +424,7 @@ short	sendmacro(struct WindRec *tw, short n)				/* send macro number n */
 	escape = 0;
 
 	while ( *s) {
-		if (((!(*s >= '0' && *s <= '9')) && pos && escape) ||
-		(escape && (pos >= 3))) {
+		if (escape == 1 && (((*s < '0' || *s > '9') && pos) || pos >= 3)) {
 												  // do this ONCE -
 												  // it's a kludge to do this in each case
 			*p++=num;
@@ -426,20 +432,20 @@ short	sendmacro(struct WindRec *tw, short n)				/* send macro number n */
 			escape = 0;
 			// now the rest of the code will take care of whatever char this was
 		}
-		if (escape) {
+		if (escape == 1) {
 			escape = 0;
 			switch (*s) {
 				case 'i':
 					SendStringAsIfTyped(tw, (char *)first, p-first);
 					sprintf(temp,"%d.%d.%d.%d", myipnum[0], myipnum[1], myipnum[2], myipnum[3]);
 					SendStringAsIfTyped(tw, temp, strlen(temp));
-					first = p;
+					first = p = (unsigned char *)*ph;
 					break;
 				case '#':
 					SendStringAsIfTyped(tw, (char *)first, p-first);
 					sprintf(temp,"%d", VSgetlines(tw->vs));
 					SendStringAsIfTyped(tw, temp, strlen(temp));
-					first = p;
+					first = p = (unsigned char *)*ph;
 					break;
 				case 'n':
 					*p++='\012';
@@ -455,6 +461,9 @@ short	sendmacro(struct WindRec *tw, short n)				/* send macro number n */
 					break;
 				case '\\':
 					*p++='\\';
+					break;
+				case 'k':
+					escape = 2;
 					break;
 				default:
 					if (*s <='9' && *s >='0' && pos <3) {
@@ -475,8 +484,37 @@ short	sendmacro(struct WindRec *tw, short n)				/* send macro number n */
 						}
 					break;
 				}
+		} else if (escape == 2) {
+			if (*s == '{') {
+				escape = 3;
+				plabel = NULL;
+			} else {
+				escape = 0;
 			}
-		else {
+		} else if (escape == 3) {
+			if (*s != '}') {
+				if ( plabel == NULL )
+					plabel = s;
+			} else {
+				*s = 0;
+				if (plabel && SSH2PasswordDialog(plabel, password)) {
+					SendStringAsIfTyped(tw, (char *)first, p-first);
+					// better wait for echo off...
+					startTicks = TickCount();
+					while (TickCount() - startTicks < 30) {
+						ssh2_sched();
+						DoNetEvents();
+					}
+					first = p = (unsigned char *)*ph;
+					SendStringAsIfTyped(tw, (char *)password + 1, password[0]);
+				} else {
+					// malformed macro, or pasword cancel
+					first = p = (unsigned char *)*ph;
+					break;
+				}
+				escape = 0;
+			}
+		} else {
 			if (*s=='\\') {
 				num=0;
 				pos=0;

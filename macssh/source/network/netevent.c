@@ -34,6 +34,7 @@
 #include "rsinterf.proto.h"
 #include "vrrgmac.proto.h"
 #include "tekrgmac.proto.h"
+#include "translate.h"
 #include "vsdata.h"
 #include "vskeys.h"
 #include "translate.proto.h"
@@ -227,85 +228,81 @@ void pasteText(short scrn)
 {
 	short amount;
 	long uploadLength;
+	WindRec *tw = &screens[scrn];
 
-	if (!screens[scrn].outlen)
+	if (!tw->outlen)
 		return;
 
 
-	if (netpush(screens[scrn].port) != 0) {			/* BYU 2.4.16 - wait until not busy */
+	if (netpush(tw->port) != 0) {			/* BYU 2.4.16 - wait until not busy */
 		netputevent( USERCLASS, PASTELEFT, scrn,0);	/* BYU 2.4.16 */
 		return;										/* BYU 2.4.16 */
 	}												/* BYU 2.4.16 */
-	if (screens[scrn].incount) {					/* BYU 2.4.16 */
-		screens[scrn].incount = 0;					/* BYU 2.4.16 */
-		screens[scrn].outcount = 0;					/* BYU 2.4.16 */
+	if (tw->incount) {					/* BYU 2.4.16 */
+		tw->incount = 0;					/* BYU 2.4.16 */
+		tw->outcount = 0;					/* BYU 2.4.16 */
 		netputevent( USERCLASS, PASTELEFT, scrn,0);	/* BYU 2.4.16 */
 		return;										/* BYU 2.4.16 */
 	}												/* BYU 2.4.16 */
-	if (screens[scrn].outcount < 2) {				/* BYU 2.4.16 */
-		screens[scrn].outcount++;					/* BYU 2.4.16 */
+	if (tw->outcount < 2) {				/* BYU 2.4.16 */
+		tw->outcount++;					/* BYU 2.4.16 */
 		netputevent( USERCLASS, PASTELEFT, scrn,0);	/* BYU 2.4.16 */
 		return;										/* BYU 2.4.16 */
 	}
-	if (netqlen(screens[scrn].port) > 0) {			/* BYU 2.4.16 - wait until not full */
+	if (netqlen(tw->port) > 0) {			/* BYU 2.4.16 - wait until not full */
 		netputevent( USERCLASS, PASTELEFT, scrn,0);	/* BYU 2.4.16 */
 		return;										/* BYU 2.4.16 */
 	}												/* BYU 2.4.16 */
 
-	if (!screens[scrn].pastemethod) {	// Do this all at once?
-		amount = netwrite(screens[scrn].port, screens[scrn].outptr,
-							screens[scrn].outlen);
+	if (!tw->pastemethod) {	// Do this all at once?
+		amount = netwrite(tw->port, tw->outptr,
+							tw->outlen);
 		}
 	else {		// Nope, do it in blocks
-		if (screens[scrn].pastesize <= screens[scrn].outlen)
-			amount = screens[scrn].pastesize;
+		if (tw->pastesize <= tw->outlen)
+			amount = tw->pastesize;
 		else
-			amount = screens[scrn].outlen;
-		amount = netwrite(screens[scrn].port, screens[scrn].outptr, amount);
+			amount = tw->outlen;
+		amount = netwrite(tw->port, tw->outptr, amount);
 		}
 		
-	if (screens[scrn].echo)	
-		parse( &screens[scrn],(unsigned char *) screens[scrn].outptr,amount);
+	if (tw->echo)	
+		parse( tw,(unsigned char *) tw->outptr,amount);
 	
-	screens[scrn].outlen -= amount;	
-	screens[scrn].outptr += (long) amount;
+	tw->outlen -= amount;	
+	tw->outptr += (long) amount;
 
-	if ((screens[scrn].isUploading) && (screens[scrn].outlen <= 0)) {
-		HLock(screens[scrn].outhand);			// Lock the Handle down for safety
-		screens[scrn].outptr = *screens[scrn].outhand;
-
+	if ( tw->isUploading && tw->outlen <= 0 ) {
 		uploadLength = 16384;
-		FSRead(screens[scrn].uploadRefNum, &uploadLength, screens[scrn].outptr);
-
-		if (uploadLength > 0) {
-
-			screens[scrn].outlen = uploadLength;			// Set the length
-			HUnlock(screens[scrn].outhand);
-			SetHandleSize(screens[scrn].outhand, uploadLength); // now REALLY set the length
-			HLock(screens[scrn].outhand);
-
-			screens[scrn].clientflags |= PASTE_IN_PROGRESS;
-			if (uploadLength == 16384) {
-				screens[scrn].isUploading = 1;
-			} else {
-				FSClose(screens[scrn].uploadRefNum);
-				screens[scrn].isUploading = 0;
+		HUnlock( tw->outhand );
+		SetHandleSize(tw->outhand, uploadLength);
+		HLock( tw->outhand );
+		FSRead(tw->uploadRefNum, &uploadLength, *tw->outhand);
+		if ( uploadLength > 0 ) {
+			SetHandleSize(tw->outhand, uploadLength);
+			if ( GetTranslationIndex(tw->outnational) != kTRJIS )
+				tw->outhand = htrbuf_mac_nat(tw, tw->outhand);
+			HLock(tw->outhand);
+			tw->outptr = *tw->outhand;
+			tw->outlen = GetHandleSize(tw->outhand);
+			tw->clientflags |= PASTE_IN_PROGRESS;
+			if (uploadLength != 16384) {
+				tw->isUploading = 0;
+				FSClose(tw->uploadRefNum);
 			}
-			screens[scrn].incount = 0;
-			screens[scrn].outcount = 0;
-			
-			trbuf_mac_nat((unsigned char *)screens[scrn].outptr,screens[scrn].outlen, screens[scrn].national);	// LU: translate to national chars
+			tw->incount = 0;
+			tw->outcount = 0;
+			//pasteText(scrn);
 			netputevent(USERCLASS, PASTELEFT, scrn, 0);
 			return;
 		}
 	}
 
-	if ( screens[scrn].outlen <=0) {
+	if ( tw->outlen <= 0) {
 		int left;
-		WindRec *tw = &screens[scrn];
 		tw->clientflags &= ~PASTE_IN_PROGRESS;
-		if (screens[scrn].isUploading)
-			FSClose(screens[scrn].uploadRefNum);
+		if (tw->isUploading)
+			FSClose(tw->uploadRefNum);
 		HUnlock(tw->outhand);
 		DisposeHandle(tw->outhand);
 		tw->outptr = (char *) 0L;	

@@ -29,17 +29,20 @@ void InitDebug(void)
 	Rect pRect;
 	TerminalPrefs **termHdl;
 	Boolean scratchBoolean;
+	unsigned long flags;
+
 	console = (WindRec *) myNewPtr(sizeof(WindRec));
+	console->vs = -1;
 	
 //	SetRect(&pRect, 50, 150, 700, 350);		// Need to make this a resource!
 	SetRect(&pRect, 50, 150, 0, 0);
 	
-/*
-	console->vs=RSnewwindow( &pRect, 350, 80, 24,
-					"\p<console>", 1, DefFONT, DefSIZE, TelInfo->debug,0,0,0,0,0,1, DefFONT, DefSIZE, 0, 0, 1, 0, 0);
-*/
-	console->vs=RSnewwindow( &pRect, 2000, 80, 24,
-					"\p<console>", 1, DefFONT, DefSIZE, TelInfo->debug,0,0,0,0,0,1, DefFONT, DefSIZE, 0, 0, 1, 0, 0);	/* NCSA 2.5 */
+	flags = RSWwrapon | RSWgoaway | RSWignoreBeeps | RSWsavelines;
+	if (TelInfo->debug)
+		flags |= RSWshowit;
+
+	console->vs=RSnewwindow( &pRect, 2000, 80, 24, "\p<console>", DefFONT, DefSIZE, 0,
+							DefFONT, DefSIZE, 0, 0, flags);
 
 	console->wind = RSgetwindow( console->vs);
 	((WindowPeek)console->wind)->windowKind = WIN_CONSOLE;
@@ -48,7 +51,10 @@ void InitDebug(void)
 	console->active=0;
 	console->port=-1;
 	console->termstate=VTEKTYPE;
-	console->national = 0;			/* LU: no translation */
+	console->innational = 0;			/* LU: no translation */
+	console->incharset = -1;
+	console->outnational = 0;
+	console->outcharset = -1;
 	UseResFile(TelInfo->SettingsFile);
 	termHdl = (TerminalPrefs **)Get1NamedSizedResource
 				(TERMINALPREFS_RESTYPE, "\p<Default>", sizeof(TerminalPrefs));
@@ -87,8 +93,8 @@ void putlln( char *cp, short len )
 	char buf[256];
 	short temp;
 
-	size =  VSgetcols(console->vs) + 1;
-	while (len > 0) {
+	size = VSgetcols(console->vs) + 1;
+	while ( size > 0 && len > 0 ) {
 		short inlen = 0;
 		short outlen = 0;
 		temp = len;

@@ -553,6 +553,100 @@ OSErr OpenHelperWithURL (OSType sig, char *url)
 }
 #define isurlschemechar(c)				(isalnum((c)) || c == '+' || c == '.' || c == '-')
 
+
+/*
+ * FindURLAroundPoint
+ *
+ * called by RSSelect when Command Click has occured outside any selection.
+ * This routine looks for urls around the current point, makes that the selected area if
+ * it finds one, and returns TRUE.  Otherwise leaves the current selection area untouched
+ * and returns FALSE.
+ */
+
+Boolean FindURLAroundPoint(Point curr, short w)
+{
+	Boolean found;
+	short columns;
+	short blockSize;
+	Handle lblock;
+	Handle rblock;
+	Point topleft;
+	Point botright;
+	short lblockSize;
+	short rblockSize;
+	char *p, *q, cp, cq;
+
+	found = FALSE;
+	columns = VSgetcols(w) + 1; // VSgetcols returns one less than the number of columns
+
+	if ( curr.h < 0 )
+		curr.h = 0;
+	if ( curr.h >= columns )
+		curr.h = columns - 1;
+
+	topleft.h = curr.h - 255;
+	topleft.v = curr.v;
+	while ( topleft.h < 0 ) {
+		topleft.h += columns;
+		--topleft.v;
+	}
+	blockSize = 255 + (curr.v - topleft.v) + 1;
+	lblock = myNewHandle(blockSize);
+	HLock(lblock);
+	lblockSize = VSgettext(w, topleft.h, topleft.v, curr.h, curr.v, *lblock, blockSize, "\015", 0, 0);
+
+	botright.h = curr.h + 255;
+	botright.v = curr.v;
+	while ( botright.h >= columns ) {
+		botright.h -= columns;
+		++botright.v;
+	}
+	blockSize = 255 + (botright.v - curr.v) + 1;
+	rblock = myNewHandle(blockSize);
+	HLock(rblock);
+	rblockSize = VSgettext(w, curr.h, curr.v, botright.h, botright.v, *rblock, blockSize, "\015", 0, 0);
+
+	blockSize = lblockSize + rblockSize;
+	HUnlock(lblock);
+	SetHandleSize(lblock, blockSize);
+	HLock(lblock);
+	BlockMoveData( *rblock, *lblock + lblockSize, rblockSize );
+	DisposeHandle(rblock);
+	p = *lblock + lblockSize;
+	if ( !isLWSPorCR(*p) ) {
+		topleft.h = curr.h;
+		topleft.v = curr.v;
+		while ( p > *lblock && *p != '<' && !isLWSPorCR(p[-1]) && p[-1] != '"') {
+			--p;
+			if ( --topleft.h < 0 ) {
+				topleft.h += columns;
+				--topleft.v;
+			}
+		}
+		q = *lblock + lblockSize;	// check first char of second block
+		botright.h = curr.h + 1;
+		botright.v = curr.v;
+		while ( q < *lblock + blockSize && *q != '>' && !isLWSPorCR(q[1]) && q[1] != '"' ) {
+			++q;
+			if ( ++botright.h >= columns ) {
+				botright.h -= columns;
+				++botright.v;
+			}
+		}
+		if ( q < *lblock + blockSize ) {
+			if (p < q && q - p < 256 && ((*p == '<' && *q == '>') || (*p != '<' && *q != '>'))) {
+				// found something
+				HiliteThis(w, topleft, botright);
+				found = TRUE;
+			}
+		}
+	}
+	DisposeHandle(lblock);
+	return found;
+}
+
+#if 0
+
 Boolean FindURLAroundPoint(Point curr, short w)
 {
 	/* called by RSSelect when Command Click has occured outside any selection.
@@ -564,7 +658,6 @@ Boolean FindURLAroundPoint(Point curr, short w)
 	Handle block;
 	char *original, *start, *end, *textEnd, *p, *q;
 	short i, numLines = 1;
-	char EOLS = CR;
 	short neededLines, endLine = 0, startLine = 0;
 	short blockSize;
 	Point startPoint, endPoint;
@@ -606,7 +699,7 @@ Boolean FindURLAroundPoint(Point curr, short w)
 	textEnd = *block + blockSize;
 
 	/* get the lines we need */
-	VSgettext(w, 0, firstLine, columns-1, lastLine, *block, blockSize, &EOLS, 0);
+	VSgettext(w, 0, firstLine, columns-1, lastLine, *block, blockSize, "\015", 0, 0);
 
 	original = *block;
 										// RJZ 12/12/97.  Fixed so that after
@@ -750,3 +843,5 @@ Boolean FindURLAroundPoint(Point curr, short w)
 	DisposeHandle(block);
 	return TRUE;
 }
+
+#endif
