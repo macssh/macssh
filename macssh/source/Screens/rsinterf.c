@@ -1516,14 +1516,21 @@ void RSfontmetrics
   {
 	FontInfo finforec;
 	GrafPtr myGP;
+	StyleField txFace;
  
 	GetPort(&myGP); 
 	GetFontInfo(&finforec);
 	RScurrent->fascent = finforec.ascent;
 	RScurrent->fheight = finforec.ascent + finforec.descent + finforec.leading /* +1 */;
 	RScurrent->monospaced = (CharWidth('W') == CharWidth('i'));   
-
+	txFace = myGP->txFace;
+	TextFace( 0 );
 	RScurrent->fwidth = CharWidth('W'); 
+	TextFace( bold );
+	RScurrent->boldislarger = ( CharWidth('W') != RScurrent->fwidth);
+	TextFace( txFace );
+
+/*	SetFontInfo(&finforec);*/
 }
 
 pascal void ScrollProc(ControlHandle control, short part)
