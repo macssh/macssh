@@ -19,23 +19,16 @@
 extern "C" {
 #endif
 
+char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *dirID);
+
 void ssh2_sched();
 
-char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *dirID);
+void ssh2_doevent(long sleepTime);
 
 #ifdef __cplusplus
 }
 #endif
 
-
-/*
- * ssh2_sched
- */
-
-void ssh2_sched()
-{
-	sched_yield();
-}
 
 /*
  * getprefsd return the full path of prefs directory
@@ -296,4 +289,22 @@ int select(int width, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, stru
  	*exceptfds = exceptres;	
 
 	return count;
+}
+
+/*
+ * ssh2_sched
+ */
+
+void ssh2_sched()
+{
+	sched_yield();
+}
+
+/*
+ * GUSIHandleNextEvent
+ */
+
+void GUSIHandleNextEvent(long sleepTime)
+{
+	ssh2_doevent(sleepTime);
 }
