@@ -21,9 +21,6 @@ void GUSIwithoutTTYSockets();
 void ssh2_init();
 void ssh2_terminate();
 
-void add_one_file(struct lshcontext *context, int fd);
-void remove_one_file(struct lshcontext *context, int fd);
-
 #ifdef __cplusplus
 }
 #endif
@@ -36,22 +33,6 @@ void remove_one_file(struct lshcontext *context, int fd);
  *
  * Questions : alexandre parenteau (aubonbeurre@hotmail.com)
  */
-
-static void myGusiMSLAddFile(int fd)
-{
-	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-	if ( context ) {
-		add_one_file(context, fd);
-	}
-}
-
-static void myGusiMSLRemoveFile(int fd)
-{
-	lshcontext *context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-	if ( context ) {
-		remove_one_file(context, fd);
-	}
-}
 
 /*
  * ssh2_init
@@ -66,9 +47,6 @@ void ssh2_init()
 
 		GUSIwithTTYSockets();
 
-		GusiMSLSetAddFile(myGusiMSLAddFile);
-		GusiMSLSetRemoveFile(myGusiMSLRemoveFile);
-
 		sGUSISetup = true;
 	}
 }
@@ -78,9 +56,6 @@ void ssh2_terminate()
 	if ( sGUSISetup ) {
 
 		GUSIwithoutTTYSockets();
-
-		GusiMSLSetAddFile(0L);
-		GusiMSLSetRemoveFile(0L);
 
 		sGUSISetup = false;
 	}
