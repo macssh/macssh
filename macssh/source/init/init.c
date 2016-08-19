@@ -57,9 +57,6 @@ extern char *getprefsd(char *name, char * buf, size_t size, short *vRefNum, long
 
 /*--------------------------------------------------------------------------------*/
 #define CurrentVersion 1		/* Last known SysEnvirons version */
-#define HFSPtr ((long *)1014)
-
-//extern	char *tempspot;		 	/* for temp storage only */
 
 Boolean gInitialized = 0;
 
@@ -71,7 +68,6 @@ extern	WindRec
 extern	MenuHandle	myMenus[];
 
 OSErr		io;
-SysEnvRec	theWorld;						/* System Environment record */
 short		TempItemsVRefNum;
 long		TempItemsDirID;
 Boolean		gKeyboardHasControlKey, gAEavail;
@@ -80,21 +76,6 @@ short **topLeftCorners;  //CCP 2.7: Better window positioning scheme
 
 Boolean authOK;					// true if authentication driver available
 Boolean encryptOK;				// true if des encryption routines available
-
-/*	checkCONF - check if the user clicked on a configuration file */
-void checkCONF( void)
-{
-	short	i,mess,count;
-//	AppFile	theFile;
-	FSSpec	FileSpec;
-	long	junk = 0;
-
-	if (gAEavail) return;	// If AppleEvents are available, we'll get ODOCs
-
-// System 6 users: TOO BAD. The old file code has been removed as of 2.0b2.
-
-	return;
-}
 
 void initEvents( void)
 {
@@ -199,36 +180,11 @@ void initmcurs ( short debug)
 	setLastCursor(theCursors[normcurs]);
 }
 
-/* 	If a file with the filetype "DBUG" was sent to us, set the debug mode. */
-short checkdebug( void)
-{
-	short i,mess,count;
-//	AppFile theFile;
-	long junk = 0;
-
-	if (gAEavail) return(FALSE);	// 	Don't use CountAppFiles if AppleEvents
-									//	are available.
-// removed old Sys6 stuff (RAB 2.0b2)
-
-	return (FALSE);
-
-}
-
 void InquireEnvironment( void)
 {
 	OSErr	err;
-	Boolean HFSflag;
 	long	response;
-
-										// RJZ.  12/10/97.  Got rid of test for
-										// HFS.  Checking absolute memory
-										// locations is bad.
-
-// Hey, we need System 7 anyway...
-//	long *HFSp=(long *)1014L;
-	
-//	HFSflag= (*HFSp) > 0L;
-//	if (!HFSflag) FatalAlert(NEED_HFS_ERR, 0, 0);
+	SysEnvRec	theWorld;
 
 	err = SysEnvirons(CurrentVersion, &theWorld);
 	
@@ -459,7 +415,7 @@ void init(void)
 	ShowWindow(dtemp);
 	DrawDialog(dtemp);										/* while we init everything */
 	scriptKbdInit(); 
-	TelInfo->debug=checkdebug();	/* must return TRUE or FALSE */
+	TelInfo->debug=FALSE;
 
 	initmcurs(0);		/* init the mouse cursor */
 	setLastCursor(theCursors[watchcurs]);
@@ -520,8 +476,6 @@ void init(void)
 
 	MyDragInit();
 	
-	checkCONF();	 				/* Did user click on a set? */
-
 	DisposeDialog(dtemp);			/* Remove the splashbox...  */
 	AdjustMenus(); // and adjust the menus again - RAB BetterTelnet 1.2
 
