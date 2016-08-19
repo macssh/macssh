@@ -27,6 +27,7 @@
 #define	ROM_VERS_ERR			11			// Telnet requires at least 128k ROMS
 #define	AE_PROBLEM_ERR			12			// Problem installing AppleEvent handlers
 #define CLOSE_ALL_WINDOWS_Q		13			// For Option-Command-W
+#define NEED_APPLEEVENTS_ERR	14			// AppleEvent Manager is required
 #define	OPFAILED_MESSAGES_ID	2001		// General messages when an operation fails
 #define	CANT_CREATE_FILE		1			// Can't create a file for some reason
 #define	CANT_OPEN_FILE			2			// Can't open a file

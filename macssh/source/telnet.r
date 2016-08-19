@@ -7107,66 +7107,6 @@ data 'STR ' (1991, "Preferences File Name", purgeable) {
 	$"0C4D 6163 5353 4820 5072 6566 73"                   /* .MacSSH Prefs */
 };
 
-data 'STR#' (2000, "Misc. messages", purgeable) {
-	$"000D 5454 6865 2070 7265 6665 7265 6E63"            /* ..TThe preferenc */
-	$"6573 2066 696C 6520 6170 7065 6172 7320"            /* es file appears  */
-	$"746F 2062 6520 636F 7272 7570 7465 642E"            /* to be corrupted. */
-	$"2020 4920 6361 6E20 6174 7465 6D70 7420"            /*   I can attempt  */
-	$"746F 2063 6F72 7265 6374 2074 6865 2070"            /* to correct the p */
-	$"726F 626C 656D 2E6F 4120 7669 7461 6C20"            /* roblem.oA vital  */
-	$"7265 736F 7572 6365 2061 7070 6561 7273"            /* resource appears */
-	$"2074 6F20 6265 206D 6973 7369 6E67 206F"            /*  to be missing o */
-	$"7220 6973 2063 6F72 7275 7074 6564 2E20"            /* r is corrupted.  */
-	$"2050 6C65 6173 6520 7265 706C 6163 6520"            /*  Please replace  */
-	$"7468 6520 4D61 6353 5348 2061 7070 6C69"            /* the MacSSH appli */
-	$"6361 7469 6F6E 2077 6974 6820 6120 6E65"            /* cation with a ne */
-	$"7720 636F 7079 2E56 556E 6162 6C65 2074"            /* w copy.VUnable t */
-	$"6F20 7265 7061 6972 2074 6865 2070 7265"            /* o repair the pre */
-	$"6665 7265 6E63 6573 2066 696C 652E 2020"            /* ferences file.   */
-	$"596F 7520 6D75 7374 2071 7569 7420 616E"            /* You must quit an */
-	$"6420 6465 6C65 7465 2074 6865 2070 7265"            /* d delete the pre */
-	$"6665 7265 6E63 6573 2066 696C 652E 9A54"            /* ferences file.šT */
-	$"6865 2070 7265 6665 7265 6E63 6573 206F"            /* he preferences o */
-	$"6E20 6469 736B 2061 7265 2061 206E 6577"            /* n disk are a new */
-	$"6572 2076 6572 7369 6F6E 2074 6861 6E20"            /* er version than  */
-	$"4920 6361 6E20 6861 6E64 6C65 2E20 2053"            /* I can handle.  S */
-	$"686F 756C 6420 4920 7374 696C 6C20 7361"            /* hould I still sa */
-	$"7665 2074 6865 2063 7572 7265 6E74 2070"            /* ve the current p */
-	$"7265 6665 7265 6E63 6573 2C20 6F76 6572"            /* references, over */
-	$"7772 6974 696E 6720 7468 6F73 6520 4920"            /* writing those I  */
-	$"646F 6E27 7420 6B6E 6F77 2068 6F77 2074"            /* don't know how t */
-	$"6F20 6861 6E64 6C65 3F3D 416E 2065 7272"            /* o handle?=An err */
-	$"6F72 206F 6363 7572 7265 6420 7768 696C"            /* or occurred whil */
-	$"6520 6174 7465 6D70 7469 6E67 2074 6F20"            /* e attempting to  */
-	$"6F70 656E 2074 6865 204D 6163 5443 5020"            /* open the MacTCP  */
-	$"6472 6976 6572 2E6D 5468 6572 6520 6172"            /* driver.mThere ar */
-	$"6520 636F 6E6E 6563 7469 6F6E 7320 7374"            /* e connections st */
-	$"696C 6C20 6163 7469 7665 206F 7220 6F70"            /* ill active or op */
-	$"656E 696E 672E 2020 5175 6974 7469 6E67"            /* ening.  Quitting */
-	$"206E 6F77 2077 696C 6C20 6162 6F72 7420"            /*  now will abort  */
-	$"7468 656D 2E20 2044 6F20 796F 7520 7265"            /* them.  Do you re */
-	$"616C 6C79 2077 6973 6820 746F 2064 6F20"            /* ally wish to do  */
-	$"7468 6973 3F24 556E 6162 6C65 2074 6F20"            /* this?$Unable to  */
-	$"6372 6561 7465 2061 2050 7265 6665 7265"            /* create a Prefere */
-	$"6E63 6573 2046 696C 652E 144D 6163 5353"            /* nces File..MacSS */
-	$"4820 7265 7175 6972 6573 2048 4653 2E22"            /* H requires HFS." */
-	$"5072 6F62 6C65 6D20 7769 7468 2074 6865"            /* Problem with the */
-	$"2053 7973 456E 7669 726F 6E73 2063 6F64"            /*  SysEnvirons cod */
-	$"652E 244D 6163 5353 4820 7265 7175 6972"            /* e.$MacSSH requir */
-	$"6573 204D 6163 204F 5320 372E 3020 6F72"            /* es Mac OS 7.0 or */
-	$"206C 6174 6572 2E23 4D61 6353 5348 2072"            /*  later.#MacSSH r */
-	$"6571 7569 7265 7320 6174 206C 6561 7374"            /* equires at least */
-	$"2031 3238 6B20 524F 4D73 2E2B 4661 7461"            /*  128k ROMs.+Fata */
-	$"6C20 6572 726F 7220 696E 7374 616C 6C69"            /* l error installi */
-	$"6E67 2041 7070 6C65 4576 656E 7420 6861"            /* ng AppleEvent ha */
-	$"6E64 6C65 7273 2E52 5468 6572 6520 6172"            /* ndlers.RThere ar */
-	$"6520 636F 6E6E 6563 7469 6F6E 7320 7374"            /* e connections st */
-	$"696C 6C20 6163 7469 7665 2E20 2044 6F20"            /* ill active.  Do  */
-	$"796F 7520 7265 616C 6C79 2077 616E 7420"            /* you really want  */
-	$"746F 2063 6C6F 7365 2061 6C6C 2074 6865"            /* to close all the */
-	$"2077 696E 646F 7773 3F0D"                           /*  windows?. */
-};
-
 data 'STR#' (2001, "Operation Failed Messages", preload) {
 	$"0008 1E74 6865 2066 696C 6520 636F 756C"            /* ...the file coul */
 	$"6420 6E6F 7420 6265 2063 7265 6174 6564"            /* d not be created */
@@ -7855,6 +7795,69 @@ data 'STR#' (7004, "Session Config Strings", purgeable) {
 	$"7277 6172 6420 5831 311E 6B65 6570 2073"            /* rward X11.keep s */
 	$"656C 6563 7469 6F6E 206F 6E20 6368 616E"            /* election on chan */
 	$"6765 6420 7465 7874"                                /* ged text */
+};
+
+data 'STR#' (2000, "Misc. messages", purgeable) {
+	$"000E 5454 6865 2070 7265 6665 7265 6E63"            /* ..TThe preferenc */
+	$"6573 2066 696C 6520 6170 7065 6172 7320"            /* es file appears  */
+	$"746F 2062 6520 636F 7272 7570 7465 642E"            /* to be corrupted. */
+	$"2020 4920 6361 6E20 6174 7465 6D70 7420"            /*   I can attempt  */
+	$"746F 2063 6F72 7265 6374 2074 6865 2070"            /* to correct the p */
+	$"726F 626C 656D 2E6F 4120 7669 7461 6C20"            /* roblem.oA vital  */
+	$"7265 736F 7572 6365 2061 7070 6561 7273"            /* resource appears */
+	$"2074 6F20 6265 206D 6973 7369 6E67 206F"            /*  to be missing o */
+	$"7220 6973 2063 6F72 7275 7074 6564 2E20"            /* r is corrupted.  */
+	$"2050 6C65 6173 6520 7265 706C 6163 6520"            /*  Please replace  */
+	$"7468 6520 4D61 6353 5348 2061 7070 6C69"            /* the MacSSH appli */
+	$"6361 7469 6F6E 2077 6974 6820 6120 6E65"            /* cation with a ne */
+	$"7720 636F 7079 2E56 556E 6162 6C65 2074"            /* w copy.VUnable t */
+	$"6F20 7265 7061 6972 2074 6865 2070 7265"            /* o repair the pre */
+	$"6665 7265 6E63 6573 2066 696C 652E 2020"            /* ferences file.   */
+	$"596F 7520 6D75 7374 2071 7569 7420 616E"            /* You must quit an */
+	$"6420 6465 6C65 7465 2074 6865 2070 7265"            /* d delete the pre */
+	$"6665 7265 6E63 6573 2066 696C 652E 9A54"            /* ferences file.šT */
+	$"6865 2070 7265 6665 7265 6E63 6573 206F"            /* he preferences o */
+	$"6E20 6469 736B 2061 7265 2061 206E 6577"            /* n disk are a new */
+	$"6572 2076 6572 7369 6F6E 2074 6861 6E20"            /* er version than  */
+	$"4920 6361 6E20 6861 6E64 6C65 2E20 2053"            /* I can handle.  S */
+	$"686F 756C 6420 4920 7374 696C 6C20 7361"            /* hould I still sa */
+	$"7665 2074 6865 2063 7572 7265 6E74 2070"            /* ve the current p */
+	$"7265 6665 7265 6E63 6573 2C20 6F76 6572"            /* references, over */
+	$"7772 6974 696E 6720 7468 6F73 6520 4920"            /* writing those I  */
+	$"646F 6E27 7420 6B6E 6F77 2068 6F77 2074"            /* don't know how t */
+	$"6F20 6861 6E64 6C65 3F3D 416E 2065 7272"            /* o handle?=An err */
+	$"6F72 206F 6363 7572 7265 6420 7768 696C"            /* or occurred whil */
+	$"6520 6174 7465 6D70 7469 6E67 2074 6F20"            /* e attempting to  */
+	$"6F70 656E 2074 6865 204D 6163 5443 5020"            /* open the MacTCP  */
+	$"6472 6976 6572 2E6D 5468 6572 6520 6172"            /* driver.mThere ar */
+	$"6520 636F 6E6E 6563 7469 6F6E 7320 7374"            /* e connections st */
+	$"696C 6C20 6163 7469 7665 206F 7220 6F70"            /* ill active or op */
+	$"656E 696E 672E 2020 5175 6974 7469 6E67"            /* ening.  Quitting */
+	$"206E 6F77 2077 696C 6C20 6162 6F72 7420"            /*  now will abort  */
+	$"7468 656D 2E20 2044 6F20 796F 7520 7265"            /* them.  Do you re */
+	$"616C 6C79 2077 6973 6820 746F 2064 6F20"            /* ally wish to do  */
+	$"7468 6973 3F24 556E 6162 6C65 2074 6F20"            /* this?$Unable to  */
+	$"6372 6561 7465 2061 2050 7265 6665 7265"            /* create a Prefere */
+	$"6E63 6573 2046 696C 652E 144D 6163 5353"            /* nces File..MacSS */
+	$"4820 7265 7175 6972 6573 2048 4653 2E22"            /* H requires HFS." */
+	$"5072 6F62 6C65 6D20 7769 7468 2074 6865"            /* Problem with the */
+	$"2053 7973 456E 7669 726F 6E73 2063 6F64"            /*  SysEnvirons cod */
+	$"652E 244D 6163 5353 4820 7265 7175 6972"            /* e.$MacSSH requir */
+	$"6573 204D 6163 204F 5320 372E 3020 6F72"            /* es Mac OS 7.0 or */
+	$"206C 6174 6572 2E23 4D61 6353 5348 2072"            /*  later.#MacSSH r */
+	$"6571 7569 7265 7320 6174 206C 6561 7374"            /* equires at least */
+	$"2031 3238 6B20 524F 4D73 2E2B 4661 7461"            /*  128k ROMs.+Fata */
+	$"6C20 6572 726F 7220 696E 7374 616C 6C69"            /* l error installi */
+	$"6E67 2041 7070 6C65 4576 656E 7420 6861"            /* ng AppleEvent ha */
+	$"6E64 6C65 7273 2E52 5468 6572 6520 6172"            /* ndlers.RThere ar */
+	$"6520 636F 6E6E 6563 7469 6F6E 7320 7374"            /* e connections st */
+	$"696C 6C20 6163 7469 7665 2E20 2044 6F20"            /* ill active.  Do  */
+	$"796F 7520 7265 616C 6C79 2077 616E 7420"            /* you really want  */
+	$"746F 2063 6C6F 7365 2061 6C6C 2074 6865"            /* to close all the */
+	$"2077 696E 646F 7773 3F0D 274D 6163 5353"            /*  windows?.'MacSS */
+	$"4820 7265 7175 6972 6573 2074 6865 2041"            /* H requires the A */
+	$"7070 6C65 4576 656E 7420 4D61 6E61 6765"            /* ppleEvent Manage */
+	$"722E"                                               /* r. */
 };
 
 data 'SeSn' (1991, "<Default>") {

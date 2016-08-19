@@ -44,7 +44,6 @@ extern char *getctxprompt();
 extern pthread_key_t ssh2threadkey;
 
 extern TelInfoRec	*TelInfo;
-extern Boolean		gAEavail;
 
 static pascal Boolean RandomizeFilter(DialogPtr dlog,EventRecord *event,short *itemHit);
 OSErr InteractWithUser( Boolean isUrgent, short sicnResID, short strResID );
@@ -702,7 +701,7 @@ OSErr InteractWithUser(
 	OSErr			err = noErr;
 
 
-	if ( TelInfo->suspended && gAEavail ) {
+	if ( TelInfo->suspended ) {
 
 		if (sAEIdleProc == NULL) {
 			sAEIdleProc = NewAEIdleProc( AEIdleProc );

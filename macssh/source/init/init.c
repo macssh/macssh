@@ -69,7 +69,7 @@ extern	MenuHandle	myMenus[];
 OSErr		io;
 short		TempItemsVRefNum;
 long		TempItemsDirID;
-Boolean		gKeyboardHasControlKey, gAEavail;
+Boolean		gKeyboardHasControlKey;
 short **topLeftCorners;  //CCP 2.7: Better window positioning scheme
 
 
@@ -193,6 +193,14 @@ void InquireEnvironment( void)
 		// System 7 is required
 		if (theWorld.systemVersion < 0x0700) FatalAlert(SYSTEM_VERS_ERR, 0, 0);
 	}
+	{
+		// AppleEvent support is required, this should always be present on System 7
+		long	gestaltvalue;
+
+		err = Gestalt(gestaltAppleEventsAttr, &gestaltvalue);
+		if ((err != noErr) || !(gestaltvalue & (1 << gestaltAppleEventsPresent)))
+			FatalAlert(NEED_APPLEEVENTS_ERR, 0, 0);
+	}
 	
 	// If there is a problem w/Gestalt, assume our keyboard has a Control key.
 	// Otherwise, we assume we have a control key unless a Mac or MacPlus keyboard is
@@ -232,7 +240,7 @@ void initmac( void)
 	UnsignedWide usec;
 	EventRecord myEvent;
 	short 	i;
-	long	gestaltvalue;
+
 	OSErr	err;
 	Handle	tempHandle;
 
@@ -268,8 +276,7 @@ void initmac( void)
 	for (i=1;i<12;i++)
 		EventAvail( 0xffff, &myEvent);
 	
-	err = Gestalt(gestaltAppleEventsAttr, &gestaltvalue);		// See if AppleEvents are available
-	gAEavail = (!err && ((gestaltvalue >> gestaltAppleEventsPresent) & 0x0001));
+
 	
 
 	TelInfo->screenRect = qd.screenBits.bounds;			/* well, they have to be set */
@@ -283,37 +290,35 @@ void InitAEHandlers(void)
 {
 	OSErr		err;
 
-	if (gAEavail) {
-		if ((err = AEInstallEventHandler(kCoreEventClass,kAEOpenApplication,
-											MyHandleOAppUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		if ((err = AEInstallEventHandler(kCoreEventClass,kAEOpenDocuments,
-											MyHandleODocUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		if ((err = AEInstallEventHandler(kCoreEventClass,kAEPrintDocuments,
-											MyHandlePDocUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		if ((err = AEInstallEventHandler(kCoreEventClass,kAEQuitApplication,
-											MyHandleQuitUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		if ((err = AEInstallEventHandler(kURLEventClass,kGetURLEvent,
-											MyHandleGURLUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'send',MyHandleSendDataUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'seCR',MyHandleSendCRUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'mkCX',MyHandleConnectUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'WaiT',MyHandleWaitUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'ReaD',MyHandleReadUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'susp',MyHandleSuspendUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		if ((err = AEInstallEventHandler(kNCSACreatorSignature,'!sus',MyHandleUnSuspendUPP,0,FALSE)) != noErr)
-			FatalAlert(AE_PROBLEM_ERR, 0, 0);
-		}
+	if ((err = AEInstallEventHandler(kCoreEventClass,kAEOpenApplication,
+										MyHandleOAppUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
+	if ((err = AEInstallEventHandler(kCoreEventClass,kAEOpenDocuments,
+										MyHandleODocUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
+	if ((err = AEInstallEventHandler(kCoreEventClass,kAEPrintDocuments,
+										MyHandlePDocUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
+	if ((err = AEInstallEventHandler(kCoreEventClass,kAEQuitApplication,
+										MyHandleQuitUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
+	if ((err = AEInstallEventHandler(kURLEventClass,kGetURLEvent,
+										MyHandleGURLUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
+	if ((err = AEInstallEventHandler(kNCSACreatorSignature,'send',MyHandleSendDataUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
+	if ((err = AEInstallEventHandler(kNCSACreatorSignature,'seCR',MyHandleSendCRUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
+	if ((err = AEInstallEventHandler(kNCSACreatorSignature,'mkCX',MyHandleConnectUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
+	if ((err = AEInstallEventHandler(kNCSACreatorSignature,'WaiT',MyHandleWaitUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
+	if ((err = AEInstallEventHandler(kNCSACreatorSignature,'ReaD',MyHandleReadUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
+	if ((err = AEInstallEventHandler(kNCSACreatorSignature,'susp',MyHandleSuspendUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
+	if ((err = AEInstallEventHandler(kNCSACreatorSignature,'!sus',MyHandleUnSuspendUPP,0,FALSE)) != noErr)
+		FatalAlert(AE_PROBLEM_ERR, 0, 0);
 }
 
 void DoTheGlobalInits(void)
