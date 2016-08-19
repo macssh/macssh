@@ -56,7 +56,6 @@ extern void ssh2_init();
 extern char *getprefsd(char *name, char * buf, size_t size, short *vRefNum, long *parID);
 
 /*--------------------------------------------------------------------------------*/
-#define CurrentVersion 1		/* Last known SysEnvirons version */
 
 Boolean gInitialized = 0;
 
@@ -185,16 +184,15 @@ void InquireEnvironment( void)
 	OSErr	err;
 	long	response;
 	SysEnvRec	theWorld;
-
-	err = SysEnvirons(CurrentVersion, &theWorld);
 	
-	if (err == envVersTooBig) FatalAlert(SYS_ENVIRON_ERR, 0, 0);
+	{
+		// Call SysEnvirons (with the oldest/original environsVersion) just to get the OS version
+		err = SysEnvirons(1, &theWorld);
+		if (err == envVersTooBig) FatalAlert(SYS_ENVIRON_ERR, 0, 0);
 
-// RAB BetterTelnet - we need System 7 now. (or Mac OS 8)
-// Get rid of the System 6 users right here. :)
-	if (theWorld.systemVersion < 0x0700) FatalAlert(SYSTEM_VERS_ERR, 0, 0);
-	
-	if (theWorld.machineType < 0) FatalAlert(ROM_VERS_ERR, 0, 0);
+		// System 7 is required
+		if (theWorld.systemVersion < 0x0700) FatalAlert(SYSTEM_VERS_ERR, 0, 0);
+	}
 	
 	// If there is a problem w/Gestalt, assume our keyboard has a Control key.
 	// Otherwise, we assume we have a control key unless a Mac or MacPlus keyboard is
