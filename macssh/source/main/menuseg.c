@@ -1455,10 +1455,10 @@ void HandleMenuCommand( long mResult, short modifiers)
 			}
 			screens[scrn].echo = !screens[scrn].echo;	/* toggle */
 			if (screens[scrn].echo) {					/* LOCAL ECHO */
-				if (!(modifiers & optionKey) && (screens[scrn].protocol == 0))
+				if (!(modifiers & optionKey) && (screens[scrn].protocol == PROTOCOL_TELNET))
 					send_dont(screens[scrn].port,1);
 			} else {										/* REMOTE ECHO */
-				if (!(modifiers & optionKey) && (screens[scrn].protocol == 0))
+				if (!(modifiers & optionKey) && (screens[scrn].protocol == PROTOCOL_TELNET))
 					send_do(screens[scrn].port,1);
 			}
 			CheckItem(myMenus[Emul], theItem, screens[scrn].echo);

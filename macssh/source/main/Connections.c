@@ -231,7 +231,7 @@ static void SetCurrentSession(DialogPtr dptr, Str255 scratchPstring)
 		SetCntrl(dptr, NCauthenticate, (**tempSessHdl).authenticate);//update the auth status
 		SetCntrl(dptr, NCencrypt, (**tempSessHdl).encrypt);
 		SetCntrl(dptr, NCforward, (**tempSessHdl).forward);
-		SetCntrl(dptr, NCssh2, (**tempSessHdl).protocol == 4);
+		SetCntrl(dptr, NCssh2, (**tempSessHdl).protocol == PROTOCOL_SSH);
 		setSessStates(dptr);//encrypt cant be on w/o authenticate
 		ReleaseResource((Handle)tempSessHdl);
 	}
@@ -527,17 +527,17 @@ Boolean PresentOpenConnectionDialog(void)
   	(**(**InitParams).session).forward = GetCntlVal(dptr, NCforward);
 
  	if ( GetCntlVal(dptr, NCssh2) ) {
-		if ((**(**InitParams).session).protocol != 4) {
-			(**(**InitParams).session).protocol = 4;
+		if ((**(**InitParams).session).protocol != PROTOCOL_SSH) {
+			(**(**InitParams).session).protocol = PROTOCOL_SSH;
 			if ( !portSet ) {
-				(**(**InitParams).session).port = getDefaultPort(4);
+				(**(**InitParams).session).port = getDefaultPort(PROTOCOL_SSH);
 			}
 		}
  	} else {
-		if ((**(**InitParams).session).protocol == 4) {
-			(**(**InitParams).session).protocol = 0;
+		if ((**(**InitParams).session).protocol == PROTOCOL_SSH) {
+			(**(**InitParams).session).protocol = PROTOCOL_TELNET;
 			if ( !portSet ) {
-				(**(**InitParams).session).port = getDefaultPort(0);
+				(**(**InitParams).session).port = getDefaultPort(PROTOCOL_TELNET);
 			}
 		}
  	}
@@ -621,8 +621,8 @@ Boolean OpenConnectionFromURL(char *host, char *portstring, char *user, char *pa
 	BlockMoveData(host, (**(**Params).session).hostname, host[0]+1);
 	
 	if ( ssh != 0 ) {
-		(**(**Params).session).protocol = 4;
-		(**(**Params).session).port = getDefaultPort(4);
+		(**(**Params).session).protocol = PROTOCOL_SSH;
+		(**(**Params).session).port = getDefaultPort(PROTOCOL_SSH);
 		if ( user != NULL ) {
 			strcpy((**(**Params).session).username, user);
 			CtoPstr((**(**Params).session).username);
@@ -631,10 +631,10 @@ Boolean OpenConnectionFromURL(char *host, char *portstring, char *user, char *pa
 			strcpy((**(**Params).session).password, password);
 			CtoPstr((**(**Params).session).password);
 		}
-	} else if ( (**(**Params).session).protocol == 4 ) {
+	} else if ( (**(**Params).session).protocol == PROTOCOL_SSH ) {
 		/* default to telnet */
-		(**(**Params).session).protocol = 0;
-		(**(**Params).session).port = getDefaultPort(0);
+		(**(**Params).session).protocol = PROTOCOL_TELNET;
+		(**(**Params).session).port = getDefaultPort(PROTOCOL_TELNET);
 	}
 
 	if (portstring != nil) {
@@ -699,7 +699,7 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 		goto failed;
 	}
 /* we have SSH.
-	if (SessPtr->protocol == 4) // make sure we have SSH
+	if (SessPtr->protocol == PROTOCOL_SSH) // make sure we have SSH
 	{
 		if (!ssh_glue_installed()) {
 			OperationFailedAlert(6, 0, 0);
@@ -836,7 +836,7 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	theScreen->vs = -1;
 	theScreen->wind = NULL;
 
-	if (SessPtr->protocol == 4) {
+	if (SessPtr->protocol == PROTOCOL_SSH) {
 		memcpy(theScreen->sshdata.host, theScreen->machine, theScreen->machine[0] + 1);
 		memcpy(theScreen->sshdata.login, theScreen->username, theScreen->username[0] + 1);
 		memcpy(theScreen->sshdata.password, theScreen->password, theScreen->password[0] + 1);
@@ -1068,11 +1068,11 @@ void	CompleteConnectionOpening(short dat, ip_addr the_IP, OSErr DNRerror, char *
 
 		if (setReadBlockSize((**(**Params).session).NetBlockSize,dat) != 0) //couldnt get read buffer
 			return;
-		if ((tw->protocol == 1) || (tw->protocol == 2)) netfromport(768);
+		if ((tw->protocol == PROTOCOL_RLOGIN) || (tw->protocol == PROTOCOL_RSH)) netfromport(768);
 
 /* NONO */
 #if 1
-		if ( tw->protocol == 4 ) {
+		if ( tw->protocol == PROTOCOL_SSH ) {
 			// dummy makestream for ssh2...
 			tw->port = makestream();
 			tw->sshdata.ip = the_IP;
@@ -1211,7 +1211,7 @@ void	ConnectionDataEvent(short port)
 	else {
 		cnt = netread(port,gReadspace,gBlocksize);	/* BYU LSC */
 // urgent data isn't working right now, so this is turned off
-/*		if ((screens[i].protocol >= 1) && (screens[i].protocol <= 3)) {
+/*		if ((screens[i].protocol >= PROTOCOL_RLOGIN) && (screens[i].protocol <= PROTOCOL_REXEC)) {
 			urgent = getUrgentFlag(port);
 			if (urgent) {
 				rlogin_parse( &screens[i], gReadspace, cnt);
@@ -1239,7 +1239,7 @@ void	ConnectionDataEvent(short port)
 			cnt--;
 			st++;
 		}
-		if (/*screens[i].protocol != 4*/ true ) // ssh handles differently
+		if (/*screens[i].protocol != PROTOCOL_SSH*/ true ) // ssh handles differently
 			parse( &screens[i], st, cnt);	/* BYU LSC */
 		else {
 			screens[i].jsNoFlush = 1; // RAB BetterTelnet 2.0b4
@@ -1404,7 +1404,7 @@ void removeport(WindRecPtr tw)
 	if (tw->curgraph >= 0)
 		detachGraphics( tw->curgraph);		/* Detach the Tek screen */
 
-	if (tw->protocol == 4) {
+	if (tw->protocol == PROTOCOL_SSH) {
 		ssh_glue_close(tw);
 	}
 

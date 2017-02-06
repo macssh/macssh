@@ -26,6 +26,17 @@
 
 #define SLC_ARRAY_SIZE	30	// This should match the value of SLC_MAX from parse.h
 
+
+// enums for supported protocols
+enum protocol {
+	PROTOCOL_TELNET,
+	PROTOCOL_RLOGIN,
+	PROTOCOL_RSH,
+	PROTOCOL_REXEC,
+	PROTOCOL_SSH,
+};
+
+
 // RAB BetterTelnet 2.0b2 - the struct for ssh stuff
 
 typedef struct sshinfo {
@@ -145,8 +156,11 @@ char
 	clientuser[256],
 	command[256];
 
+enum protocol
+	protocol;
+
 short
-	protocol, encryption;
+	encryption;
 
 sshinfo sshdata;
 

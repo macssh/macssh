@@ -333,7 +333,7 @@ void RSdrawlocker(short w, RgnHandle visRgn)
 	/* draw locker icon */
 	if ( RSlocal[w].left  && !RSlocal[w].hideScrollBars ) {
 		short sn = findbyVS(w);
-		if ( sn >= 0 && screens[sn].protocol == 4 ) {
+		if ( sn >= 0 && screens[sn].protocol == PROTOCOL_SSH ) {
 			Rect iconRect = (**RSlocal[w].left).contrlRect;
 			iconRect.top += 1;
 			iconRect.right = iconRect.left;
@@ -600,7 +600,7 @@ short RSsize (GrafPtr window, long *where, long modifiers)
 				if (screens[sn].naws) {
 					SendNAWSinfo(&screens[sn], cwidth, (y2-y1+1));
 				}
-				if (screens[sn].protocol == 4) {
+				if (screens[sn].protocol == PROTOCOL_SSH) {
 					ssh_glue_wresize(&screens[sn]);
 				}
 			}
@@ -873,7 +873,7 @@ short RSnewwindow
 
 	if (RScurrent->scroll == 0L) return(-3);
 
-	if ( screens[screenNumber].protocol == 4 ) {
+	if ( screens[screenNumber].protocol == PROTOCOL_SSH ) {
 		i = LOCKWIDTH + 1;
 	} else {
 		i = 0;

@@ -183,7 +183,7 @@ void SendCRAsIfTyped(struct WindRec *tw)
 	if (tw->echo) 
 		parse(tw,(unsigned char *) "\012\015",2);	/* BYU LSC */
 
-	if ((tw->protocol >= 1) && (tw->protocol <= 4)) { // for rlogin/rsh, ssh
+	if ((tw->protocol >= PROTOCOL_RLOGIN) && (tw->protocol <= PROTOCOL_SSH)) { // for rlogin/rsh, ssh
 		netwrite(tw->port,"\015",1);
 		return;
 	}
@@ -467,7 +467,7 @@ void parse (struct WindRec *tw, unsigned char *st, short cnt)
 
 			if (!tw->eightbit) {											/* BYU 2.4.10 */
 				while (st < mark) {											/* BYU 2.4.10 */
-					if ((*st == IAC) && (tw->protocol == 0)) // RAB BetterTelnet 2.0b2
+					if ((*st == IAC) && (tw->protocol == PROTOCOL_TELNET)) // RAB BetterTelnet 2.0b2
 						break;												/* BYU 2.4.10 */
 					else {													/* BYU 2.4.10 */
 						*st &= 0x7f; 										/* BYU 2.4.10 */
@@ -520,7 +520,7 @@ void parse (struct WindRec *tw, unsigned char *st, short cnt)
 			if (st < mark)
 				switch (*st) {
 					case TEL_IAC:			/* telnet IAC */
-						if (tw->protocol == 0) tw->telstate = IACFOUND; // RAB BetterTelnet 2.0b2
+						if (tw->protocol == PROTOCOL_TELNET) tw->telstate = IACFOUND; // RAB BetterTelnet 2.0b2
 						st++;
 						break;
 					case GS:
@@ -563,7 +563,7 @@ void	SendNAWSinfo(WindRec *s, short horiz, short vert)
 	char			blah[20];
 	unsigned char	height, width;
 
-	if (s->protocol != 0) return;
+	if (s->protocol != PROTOCOL_TELNET) return;
 
 	height = vert & 0xff;
 	width = horiz & 0xff;
@@ -706,9 +706,9 @@ void	telnet_send_initial_options(WindRec *tw)
 
 // RAB BetterTelnet 2.0b2 - revised to support multiple protocols
 
-	if ((tw->protocol >= 1) && (tw->protocol <= 3)) { // initial rlogin stuff
+	if ((tw->protocol >= PROTOCOL_RLOGIN) && (tw->protocol <= PROTOCOL_REXEC)) { // initial rlogin stuff
 		netwrite(tw->port, "\000", 1);
-		if ((tw->protocol == 3) || (!tw->clientuser[0]))
+		if ((tw->protocol == PROTOCOL_REXEC) || (!tw->clientuser[0]))
 			// rexec sends username, rlogin/rsh need client username
 			// but we use server username if we don't have a client
 			// username...
@@ -716,12 +716,12 @@ void	telnet_send_initial_options(WindRec *tw)
 		else
 			netwrite(tw->port, &tw->clientuser[1], tw->clientuser[0]);
 		netwrite(tw->port, "\000", 1);
-		if (tw->protocol == 3) // rexec sends password, rlogin/rsh send server username
+		if (tw->protocol == PROTOCOL_REXEC) // rexec sends password, rlogin/rsh send server username
 			netwrite(tw->port, &tw->password[1], tw->password[0]);
 		else
 			netwrite (tw->port, &tw->username[1], tw->username[0]);
 		netwrite(tw->port, "\000", 1);
-		if (tw->protocol == 1) { // rlogin sends terminal type & speed, rsh/rexec send command
+		if (tw->protocol == PROTOCOL_RLOGIN) { // rlogin sends terminal type & speed, rsh/rexec send command
 			netwrite(tw->port, &tw->answerback[1], tw->answerback[0]);
 			netwrite(tw->port, "/9600\000", 6);
 		} else {
@@ -733,12 +733,12 @@ void	telnet_send_initial_options(WindRec *tw)
 		return;
 	}
 
-	if (tw->protocol == 4) { // initial ssh stuff
+	if (tw->protocol == PROTOCOL_SSH) { // initial ssh stuff
 		ssh_glue_initial(tw);
 		tw->echo = 0; // NO local echo for ssh either!
 		tw->Usga = 1;
 //		return;
-	} else if (tw->protocol != 0) {
+	} else if (tw->protocol != PROTOCOL_TELNET) {
 		tw->echo = 1;
 		tw->Usga = 1;
 		return;
@@ -754,7 +754,7 @@ void	telnet_send_initial_options(WindRec *tw)
 		}
 	}
 
-	if (tw->protocol == 4) {
+	if (tw->protocol == PROTOCOL_SSH) {
 		return;
 	}
 

@@ -405,7 +405,7 @@ short	netread(short pnum, void *buffer, short n)
 
 /* NONO */
 	i = WindByPort(pnum);									/* BYU */
-	if ( i >= 0 && screens[i].protocol == 4 ) {
+	if ( i >= 0 && screens[i].protocol == PROTOCOL_SSH ) {
 		WindRec *wind = &screens[i];
 		lshcontext *context = (lshcontext *)wind->sshdata.context;
 		reqdamt = 0;
@@ -518,7 +518,7 @@ short netwrite(short pnum, void *buffer, short nsend)
 	if (i < 0) return Rnetwrite(pnum, buffer, nsend);
 
 /* NONO */
-	if ( screens[i].protocol == 4 ) {
+	if ( screens[i].protocol == PROTOCOL_SSH ) {
 		WindRec *wind = &screens[i];
 		lshcontext *context = (lshcontext *)wind->sshdata.context;
 		short n = nsend;
@@ -550,7 +550,7 @@ short netwrite(short pnum, void *buffer, short nsend)
 		return nsend;
 	}
 /*
-	if (screens[i].protocol == 4) {
+	if (screens[i].protocol == PROTOCOL_SSH) {
 		ssh_glue_write(&screens[i], buffer, nsend);
 		return nsend;
 	}
@@ -592,7 +592,7 @@ short	Rnetwrite(short pnum, void *buffer, short nsend)
 
 /* NONO */
 	i = WindByPort(pnum);
-	if ( i >= 0 && screens[i].protocol == 4 ) {
+	if ( i >= 0 && screens[i].protocol == PROTOCOL_SSH ) {
 		//TRACE(PRINTF("### Rnetwrite\n"));
 		//TRACEN(DUMP("Rnetwrite\n", buffer, nsend));
 		return nsend;
@@ -706,7 +706,7 @@ short netpush(short pnum)
 
 /* NONO */
 	i = WindByPort(pnum);
-	if ( i >= 0 && screens[i].protocol == 4 ) {
+	if ( i >= 0 && screens[i].protocol == PROTOCOL_SSH ) {
 		WindRec *wind = &screens[i];
 		lshcontext *context = (lshcontext *)wind->sshdata.context;
 		TRACEN(PRINTF("netpush\n"));
@@ -760,7 +760,7 @@ short netqlen(short pnum)
 
 /* NONO */
 	i = WindByPort(pnum);
-	if ( i >= 0 && screens[i].protocol == 4 ) {
+	if ( i >= 0 && screens[i].protocol == PROTOCOL_SSH ) {
 		WindRec *wind = &screens[i];
 		lshcontext *context = (lshcontext *)wind->sshdata.context;
 		TRACEN(PRINTF("netqlen\n"));
@@ -802,7 +802,7 @@ short netroom(short pnum)
 
 /* NONO */
 	i = WindByPort(pnum);
-	if ( i >= 0 && screens[i].protocol == 4 ) {
+	if ( i >= 0 && screens[i].protocol == PROTOCOL_SSH ) {
 		WindRec *wind = &screens[i];
 		lshcontext *context = (lshcontext *)wind->sshdata.context;
 		TRACEN(PRINTF("netroom\n"));
@@ -878,7 +878,7 @@ short netgetport(short pnum)
 
 /* NONO */
 	i = WindByPort(pnum);
-	if ( i >= 0 && screens[i].protocol == 4 ) {
+	if ( i >= 0 && screens[i].protocol == PROTOCOL_SSH ) {
 		WindRec *wind = &screens[i];
 		TRACEN(PRINTF("netgetport\n"));
 		// FIXME: this is completely wrong...
@@ -925,7 +925,7 @@ short netest(short pnum)
 
 /* NONO */
 	i = WindByPort(pnum);
-	if ( i >= 0 && screens[i].protocol == 4 ) {
+	if ( i >= 0 && screens[i].protocol == PROTOCOL_SSH ) {
 		WindRec *wind = &screens[i];
 		lshcontext *context = (lshcontext *)wind->sshdata.context;
 		TRACEN(PRINTF("netest\n"));
@@ -1101,7 +1101,7 @@ short netclose(short pnum)
 
 
 /* NONO */
-	if ( (i = WindByPort(pnum)) >= 0 && screens[i].protocol == 4 ) {
+	if ( (i = WindByPort(pnum)) >= 0 && screens[i].protocol == PROTOCOL_SSH ) {
 		WindRec *wind = &screens[i];
 		TRACEN(PRINTF("netclose\n"));
 
@@ -1212,7 +1212,7 @@ short	netabort(short pnum)
 	if ((p = streams[pnum]) != NULL) 	/* something there */
 	{
 		i = WindByPort(pnum);
-		if ( i >= 0 && screens[i].protocol == 4 ) {
+		if ( i >= 0 && screens[i].protocol == PROTOCOL_SSH ) {
 			WindRec *wind = &screens[i];
 			lshcontext *context = (lshcontext *)wind->sshdata.context;
 			if (context) {

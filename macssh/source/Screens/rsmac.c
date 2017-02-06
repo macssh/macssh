@@ -1327,7 +1327,7 @@ void	RSsetsize( short w, short v, short h, short screenIndex)
 		short i;
 		if (screenIndex < 0)
 			screenIndex = findbyVS(w);
-		if ( screenIndex >= 0 && screens[screenIndex].protocol == 4 ) {
+		if ( screenIndex >= 0 && screens[screenIndex].protocol == PROTOCOL_SSH ) {
 			i = LOCKWIDTH + 1;
 		} else {
 			i = 0;

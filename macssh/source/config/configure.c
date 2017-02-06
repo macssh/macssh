@@ -2022,7 +2022,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 //	SetTEText(dptr, 59, (unsigned char *)SessPrefsPtr->password);
 	SetTEText(dptr, 60, (unsigned char *)SessPrefsPtr->clientuser);
 
-	if ( SessPrefsPtr->protocol != 4 ) {
+	if ( SessPrefsPtr->protocol != PROTOCOL_SSH ) {
 		GetIndString(scratchPstring, MISC_STRINGS, MISC_COMMAND);
 	} else {
 		GetIndString(scratchPstring, MISC_STRINGS, MISC_ARGUMENTS);

@@ -291,11 +291,11 @@ pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply,
 		pstrcpy((unsigned char *)SessPtr->password, passwordString);
 	if ( protoID ) {
 		switch ( protoID ) {
-			case 'Tlnt': SessPtr->protocol = 0; break;
-			case 'Rlog': SessPtr->protocol = 1; break;
-			case 'Rsh ': SessPtr->protocol = 2; break;
-			case 'Rexe': SessPtr->protocol = 3; break;
-			case 'Ssh ': SessPtr->protocol = 4; break;
+			case 'Tlnt': SessPtr->protocol = PROTOCOL_TELNET; break;
+			case 'Rlog': SessPtr->protocol = PROTOCOL_RLOGIN; break;
+			case 'Rsh ': SessPtr->protocol = PROTOCOL_RSH; break;
+			case 'Rexe': SessPtr->protocol = PROTOCOL_REXEC; break;
+			case 'Ssh ': SessPtr->protocol = PROTOCOL_SSH; break;
 		}
 		/* reset default port if none specified */
 		GetAEStringParam(theAppleEvent, 'host', hostString);
