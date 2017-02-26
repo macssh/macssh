@@ -1,0 +1,8 @@
+[submodule "libssh2"]
+	path = libssh2
+	url = git@github.com:macssh/libssh2.git
+	branch = macos
+[submodule "openssl"]
+	path = openssl
+	url = git@github.com:macssh/openssl.git
+	branch = OpenSSL_0_9_8-stable_macos
