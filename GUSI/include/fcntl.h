@@ -120,12 +120,16 @@ int	creat __P((const char *, ...));
 int	fcntl __P((int, int, ...));
 
 /* This properly belongs into stdio.h, but that header is outside of
-   GUSI's control
+   GUSI's control.
+   
+   Metrowerks switched to a POSIX compliant declaration in CW Pro 7
 */
-#if defined(__MWERKS__) && __MWERKS__ < 0x2401 && !defined(_SFSTDIO_H)
+#ifndef _SFSTDIO_H
+#if defined(__MWERKS__) && __MSL__ < 0x7000
 FILE * fdopen(int fildes, char *type);
 #else
 FILE * fdopen(int fildes, const char *type);
+#endif
 #endif
 __END_DECLS
 
