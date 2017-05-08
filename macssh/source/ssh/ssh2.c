@@ -28,6 +28,9 @@
 #include "MemPool.h"
 #include "PasswordDialog.h"
 
+#include "libssh2.h"
+#include <fcntl.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -1517,6 +1520,30 @@ static int build_cmdline(WindRec*w, char *argstr)
 	return 0;
 }
 
+static void libssh2_handler(LIBSSH2_SESSION *session, void *context, const char *msg, size_t msglen)
+{
+	syslog(0, "%s\n", msg);
+}
+
+static void kbd_callback(const char* name, int name_len, const char* instruction,
+            int instruction_len, int num_prompts,
+            const LIBSSH2_USERAUTH_KBDINT_PROMPT* prompts,
+            LIBSSH2_USERAUTH_KBDINT_RESPONSE* responses, void **abstract)
+{
+	if (name)
+		syslog(0, "kbd_callback name %s\n", name);
+	if (instruction)
+		syslog(0, "kbd_callback instruction %s\n", instruction);
+	syslog(0, "kbd_callback num_prompts %d\n", num_prompts);
+
+	if (num_prompts > 0)
+	{
+		responses[0].text = malloc(4);
+		memcpy(responses[0].text, "test", 4);
+		responses[0].length = 4;
+	}
+}
+
 /*
  * ssh2_thread
  */
@@ -1539,6 +1566,225 @@ void *ssh2_thread(WindRec*w)
 	char			*mempool;
 
 	port = w->port;
+
+	{
+		int sock;
+		int rc = libssh2_init(0);
+		syslog(0, "libssh2 init %d\n", rc);
+		sock = socket(AF_INET, SOCK_STREAM, 0);
+		fcntl(sock, F_SETFL, 0);
+
+		{
+			struct sockaddr_in sin;
+			sin.sin_family = AF_INET;
+			sin.sin_port = htons(22);
+			{
+				struct hostent *hp;
+				Str255 hostname;
+				memcpy(hostname, &(w->sshdata.host[1]), w->sshdata.host[0]);
+				hostname[w->sshdata.host[0]] = '\0';
+				syslog(0, "host %s\n", hostname);
+				hp = gethostbyname(hostname);
+				if (hp) {
+					memcpy(&(sin.sin_addr.s_addr), hp->h_addr_list[0], hp->h_length);
+				}
+			}
+			//sin.sin_addr.s_addr = inet_addr("192.168.2.4");
+			syslog(0, "port %d", port);
+			rc = connect(sock, (struct sockaddr*)(&sin), sizeof(struct sockaddr_in));
+			if (rc != 0) {
+				syslog(0, "failed to connect!\n");
+			}
+		}
+		{
+			LIBSSH2_SESSION *session = libssh2_session_init();
+			libssh2_trace(session, INT_MAX);
+			libssh2_trace_sethandler(session, NULL, libssh2_handler);
+			if (libssh2_session_startup(session, sock)) {
+				syslog(0, "Failure establishing SSH session\n");
+			}
+
+			{
+				const char *hostkey_hash = libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA1);
+			}
+
+			{
+				Str255 username, password;
+				char *userauthlist;
+				memcpy(username, &(w->sshdata.login[1]), w->sshdata.login[0]);
+				username[w->sshdata.login[0]] = '\0';
+				memcpy(password, &(w->sshdata.password[1]), w->sshdata.password[0]);
+				password[w->sshdata.password[0]] = '\0';
+
+				userauthlist = libssh2_userauth_list(session, username,  w->sshdata.login[0]);
+				syslog( 0, "Authentication methods; %s\n", userauthlist);
+				// TODO: handle NULL userauthlist by checking libssh2_userauth_authenticated()
+
+
+				// TODO: public key
+				if (strstr(userauthlist, "keyboard-interactive") != NULL) {
+					if (libssh2_userauth_keyboard_interactive(session, username, kbd_callback) == 0)
+						goto success;
+				}
+				if (strstr(userauthlist, "password") != NULL) {
+					//SSH2LoginDialog(theScreen->sshdata.host, theScreen->sshdata.login, theScreen->sshdata.password);
+					libssh2_userauth_password(session, username, password);
+				}
+			}
+success:
+			{
+				LIBSSH2_CHANNEL *channel = libssh2_channel_open_session(session);
+				libssh2_channel_request_pty(channel, "vanilla");
+				libssh2_channel_shell(channel);
+
+				{
+					context = (lshcontext *)NewPtr(sizeof(lshcontext));
+					if (context == NULL) {
+						syslog( 0, "### ssh2_thread, NewPtr lshcontext failed\n" );
+						goto done;
+					}
+
+					if (pthread_setspecific(ssh2threadkey, context)) {
+						syslog( 0, "### ssh2_thread, pthread_setspecific failed\n" );
+						goto done;
+					}
+					w->sshdata.context = context;
+
+					listener = -1;
+					init_context(context, port);
+
+					if ( listener != -1 ) {
+						context->_listener = listener;
+					}
+
+					err = MPInit(65564, &context->_gMemPool, NULL);
+					if (err != noErr) {
+						syslog( 0, "### ssh2_thread, MPInit failed\n" );
+						goto done;
+					}
+				}
+
+				libssh2_session_set_blocking(session, 0);
+
+				{
+					int stdinfd, stdoutfd;
+					char c;
+
+					stdinfd = open("dev:ttyin", O_RDONLY);
+					stdoutfd = open("dev:ttyout", O_WRONLY);
+
+					syslog( 0, "stdin %d stdout %d\n", stdinfd, stdoutfd);
+
+					write(stdoutfd, "Hello world", 11);
+
+					{
+						char buf[64];
+						ssize_t bytes;
+
+						while ((bytes = libssh2_channel_read(channel, buf, sizeof(buf))) > 0)
+						{
+							syslog(0, "read %d bytes from channel\n", bytes);
+
+							if (bytes > 0)
+								write(stdoutfd, buf, bytes);
+						}
+					}
+
+					while (1) {
+						int directions, maxfd = 0;
+						fd_set readfds, writefds, exceptfds;
+						FD_ZERO(&readfds);
+						FD_ZERO(&writefds);
+						FD_ZERO(&exceptfds);
+
+						directions = libssh2_session_block_directions(session);
+
+						if (directions & LIBSSH2_SESSION_BLOCK_INBOUND)
+						{
+							FD_SET(sock, &readfds);
+							if (sock > maxfd)
+								maxfd = sock;
+						}
+						if (directions & LIBSSH2_SESSION_BLOCK_OUTBOUND)
+						{
+							//FD_SET(sock, &writefds);
+							//if (sock > maxfd)
+							//	maxfd = sock;
+						}
+						FD_SET(sock, &exceptfds);
+						if (sock > maxfd)
+							maxfd = sock;
+
+						FD_SET(stdinfd, &readfds);
+						if (stdinfd > maxfd)
+							maxfd = stdinfd;
+
+						//FD_SET(stdoutfd, &writefds);
+						//if (stdinfd > maxfd)
+						//	maxfd = stdinfd;
+
+						rc = select(maxfd+1, &readfds, &writefds, &exceptfds, NULL);
+
+						if (rc == -1) {
+							syslog(0, "select exited with errno %d\n", errno);
+							break;
+						}
+						else {
+							syslog(0, "select returned %d\n", rc);
+						}
+
+						if (FD_ISSET(stdinfd, &readfds)) {
+							char buf[64];
+							int bytes;
+
+							bytes = read(stdinfd, buf, sizeof(buf));
+							syslog(0, "read %d bytes from stdin\n", bytes);
+
+							if (bytes > 0)
+								libssh2_channel_write(channel, buf, bytes);
+						}
+						//if (FD_ISSET(stdoutfd, &writefds))
+						//{
+						//}
+						if (FD_ISSET(sock, &readfds)) {
+							char buf[64];
+							ssize_t bytes;
+
+							while ((bytes = libssh2_channel_read(channel, buf, sizeof(buf))) > 0)
+							{
+								syslog(0, "read %d bytes from channel\n", bytes);
+
+								if (bytes > 0)
+									write(stdoutfd, buf, bytes);
+
+								if (libssh2_channel_eof(channel))
+									goto closesession;
+							}
+						}
+						//if (FD_ISSET(sock, &writefds))
+						//{
+						//}
+						if (FD_ISSET(sock, &exceptfds)) {
+							syslog(0, "select: sock in exceptfds\n", errno);
+							break;
+						}
+					}
+
+closesession:
+					close(stdinfd);
+					close(stdoutfd);
+				}
+
+				libssh2_channel_free(channel);
+			}
+
+			libssh2_session_disconnect(session, "Normal Shutdown");
+			libssh2_session_free(session);
+			close(sock);
+			libssh2_exit();
+		}
+	}
+
 
 	context = (lshcontext *)NewPtr(sizeof(lshcontext));
 	if (context == NULL) {
