@@ -6,3 +6,6 @@
 	path = openssl
 	url = git@github.com:macssh/openssl.git
 	branch = OpenSSL_0_9_8-stable_macos
+[submodule "mbedtls"]
+	path = mbedtls
+	url = git@github.com:bslabs/mbedtls.git
