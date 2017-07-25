@@ -27,6 +27,7 @@
 #include "ssh2.h"
 #include "MemPool.h"
 #include "PasswordDialog.h"
+#include "base64.h"
 
 #include "libssh2.h"
 #include <fcntl.h>
@@ -1605,7 +1606,26 @@ void *ssh2_thread(WindRec*w)
 			}
 
 			{
-				const char *hostkey_hash = libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA1);
+				// TODO: init knownhosts, read lines from file, check host, display dialog with hash if no match
+				const unsigned char *hostkey_hash = (const unsigned char *)libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA256);
+
+				// hostkey_hash is binary data (32 bytes for SHA256)
+				{
+					char hostkey_hash_ascii[7+(32*3)+1] = "SHA256:";
+					base64_encode(32, hostkey_hash, sizeof(hostkey_hash_ascii)-7, hostkey_hash_ascii+7);
+
+					/* SHA1
+					int ret = sprintf(hostkey_hash_ascii,
+					"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+					hostkey_hash[0], hostkey_hash[1], hostkey_hash[2], hostkey_hash[3], hostkey_hash[4], hostkey_hash[5],
+					hostkey_hash[6], hostkey_hash[7], hostkey_hash[8], hostkey_hash[9], hostkey_hash[10], hostkey_hash[11],
+					hostkey_hash[12], hostkey_hash[13], hostkey_hash[14], hostkey_hash[15], hostkey_hash[16], hostkey_hash[17],
+					hostkey_hash[18], hostkey_hash[19]);
+					*/
+
+					syslog(0, "%s\n", hostkey_hash_ascii);
+					save_once_cancel1(hostkey_hash_ascii);
+				}
 			}
 
 			{
