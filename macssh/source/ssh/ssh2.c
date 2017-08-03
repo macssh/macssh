@@ -1258,7 +1258,7 @@ void init_context(lshcontext *context, short port)
 	/*context->_error_fd = STDERR_FILENO;*/
 	context->_error_fd = g_error_fd;
 	context->_error_pos = 0;
-	context->_error_write = write_raw;
+	//context->_error_write = write_raw;
 	context->_tracing = 0;
 	context->_verbosing = 0;
 	context->_debugging = 0;
@@ -1800,6 +1800,7 @@ closesession:
 	}
 
 
+#if 0
 	context = (lshcontext *)NewPtr(sizeof(lshcontext));
 	if (context == NULL) {
 		syslog( 0, "### ssh2_thread, NewPtr lshcontext failed\n" );
@@ -1906,6 +1907,7 @@ done:
 	}
 
 	return NULL;
+#endif
 }
 
 
