@@ -25,7 +25,6 @@
 #include "tty.h"
 
 #include "ssh2.h"
-#include "MemPool.h"
 #include "PasswordDialog.h"
 #include "base64.h"
 
@@ -91,10 +90,6 @@ void openlog(const char *id, int flags, int type);
 void syslog( int priority, const char *format, ...);
 void exit(int result);
 void abort(void);
-void *lshmalloc( unsigned long size );
-void *lshcalloc( unsigned long items, unsigned long size );
-void *lshrealloc( void *addr, unsigned long size );
-void lshfree( void *addr );
 int tty_getwinsize( int fd, struct terminal_dimensions *dims );
 int tty_setwinsize( int fd, const struct terminal_dimensions *dims );
 
@@ -476,85 +471,6 @@ void __msl_assertion_failed(char const *condition, char const *filename, char co
 		#define abort macosabort
 	}
 }
-
-/*
- * lshmalloc
- */
-
-void *lshmalloc( unsigned long size )
-{
-	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-
-	if ( context ) {
-		assert(context->_self == context);
-		return MPmalloc( context->_gMemPool, size );
-	}
-	return NULL;
-}
-
-/*
- * lshcalloc
- */
-
-void *lshcalloc( unsigned long items, unsigned long size )
-{
-	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-
-	if ( context ) {
-		size_t		tsize;
-		void		*p;
-
-		assert(context->_self == context);
-		tsize = items * size;
-		p = MPmalloc( context->_gMemPool, tsize );
-		if ( p ) {
-			memset(p, '\0', tsize);
-		}
-		return p;
-	}
-	return NULL;
-}
-
-/*
- * lshrealloc
- */
-
-void *lshrealloc( void *addr, unsigned long size )
-{
-	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-
-	if ( context ) {
-		size_t		orig_size;
-		void		*p;
-
-		assert(context->_self == context);
-		if ( addr == 0 )
-			return MPmalloc( context->_gMemPool, size );
-		orig_size = MPsize( context->_gMemPool, addr );
-		p = MPmalloc( context->_gMemPool, size );
-		if ( p ) {
-			orig_size = orig_size < size ? orig_size : size;
-			memcpy( p, addr, orig_size );
-		}
-		MPfree( context->_gMemPool, addr );
-		return p;
-	}
-	return NULL;
-}
-
-/*
- * lshfree
- */
-
-void lshfree( void *addr )
-{
-	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-
-	if ( context ) {
-		MPfree( context->_gMemPool, addr );
-	}
-}
-
 
 /*
  * tty_getwinsize : replaces tty_getwinsize from liblsh
@@ -1235,7 +1151,6 @@ void init_context(lshcontext *context, short port)
 	context->_listener = -1;
 	context->_socket = -1;
 	/*context->_exitbuf = 0;*/
-	context->_gMemPool = NULL;
 	memset(context->_filesTable, 0xff, sizeof(context->_filesTable));
 	memcpy(&context->_mactermios, &defaulttermios, sizeof(struct termios));
 	context->_gConsoleInEOF = 0;
@@ -1669,12 +1584,6 @@ success:
 
 					if ( listener != -1 ) {
 						context->_listener = listener;
-					}
-
-					err = MPInit(65564, &context->_gMemPool, NULL);
-					if (err != noErr) {
-						syslog( 0, "### ssh2_thread, MPInit failed\n" );
-						goto done;
 					}
 				}
 

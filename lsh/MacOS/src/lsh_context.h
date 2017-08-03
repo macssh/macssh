@@ -26,7 +26,6 @@ typedef struct lshcontext {
 	int				_socket;	// for cvs
 	int				_rcmdline;	// for cvs
 	jmp_buf			*_pexitbuf;
-	char			*_gMemPool;
 	int				_filesTable[MAXFILESCOUNT];
 	struct termios	_mactermios;
 

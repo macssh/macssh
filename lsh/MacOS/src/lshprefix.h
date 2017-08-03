@@ -339,11 +339,6 @@
 #define zlib_alloc ssh_xcalloc
 #define zlib_free ssh_xfree
 
-#define malloc lshmalloc
-#define calloc lshcalloc
-#define realloc lshrealloc
-#define free lshfree
-
 #include <sys/types.h>
 #include <string.h>
 
