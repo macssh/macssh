@@ -1028,58 +1028,6 @@ void ssh2_doevent(long sleepTime)
 	}
 }
 
-/*
- * we need to track open()/close()/socket() calls to close files/sockets
- * upon abort/exit
- */
-
-void add_one_file(struct lshcontext *context, int fd)
-{
-	int i;
-	
-	if ( fd != -1 ) {
-		for (i = 0; i < MAXFILESCOUNT; i++) {
-			if (context->_filesTable[i] == -1) {
-				context->_filesTable[i] = fd;
-				break;
-			}
-		}
-	}
-}
-
-/*
- * remove_one_file
- */
-
-void remove_one_file(struct lshcontext *context, int fd)
-{
-	int i;
-
-	if ( fd != -1 ) {
-		for (i = 0; i < MAXFILESCOUNT; i++) {
-			if (context->_filesTable[i] == fd) {
-				context->_filesTable[i] = -1;
-				break;
-			}
-		}
-	}
-}
-
-/*
- * close_all_files
- */
-
-void close_all_files(lshcontext *context)
-{
-	int i;
-
-	for (i = 0; i < MAXFILESCOUNT; i++) {
-		if (context->_filesTable[i] != -1) {
-			close(context->_filesTable[i]);
-		}
-	}
-}
-
 #pragma mark -
 
 /*
@@ -1151,7 +1099,6 @@ void init_context(lshcontext *context, short port)
 	context->_listener = -1;
 	context->_socket = -1;
 	/*context->_exitbuf = 0;*/
-	memset(context->_filesTable, 0xff, sizeof(context->_filesTable));
 	memcpy(&context->_mactermios, &defaulttermios, sizeof(struct termios));
 	context->_gConsoleInEOF = 0;
 	/*context->_convertLFs = 0;*/

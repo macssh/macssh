@@ -12,7 +12,6 @@
 #include "lsh.h"
 #include "exception.h"
 
-#define MAXFILESCOUNT 64
 #define CONSOLEBUFSIZE 16384
 #define ERROR_BUF_SIZE 512
 
@@ -26,7 +25,6 @@ typedef struct lshcontext {
 	int				_socket;	// for cvs
 	int				_rcmdline;	// for cvs
 	jmp_buf			*_pexitbuf;
-	int				_filesTable[MAXFILESCOUNT];
 	struct termios	_mactermios;
 
 	Boolean 		_gConsoleInEOF;
