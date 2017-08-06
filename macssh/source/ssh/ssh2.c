@@ -1492,8 +1492,17 @@ void *ssh2_thread(WindRec*w)
 				password[w->sshdata.password[0]] = '\0';
 
 				userauthlist = libssh2_userauth_list(session, username,  w->sshdata.login[0]);
-				syslog( 0, "Authentication methods; %s\n", userauthlist);
-				// TODO: handle NULL userauthlist by checking libssh2_userauth_authenticated()
+				if (userauthlist == NULL) {
+					if (libssh2_userauth_authenticated(session)) {
+						syslog(0, "\'none\' userauth succeeded\n");
+						goto success;
+					} else {
+						syslog(0, "Failed to retrieve authentication methods\n");
+						goto closesocket;
+					}
+				} else {
+					syslog( 0, "Authentication methods: %s\n", userauthlist);
+				}
 
 
 				// TODO: public key
@@ -1503,8 +1512,12 @@ void *ssh2_thread(WindRec*w)
 				}
 				if (strstr(userauthlist, "password") != NULL) {
 					//SSH2LoginDialog(theScreen->sshdata.host, theScreen->sshdata.login, theScreen->sshdata.password);
-					libssh2_userauth_password(session, username, password);
+					if (libssh2_userauth_password(session, username, password) == 0)
+						goto success;
+					// TODO: allow re-entering password on LIBSSH2_ERROR_AUTHENTICATION_FAILED
 				}
+				syslog( 0, "No supported authentication method found\n");
+				goto closesocket;
 			}
 success:
 			{
