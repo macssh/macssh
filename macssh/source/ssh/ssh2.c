@@ -1434,7 +1434,7 @@ void *ssh2_thread(WindRec*w)
 		{
 			struct sockaddr_in sin;
 			sin.sin_family = AF_INET;
-			sin.sin_port = htons(22);
+			sin.sin_port = htons(w->portNum);
 			{
 				struct hostent *hp;
 				Str255 hostname;
@@ -1446,8 +1446,7 @@ void *ssh2_thread(WindRec*w)
 					memcpy(&(sin.sin_addr.s_addr), hp->h_addr_list[0], hp->h_length);
 				}
 			}
-			//sin.sin_addr.s_addr = inet_addr("192.168.2.4");
-			syslog(0, "port %d", port);
+			syslog(0, "port %d portNum %d\n", port, w->portNum);
 			rc = connect(sock, (struct sockaddr*)(&sin), sizeof(struct sockaddr_in));
 			if (rc != 0) {
 				syslog(0, "failed to connect!\n");
