@@ -1649,11 +1649,15 @@ closesession:
 
 			libssh2_session_disconnect(session, "Normal Shutdown");
 			libssh2_session_free(session);
-			close(sock);
-			libssh2_exit();
 		}
+
+closesocket:
+		close(sock);
+		libssh2_exit();
 	}
 
+done:
+	return NULL;
 
 #if 0
 	context = (lshcontext *)NewPtr(sizeof(lshcontext));
