@@ -1524,7 +1524,7 @@ void *ssh2_thread(WindRec*w)
 success:
 			{
 				LIBSSH2_CHANNEL *channel = libssh2_channel_open_session(session);
-				libssh2_channel_request_pty(channel, "vanilla");
+				libssh2_channel_request_pty(channel, "vt100");
 				libssh2_channel_shell(channel);
 
 				{
