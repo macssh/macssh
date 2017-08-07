@@ -1668,6 +1668,29 @@ closesocket:
 	}
 
 done:
+	/* disconnect indication */
+	if ( port != -1 ) {
+		netputevent(CONCLASS, CONCLOSE, port, 0);
+	}
+
+	/* window's ptr might have changed... better reload it */
+	w = ssh2_window();
+	if ( w ) {
+		if ( w->sshdata.thread == pthread_self() ) {
+			w->sshdata.thread = NULL;
+			w->sshdata.context = NULL;
+		}
+	}
+
+	if ( context ) {
+		if ( context->_listener != -1 ) {
+			listener = context->_listener;
+			context->_listener = -1;
+			close( listener );
+		}
+		context->_self = NULL;
+		DisposePtr((Ptr)context);
+	}
 	return NULL;
 
 #if 0
