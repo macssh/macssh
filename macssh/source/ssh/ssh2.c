@@ -1389,18 +1389,30 @@ static void kbd_callback(const char* name, int name_len, const char* instruction
             const LIBSSH2_USERAUTH_KBDINT_PROMPT* prompts,
             LIBSSH2_USERAUTH_KBDINT_RESPONSE* responses, void **abstract)
 {
+	WindRec *w = (WindRec *)*abstract;
 	if (name)
 		syslog(0, "kbd_callback name %s\n", name);
 	if (instruction)
 		syslog(0, "kbd_callback instruction %s\n", instruction);
 	syslog(0, "kbd_callback num_prompts %d\n", num_prompts);
 
+	// If only one prompt, and a password was entered earlier, send it
+	if ((num_prompts == 1) && (w->sshdata.password[0] > 0)) {
+		responses[0].text = malloc(w->sshdata.password[0]);
+		memcpy(responses[0].text, &(w->sshdata.password[1]), w->sshdata.password[0]);
+		responses[0].length = w->sshdata.password[0];
+		// TODO: set a flag to indicate if this has been sent yet
+	}
+	// TODO: if flag true, put up usual dialogs
+
+/*
 	if (num_prompts > 0)
 	{
 		responses[0].text = malloc(4);
 		memcpy(responses[0].text, "test", 4);
 		responses[0].length = 4;
 	}
+	*/
 }
 
 /*
@@ -1455,7 +1467,7 @@ void *ssh2_thread(WindRec*w)
 			}
 		}
 		{
-			LIBSSH2_SESSION *session = libssh2_session_init();
+			LIBSSH2_SESSION *session = libssh2_session_init_ex(NULL, NULL, NULL, w);
 			libssh2_trace(session, INT_MAX);
 			libssh2_trace_sethandler(session, NULL, libssh2_handler);
 			if (libssh2_session_startup(session, sock)) {
@@ -1486,12 +1498,10 @@ void *ssh2_thread(WindRec*w)
 			}
 
 			{
-				Str255 username, password;
+				Str255 username;
 				char *userauthlist;
 				memcpy(username, &(w->sshdata.login[1]), w->sshdata.login[0]);
 				username[w->sshdata.login[0]] = '\0';
-				memcpy(password, &(w->sshdata.password[1]), w->sshdata.password[0]);
-				password[w->sshdata.password[0]] = '\0';
 
 				userauthlist = libssh2_userauth_list(session, username,  w->sshdata.login[0]);
 				if (userauthlist == NULL) {
@@ -1509,12 +1519,13 @@ void *ssh2_thread(WindRec*w)
 
 				// TODO: public key
 				if (strstr(userauthlist, "keyboard-interactive") != NULL) {
-					if (libssh2_userauth_keyboard_interactive(session, username, kbd_callback) == 0)
+					if (libssh2_userauth_keyboard_interactive_ex(session, &(w->sshdata.login[1]), w->sshdata.login[0], kbd_callback) == 0)
 						goto success;
 				}
 				if (strstr(userauthlist, "password") != NULL) {
 					//SSH2LoginDialog(theScreen->sshdata.host, theScreen->sshdata.login, theScreen->sshdata.password);
-					if (libssh2_userauth_password(session, username, password) == 0)
+					// TODO: add pwd change callback
+					if (libssh2_userauth_password_ex(session, &(w->sshdata.login[1]), w->sshdata.login[0], &(w->sshdata.password[1]), w->sshdata.password[0], NULL) == 0)
 						goto success;
 					// TODO: allow re-entering password on LIBSSH2_ERROR_AUTHENTICATION_FAILED
 				}
