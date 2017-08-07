@@ -1382,6 +1382,8 @@ static void libssh2_handler(LIBSSH2_SESSION *session, void *context, const char 
 	syslog(0, "%s\n", msg);
 }
 
+extern int WriteCharsToTTY(int id, void *ctx, char *buffer, int n);
+
 static void kbd_callback(const char* name, int name_len, const char* instruction,
             int instruction_len, int num_prompts,
             const LIBSSH2_USERAUTH_KBDINT_PROMPT* prompts,
@@ -1549,15 +1551,12 @@ success:
 				libssh2_session_set_blocking(session, 0);
 
 				{
-					int stdinfd, stdoutfd;
+					int stdinfd;
 					char c;
 
 					stdinfd = open("dev:ttyin", O_RDONLY);
-					stdoutfd = open("dev:ttyout", O_WRONLY);
 
-					syslog( 0, "stdin %d stdout %d\n", stdinfd, stdoutfd);
-
-					write(stdoutfd, "Hello world", 11);
+					syslog( 0, "stdin %d\n", stdinfd);
 
 					{
 						char buf[64];
@@ -1568,7 +1567,7 @@ success:
 							syslog(0, "read %d bytes from channel\n", bytes);
 
 							if (bytes > 0)
-								write(stdoutfd, buf, bytes);
+								WriteCharsToTTY(1, NULL, buf, bytes);
 						}
 					}
 
@@ -1637,7 +1636,7 @@ success:
 								syslog(0, "read %d bytes from channel\n", bytes);
 
 								if (bytes > 0)
-									write(stdoutfd, buf, bytes);
+									WriteCharsToTTY(1, NULL, buf, bytes);
 
 								if (libssh2_channel_eof(channel))
 									goto closesession;
@@ -1654,7 +1653,6 @@ success:
 
 closesession:
 					close(stdinfd);
-					close(stdoutfd);
 				}
 
 				libssh2_channel_free(channel);
