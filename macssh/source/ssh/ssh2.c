@@ -1131,6 +1131,7 @@ void init_context(lshcontext *context, short port)
 	context->_keychainprompt[0] = 0;
 }
 
+#if 0
 /*
  * make_args
  */
@@ -1177,7 +1178,9 @@ void make_args( char *argstr, char **tabargv, int *argc, char ***argv )
 	*argc = i;
 	*argv = tabargv;
 }
+#endif
 
+#if 0
 /*
  * make_env
  */
@@ -1233,6 +1236,7 @@ void make_env( lshcontext *context, WindRec *w )
   		context->_envv[kEnvDisplay] = NULL;
 	}
 }
+#endif
 
 #pragma mark -
 
@@ -1271,6 +1275,7 @@ int cvs_listen( int port )
 
 #pragma mark -
 
+#if 0
 /*
  * build_cmdline : prepare lsh client argument string
  *
@@ -1376,6 +1381,7 @@ static int build_cmdline(WindRec*w, char *argstr)
 
 	return 0;
 }
+#endif
 
 static void libssh2_handler(LIBSSH2_SESSION *session, void *context, const char *msg, size_t msglen)
 {
@@ -1423,18 +1429,10 @@ void *ssh2_thread(WindRec*w)
 {
 	OSErr			err;
 	lshcontext		*context;
-	jmp_buf			exitbuf;
-	int				argc;
-	char			**argv;
-	struct sigaction interrupt;
 	short			port;
-	char			argstr[1500];
-	char			*tabargv[64];
 	int				i;
 	int				result;
-	unsigned long	finalTicks;
 	int				listener;
-	char			*mempool;
 
 	port = w->port;
 
