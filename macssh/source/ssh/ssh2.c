@@ -1446,6 +1446,43 @@ static void kbd_callback(const char* name, int name_len, const char* instruction
 	*/
 }
 
+static Boolean ssh2_authentication_successful(LIBSSH2_SESSION *session, WindRec *w)
+{
+	Str255 username;
+	char *userauthlist;
+	memcpy(username, &(w->sshdata.login[1]), w->sshdata.login[0]);
+	username[w->sshdata.login[0]] = '\0';
+
+	userauthlist = libssh2_userauth_list(session, username,  w->sshdata.login[0]);
+	if (userauthlist == NULL) {
+		if (libssh2_userauth_authenticated(session)) {
+			syslog(0, "\'none\' userauth succeeded\n");
+			return true;
+		} else {
+			syslog(0, "Failed to retrieve authentication methods\n");
+			return false;
+		}
+	} else {
+		syslog( 0, "Authentication methods: %s\n", userauthlist);
+	}
+
+
+	// TODO: public key
+	if (strstr(userauthlist, "keyboard-interactive") != NULL) {
+		if (libssh2_userauth_keyboard_interactive_ex(session, &(w->sshdata.login[1]), w->sshdata.login[0], kbd_callback) == 0)
+			return true;
+	}
+	if (strstr(userauthlist, "password") != NULL) {
+		//SSH2LoginDialog(theScreen->sshdata.host, theScreen->sshdata.login, theScreen->sshdata.password);
+		// TODO: add pwd change callback
+		if (libssh2_userauth_password_ex(session, &(w->sshdata.login[1]), w->sshdata.login[0], &(w->sshdata.password[1]), w->sshdata.password[0], NULL) == 0)
+			return true;
+		// TODO: allow re-entering password on LIBSSH2_ERROR_AUTHENTICATION_FAILED
+	}
+	syslog( 0, "No supported authentication method found\n");
+	return false;
+}
+
 /*
  * ssh2_thread
  */
@@ -1500,42 +1537,9 @@ void *ssh2_thread(WindRec*w)
 			if (!ssh2_hostkey_approved(session))
 				goto closesession;
 
-			{
-				Str255 username;
-				char *userauthlist;
-				memcpy(username, &(w->sshdata.login[1]), w->sshdata.login[0]);
-				username[w->sshdata.login[0]] = '\0';
-
-				userauthlist = libssh2_userauth_list(session, username,  w->sshdata.login[0]);
-				if (userauthlist == NULL) {
-					if (libssh2_userauth_authenticated(session)) {
-						syslog(0, "\'none\' userauth succeeded\n");
-						goto success;
-					} else {
-						syslog(0, "Failed to retrieve authentication methods\n");
-						goto closesession;
-					}
-				} else {
-					syslog( 0, "Authentication methods: %s\n", userauthlist);
-				}
-
-
-				// TODO: public key
-				if (strstr(userauthlist, "keyboard-interactive") != NULL) {
-					if (libssh2_userauth_keyboard_interactive_ex(session, &(w->sshdata.login[1]), w->sshdata.login[0], kbd_callback) == 0)
-						goto success;
-				}
-				if (strstr(userauthlist, "password") != NULL) {
-					//SSH2LoginDialog(theScreen->sshdata.host, theScreen->sshdata.login, theScreen->sshdata.password);
-					// TODO: add pwd change callback
-					if (libssh2_userauth_password_ex(session, &(w->sshdata.login[1]), w->sshdata.login[0], &(w->sshdata.password[1]), w->sshdata.password[0], NULL) == 0)
-						goto success;
-					// TODO: allow re-entering password on LIBSSH2_ERROR_AUTHENTICATION_FAILED
-				}
-				syslog( 0, "No supported authentication method found\n");
+			if (!ssh2_authentication_successful(session, w))
 				goto closesession;
-			}
-success:
+
 			{
 				LIBSSH2_CHANNEL *channel = libssh2_channel_open_session(session);
 				libssh2_channel_request_pty(channel, "vt100");
