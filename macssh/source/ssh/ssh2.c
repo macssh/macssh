@@ -1390,6 +1390,31 @@ static void libssh2_handler(LIBSSH2_SESSION *session, void *context, const char 
 
 extern int WriteCharsToTTY(int id, void *ctx, char *buffer, int n);
 
+static Boolean ssh2_hostkey_approved(LIBSSH2_SESSION *session)
+{
+	// TODO: init knownhosts, read lines from file, check host, display dialog with hash if no match
+	const char *hostkey_hash = libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA256);
+
+	// hostkey_hash is binary data (32 bytes for SHA256)
+	{
+		char hostkey_hash_ascii[7+(32*3)+1] = "SHA256:";
+		base64_encode(32, hostkey_hash, sizeof(hostkey_hash_ascii)-7, hostkey_hash_ascii+7);
+
+		/* SHA1
+		int ret = sprintf(hostkey_hash_ascii,
+		"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+		hostkey_hash[0], hostkey_hash[1], hostkey_hash[2], hostkey_hash[3], hostkey_hash[4], hostkey_hash[5],
+		hostkey_hash[6], hostkey_hash[7], hostkey_hash[8], hostkey_hash[9], hostkey_hash[10], hostkey_hash[11],
+		hostkey_hash[12], hostkey_hash[13], hostkey_hash[14], hostkey_hash[15], hostkey_hash[16], hostkey_hash[17],
+		hostkey_hash[18], hostkey_hash[19]);
+		*/
+
+		syslog(0, "%s\n", hostkey_hash_ascii);
+		save_once_cancel1(hostkey_hash_ascii);
+	}
+	return true;
+}
+
 static void kbd_callback(const char* name, int name_len, const char* instruction,
             int instruction_len, int num_prompts,
             const LIBSSH2_USERAUTH_KBDINT_PROMPT* prompts,
@@ -1472,28 +1497,8 @@ void *ssh2_thread(WindRec*w)
 				syslog(0, "Failure establishing SSH session\n");
 			}
 
-			{
-				// TODO: init knownhosts, read lines from file, check host, display dialog with hash if no match
-				const unsigned char *hostkey_hash = (const unsigned char *)libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA256);
-
-				// hostkey_hash is binary data (32 bytes for SHA256)
-				{
-					char hostkey_hash_ascii[7+(32*3)+1] = "SHA256:";
-					base64_encode(32, hostkey_hash, sizeof(hostkey_hash_ascii)-7, hostkey_hash_ascii+7);
-
-					/* SHA1
-					int ret = sprintf(hostkey_hash_ascii,
-					"%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
-					hostkey_hash[0], hostkey_hash[1], hostkey_hash[2], hostkey_hash[3], hostkey_hash[4], hostkey_hash[5],
-					hostkey_hash[6], hostkey_hash[7], hostkey_hash[8], hostkey_hash[9], hostkey_hash[10], hostkey_hash[11],
-					hostkey_hash[12], hostkey_hash[13], hostkey_hash[14], hostkey_hash[15], hostkey_hash[16], hostkey_hash[17],
-					hostkey_hash[18], hostkey_hash[19]);
-					*/
-
-					syslog(0, "%s\n", hostkey_hash_ascii);
-					save_once_cancel1(hostkey_hash_ascii);
-				}
-			}
+			if (!ssh2_hostkey_approved(session))
+				goto closesession;
 
 			{
 				Str255 username;
@@ -1508,7 +1513,7 @@ void *ssh2_thread(WindRec*w)
 						goto success;
 					} else {
 						syslog(0, "Failed to retrieve authentication methods\n");
-						goto closesocket;
+						goto closesession;
 					}
 				} else {
 					syslog( 0, "Authentication methods: %s\n", userauthlist);
@@ -1528,7 +1533,7 @@ void *ssh2_thread(WindRec*w)
 					// TODO: allow re-entering password on LIBSSH2_ERROR_AUTHENTICATION_FAILED
 				}
 				syslog( 0, "No supported authentication method found\n");
-				goto closesocket;
+				goto closesession;
 			}
 success:
 			{
@@ -1648,7 +1653,7 @@ success:
 									WriteCharsToTTY(1, NULL, buf, bytes);
 
 								if (libssh2_channel_eof(channel))
-									goto closesession;
+									break;
 							}
 						}
 						//if (FD_ISSET(sock, &writefds))
@@ -1660,13 +1665,13 @@ success:
 						}
 					}
 
-closesession:
 					close(stdinfd);
 				}
 
 				libssh2_channel_free(channel);
 			}
 
+closesession:
 			libssh2_session_disconnect(session, "Normal Shutdown");
 			libssh2_session_free(session);
 		}
