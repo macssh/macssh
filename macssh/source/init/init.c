@@ -325,7 +325,6 @@ void DoTheGlobalInits(void)
 {
 	long junk = 0;
 	ParamBlockRec pb;
-	Str255 tempString;
 	char folderString[256];
 	int err;
 	char *buf;
@@ -377,7 +376,7 @@ void DoTheGlobalInits(void)
 	BlockMoveData(folderString + 1, folderString, junk);
 	folderString[junk] = 0;
 	// WARNING: this initializes GUSI which in turn calls our event handler...
-	buf = getprefsd(folderString, (char *)tempString, sizeof(tempString), &TelInfo->PrefFolder.vRefNum, &TelInfo->PrefFolder.parID);
+	buf = getprefsd(folderString, NULL, 0, &TelInfo->PrefFolder.vRefNum, &TelInfo->PrefFolder.parID);
 	if ( !buf ) {
 		FindFolder( kOnSystemDisk, kPreferencesFolderType, kCreateFolder,
 						&(TelInfo->PrefFolder.vRefNum), &(TelInfo->PrefFolder.parID));

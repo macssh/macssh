@@ -123,9 +123,6 @@ char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *dirID)
 	Boolean			isFolder;
 	Boolean			wasAlias;
 	Boolean			isDirectory;
-	short			fullPathLength;
-	short			pathLength;
-	Handle			fullPath;
 
 	*vRefNum = 0;
 	*dirID = 0;
@@ -147,24 +144,38 @@ char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *dirID)
 	if (err != noErr || !isDirectory) {
 		return NULL;
 	}
-	err = FSpGetFullPath(&fileSpec, &fullPathLength, &fullPath);
-	if (err != noErr) {
-		return NULL;
-	}
-	pathLength = fullPathLength;
-	if ((*fullPath)[pathLength - 1] == ':' )
-		--pathLength;
-	if (pathLength > size - 2) {
-		// FIXME: better error message
-		DisposeHandle(fullPath);
-		return NULL;
-	}
+
 	*vRefNum = fileSpec.vRefNum;
-	BlockMoveData(*fullPath, buf, pathLength);
-	buf[pathLength++] = ':';
-	buf[pathLength] = 0;
-	DisposeHandle(fullPath);
-	return buf;
+
+	if (buf) {
+		short			fullPathLength;
+		short			pathLength;
+		Handle			fullPath;
+
+		err = FSpGetFullPath(&fileSpec, &fullPathLength, &fullPath);
+		if (err != noErr) {
+			return NULL;
+		}
+		pathLength = fullPathLength;
+		if ((*fullPath)[pathLength - 1] == ':' )
+			--pathLength;
+		if (pathLength > size - 2) {
+			// FIXME: better error message
+			DisposeHandle(fullPath);
+			return NULL;
+		}
+
+		BlockMoveData(*fullPath, buf, pathLength);
+		buf[pathLength++] = ':';
+		buf[pathLength] = 0;
+		DisposeHandle(fullPath);
+
+		return buf;
+	}
+	else {
+		// return a valid pointer rather than NULL
+		return "";
+	}
 
 /*
 	GUSIFileSpec	prefs(kPreferencesFolderType, kOnSystemDisk);
