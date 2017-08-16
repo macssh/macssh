@@ -2005,7 +2005,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 
 	configPassword[0] = 0;
 	if (SessPrefsPtr->otppassword[0]) {
-		pstrcpy(configPassword, (unsigned char *)SessPrefsPtr->otppassword);
+		PLstrcpy(configPassword, (unsigned char *)SessPrefsPtr->otppassword);
 		scratchPstring[0] = configPassword[0];
 		for (i = 1; i < 250 && i <= configPassword[0]; i++)
 			scratchPstring[i] = '¥';
@@ -2013,7 +2013,7 @@ Boolean EditSession(StringPtr PrefRecordNamePtr)
 	}
 	configPassword2[0] = 0;
 	if (SessPrefsPtr->password[0]) {
-		pstrcpy(configPassword2, (unsigned char *)SessPrefsPtr->password);
+		PLstrcpy(configPassword2, (unsigned char *)SessPrefsPtr->password);
 		scratchPstring[0] = configPassword2[0];
 		for (i = 1; i < 250 && i <= configPassword2[0]; i++)
 			scratchPstring[i] = '¥';
@@ -2483,11 +2483,11 @@ void SetSessionData(DialogPtr dptr, SessionPrefs *SessPrefsPtr,
 
 	memset(SessPrefsPtr->otppassword, 0, sizeof(SessPrefsPtr->otppassword));
 //	c2pstr(configPassword);
-	pstrcpy((unsigned char *)SessPrefsPtr->otppassword, configPassword);
+	PLstrcpy((unsigned char *)SessPrefsPtr->otppassword, configPassword);
 
 	memset(SessPrefsPtr->password, 0, sizeof(SessPrefsPtr->password));
 //	c2pstr(configPassword2);
-	pstrcpy((unsigned char *)SessPrefsPtr->password, configPassword2);
+	PLstrcpy((unsigned char *)SessPrefsPtr->password, configPassword2);
 
 	GetTEText(dptr, SessPort, scratchPstring);
 	SessPrefsPtr->portNegative = 0;

@@ -261,7 +261,7 @@ pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply,
 		return paramErr;
 	GetAEStringParam(theAppleEvent, keyDirectObject, nameString);
 	if ( !*nameString )
-		pstrcpy(nameString, "\p<Default>");
+		PLstrcpy(nameString, "\p<Default>");
 	GetAEStringParam(theAppleEvent, 'host', hostString);
 	GetAEStringParam(theAppleEvent, 'logi', loginString);
 	GetAEStringParam(theAppleEvent, 'pass', passwordString);
@@ -286,9 +286,9 @@ pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply,
 		return paramErr;
 	SessPtr = *((**theParams).session);
 	if ( *loginString )
-		pstrcpy((unsigned char *)SessPtr->username, loginString);
+		PLstrcpy((unsigned char *)SessPtr->username, loginString);
 	if ( *passwordString )
-		pstrcpy((unsigned char *)SessPtr->password, passwordString);
+		PLstrcpy((unsigned char *)SessPtr->password, passwordString);
 	if ( protoID ) {
 		switch ( protoID ) {
 			case 'Tlnt': SessPtr->protocol = PROTOCOL_TELNET; break;
@@ -305,9 +305,9 @@ pascal OSErr  MyHandleConnect (AppleEvent *theAppleEvent, AppleEvent* reply,
 	}
 
 	if ( *commandString )
-		pstrcpy((unsigned char *)SessPtr->command, commandString);
+		PLstrcpy((unsigned char *)SessPtr->command, commandString);
 	if ( *titleString )
-		pstrcpy((**theParams).WindowName, titleString);
+		PLstrcpy((**theParams).WindowName, titleString);
 	if (CreateConnectionFromParams(theParams)) {
 		if (doWait) {
 			err = AESuspendTheCurrentEvent(theAppleEvent);

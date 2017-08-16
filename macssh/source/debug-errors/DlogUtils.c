@@ -814,8 +814,3 @@ void pstrinsert(StringPtr dst, StringPtr src)
 	/* adjust length byte */
 	*dst += *src;
 }
-
-void pstrcpy(StringPtr dst, StringPtr src)
-{
-	BlockMoveData(src, dst, *src + 1);
-}

@@ -132,7 +132,7 @@ void otpinterface(short mode, char *parsechallenge, struct WindRec *tw,
 
 	if (mode && noprompt)
 	if (passwordin[0]) {
-		pstrcpy(tempstring, (unsigned char *)passwordin);
+		PLstrcpy(tempstring, (unsigned char *)passwordin);
 		p2cstr(tempstring);
 		p2cstr(challenge);
 		otpgenerator((char *)challenge, (char *)response, (char *)tempstring, usehex);
@@ -171,7 +171,7 @@ void otpinterface(short mode, char *parsechallenge, struct WindRec *tw,
 
 	if (mode) {
 		if (passwordin[0]) {
-			pstrcpy(inputPassword, (unsigned char *)passwordin);
+			PLstrcpy(inputPassword, (unsigned char *)passwordin);
 			//p2cstr((unsigned char *)inputPassword);
 			for (i = 1; i <= inputPassword[0]; i++)
 				tempstring[i] = '¥';
@@ -217,7 +217,7 @@ void otpinterface(short mode, char *parsechallenge, struct WindRec *tw,
 			strncpy(TelInfo->otpword, (char *)inputPassword + 1, inputPassword[0]);
 		if (savepass && inputPassword[0] <= 63) {
 			// RAB BetterTelnet 1.2.1
-			pstrcpy((unsigned char *)passwordin, inputPassword);
+			PLstrcpy((unsigned char *)passwordin, inputPassword);
 		}
 	}
 	DisposeDialog(dptr);

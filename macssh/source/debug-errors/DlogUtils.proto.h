@@ -32,7 +32,6 @@ void SecondThirdCenterRectIn(Rect *inner,Rect *outer);
 void StandardFileCenter(Point *where, short id);
 void pstrcat(StringPtr dst, StringPtr src);
 void pstrinsert(StringPtr dst, StringPtr src);
-void pstrcpy(StringPtr dst, StringPtr src);
 pascal short DLOGwOK( DialogPtr dptr, EventRecord *evt, short *item);
 PROTO_UPP(DLOGwOK, ModalFilter);
 pascal short DLOGwOK_Cancel( DialogPtr dptr, EventRecord *evt, short *item);

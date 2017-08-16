@@ -375,7 +375,7 @@ Boolean PresentOpenConnectionDialog(void)
 						// host name changed
 						autoTicks = LMGetTicks();
 						startautocomplete = true;
-						pstrcpy(hostString, scratchPstring);
+						PLstrcpy(hostString, scratchPstring);
 					}
 					if ( !startautocomplete && doneautocomplete ) {
 						doneautocomplete = false;
@@ -462,7 +462,7 @@ Boolean PresentOpenConnectionDialog(void)
 		return;
 		}
 	
-	pstrcpy(sLastHostName, scratchPstring);
+	PLstrcpy(sLastHostName, scratchPstring);
 
 //	GetMenuItemText(TPopup[0].h, TPopup[0].choice, terminalPopupString);
 //	PopupCleanup();
@@ -755,8 +755,8 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	theScreen->sockspos = 0; // for receiving socks reply
 	theScreen->socks4a = SessPtr->socks4a;
 	theScreen->socksport = SessPtr->socksport;
-	pstrcpy((unsigned char *)theScreen->socksusername, (unsigned char *)SessPtr->socksusername);
-	pstrcpy((unsigned char *)theScreen->sockshost, (unsigned char *)SessPtr->sockshost);
+	PLstrcpy((unsigned char *)theScreen->socksusername, (unsigned char *)SessPtr->socksusername);
+	PLstrcpy((unsigned char *)theScreen->sockshost, (unsigned char *)SessPtr->sockshost);
 
 	theScreen->vtemulation = TermPtr->vtemulation;
 	theScreen->forcesave = SessPtr->forcesave;
@@ -776,11 +776,11 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	theScreen->otpsavepass = SessPtr->otpsavepass;
 	theScreen->oldScrollback = TermPtr->oldScrollback;
 	theScreen->protocol = SessPtr->protocol;
-	pstrcpy((unsigned char *)theScreen->otppassword, (unsigned char *)SessPtr->otppassword);
-	pstrcpy((unsigned char *)theScreen->username, (unsigned char *)SessPtr->username);
-	pstrcpy((unsigned char *)theScreen->password, (unsigned char *)SessPtr->password);
-	pstrcpy((unsigned char *)theScreen->clientuser, (unsigned char *)SessPtr->clientuser);
-	pstrcpy((unsigned char *)theScreen->command, (unsigned char *)SessPtr->command);
+	PLstrcpy((unsigned char *)theScreen->otppassword, (unsigned char *)SessPtr->otppassword);
+	PLstrcpy((unsigned char *)theScreen->username, (unsigned char *)SessPtr->username);
+	PLstrcpy((unsigned char *)theScreen->password, (unsigned char *)SessPtr->password);
+	PLstrcpy((unsigned char *)theScreen->clientuser, (unsigned char *)SessPtr->clientuser);
+	PLstrcpy((unsigned char *)theScreen->command, (unsigned char *)SessPtr->command);
 	theScreen->otpautostate = 0;
 	theScreen->otpautobuffer[7] = 0;
 	theScreen->emacsmeta = TermPtr->emacsmetakey;
@@ -823,9 +823,9 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 	theScreen->remoteport = SessPtr->remoteport;
 
 	// eXodus doesn't like loopback, but accepts local IP...
-	//pstrcpy((unsigned char *)theScreen->display, "\p127.0.0.1:0.0");
+	//PLstrcpy((unsigned char *)theScreen->display, "\p127.0.0.1:0.0");
 	if ( !SessPtr->display[0] )
-		pstrcpy((unsigned char *)SessPtr->display, "\p0.0");
+		PLstrcpy((unsigned char *)SessPtr->display, "\p0.0");
 	netgetip(localIP);
 	sprintf((char *)theScreen->display + 1, "%d.%d.%d.%d:%#s", localIP[0], localIP[1], localIP[2], localIP[3], SessPtr->display);
 	theScreen->display[0] = strlen((char *)theScreen->display + 1);
