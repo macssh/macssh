@@ -931,43 +931,6 @@ int yes_or_no(struct lsh_string *s, int def, int free)
 	return def;
 }
 
-
-#pragma mark -
-
-/*
- * my PLstrcpy
- */
-
-pascal StringPtr PLstrcpy(StringPtr d, ConstStr255Param s)
-{
-	int			size;
-
-	size = s[0] + 1;
-	while (size--) {
-		d[size] = s[size];
-	}
-	return d;
-}
-
-
-/*
- * my PLstrrchr
- */
-
-pascal Ptr PLstrrchr(ConstStr255Param s, short c)
-{
-	int			size;
-
-	size = s[0];
-	while ( size > 0 ) {
-		if ( s[size] == (unsigned char)c ) {
-			return (char *)s + size;
-		}
-		size--;
-	}
-	return NULL;
-}
-
 #pragma mark -
 
 /*
