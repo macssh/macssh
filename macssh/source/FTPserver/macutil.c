@@ -62,7 +62,7 @@ void PathNameFromDirID(long dirID, short vRefNum, StringPtr fullPathName)
 			block.dirInfo.ioFDirIndex = -1;
 			block.dirInfo.ioDrDirID = block.dirInfo.ioDrParID;
 			if ((err = PBGetCatInfoSync(&block)) != noErr) return;
-			pstrcat(directoryName, (StringPtr)"\p/");
+			PLstrcat(directoryName, (StringPtr)"\p/");
 			pstrinsert(fullPathName, directoryName);
 	} while (block.dirInfo.ioDrDirID != 2);
 

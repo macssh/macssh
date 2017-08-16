@@ -140,7 +140,7 @@ Boolean VSopencapture(short scrn_num, short w)
 	NumToString(captNumber++, numstring);
 	GetIndString(filename, MISC_STRINGS, CAPTFILENAME);
 	filename[++(filename[0])] = ' ';
-	pstrcat(filename, numstring);
+	PLstrcat(filename, numstring);
 	
 	GetIndString(tempString,MISC_STRINGS,SAVE_CAPTURED_TEXT_STRING);
 	SFPutFile(where,tempString, filename, NULL, &sfr);

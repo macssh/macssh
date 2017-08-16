@@ -795,15 +795,6 @@ void StandardFileCenter(Point *where, short id)
 
 /* Pascal string utilities */
 
-/*	pstrcat - add string 'src' to end of string 'dst' */
-void pstrcat(StringPtr dst, StringPtr src)
-{
-	/* copy string in */
-	BlockMoveData(src + 1, dst + *dst + 1, *src);
-	/* adjust length byte */
-	*dst += *src;
-}
-
 /*	pstrinsert - insert string 'src' at beginning of string 'dst' */
 void pstrinsert(StringPtr dst, StringPtr src)
 {

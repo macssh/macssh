@@ -834,7 +834,7 @@ static OSErr BoolItemToFile(short refNum, short index, Boolean value)
 	Str255		tempStr;
 
 	GetIndString( tempStr, SAVE_SET_STRINGS_ID, index );
-	pstrcat( tempStr, (value) ? "\p = yes\015" : "\p = no\015" );
+	PLstrcat( tempStr, (value) ? "\p = yes\015" : "\p = no\015" );
 	count = tempStr[0];
 	theErr = FSWrite( refNum, &count, (Ptr)tempStr + 1 );
 	return theErr;
@@ -852,9 +852,9 @@ static OSErr IntItemToFile(short refNum, short index, int value)
 
 	GetIndString( tempStr, SAVE_SET_STRINGS_ID, index );
 	NumToString( value, numStr );
-	pstrcat( tempStr, "\p = " );
-	pstrcat( tempStr, numStr );
-	pstrcat( tempStr, "\p\015" );
+	PLstrcat( tempStr, "\p = " );
+	PLstrcat( tempStr, numStr );
+	PLstrcat( tempStr, "\p\015" );
 	count = tempStr[0];
 	theErr = FSWrite( refNum, &count, (Ptr)tempStr + 1 );
 	return theErr;
@@ -874,7 +874,7 @@ static OSErr CStringItemToFile(short refNum, short index, char *value)
 	len = strlen(value);
 	if ( len ) {
 		GetIndString( tempStr, SAVE_SET_STRINGS_ID, index );
-		pstrcat( tempStr, "\p = \"" );
+		PLstrcat( tempStr, "\p = \"" );
 		count = tempStr[0];
 		theErr = FSWrite( refNum, &count, (Ptr)tempStr + 1 );
 		if ( !theErr ) {
@@ -903,7 +903,7 @@ static OSErr PStringItemToFile(short refNum, short index, StringPtr value)
 
 	if ( value[0] ) {
 		GetIndString( tempStr, SAVE_SET_STRINGS_ID, index );
-		pstrcat( tempStr, "\p = \"" );
+		PLstrcat( tempStr, "\p = \"" );
 		count = tempStr[0];
 		theErr = FSWrite( refNum, &count, (Ptr)tempStr + 1 );
 		if ( !theErr ) {

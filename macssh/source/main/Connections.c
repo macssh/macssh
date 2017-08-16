@@ -112,9 +112,9 @@ void OpenPortSpecial(MenuHandle menuh, short item)
 	if ( !(**theParams).WindowName[0] && memcmp(scratchPstring, gDefaultName, gDefaultName[0] + 1) ) {
 		BlockMoveData(scratchPstring, (**theParams).WindowName, scratchPstring[0] + 1);
 		NumToString(numWind++, scratchPstring);
-		pstrcat((**theParams).WindowName, "\p (");
-		pstrcat((**theParams).WindowName, scratchPstring);
-		pstrcat((**theParams).WindowName, "\p)");
+		PLstrcat((**theParams).WindowName, "\p (");
+		PLstrcat((**theParams).WindowName, scratchPstring);
+		PLstrcat((**theParams).WindowName, "\p)");
 	}
 	success = CreateConnectionFromParams(theParams);
 }
@@ -216,10 +216,10 @@ static void SetCurrentSession(DialogPtr dptr, Str255 scratchPstring)
 
 		if ((**tempSessHdl).port != getDefaultPort((**tempSessHdl).protocol)) {
 				NumToString((unsigned short)(**tempSessHdl).port, scritchPstring);
-				pstrcat(scratchPstring, "\p:");
+				PLstrcat(scratchPstring, "\p:");
 				if ((**tempSessHdl).portNegative)
-					pstrcat(scratchPstring, "\p-");
-				pstrcat(scratchPstring, scritchPstring);
+					PLstrcat(scratchPstring, "\p-");
+				PLstrcat(scratchPstring, scritchPstring);
 		}
 		/* recall last hostname seen if none */
 		if ( !scratchPstring[0] && sLastHostName[0] ) {
@@ -561,9 +561,9 @@ Boolean PresentOpenConnectionDialog(void)
 	if ( !(**InitParams).WindowName[0] && memcmp(favoriteString, gDefaultName, gDefaultName[0] + 1) ) {
 		BlockMoveData(favoriteString, (**InitParams).WindowName, favoriteString[0] + 1);
 		NumToString(numWind++, favoriteString);
-		pstrcat((**InitParams).WindowName, "\p (");
-		pstrcat((**InitParams).WindowName, favoriteString);
-		pstrcat((**InitParams).WindowName, "\p)");
+		PLstrcat((**InitParams).WindowName, "\p (");
+		PLstrcat((**InitParams).WindowName, favoriteString);
+		PLstrcat((**InitParams).WindowName, "\p)");
 	}
 
 	success = CreateConnectionFromParams(InitParams);
@@ -685,13 +685,13 @@ Boolean CreateConnectionFromParams( ConnInitParams **Params)
 					StrLength((**(**Params).session).hostname)+1);
 		if (SessPtr->port != getDefaultPort(SessPtr->protocol)) {
 			NumToString((unsigned short)SessPtr->port, numPstring);
-			pstrcat((**Params).WindowName, "\p:");
-			pstrcat((**Params).WindowName, numPstring);
+			PLstrcat((**Params).WindowName, "\p:");
+			PLstrcat((**Params).WindowName, numPstring);
 		}
 		NumToString(numWind++, numPstring);
-		pstrcat((**Params).WindowName, "\p (");
-		pstrcat((**Params).WindowName, numPstring);	// tack the number onto the end.
-		pstrcat((**Params).WindowName, "\p)");
+		PLstrcat((**Params).WindowName, "\p (");
+		PLstrcat((**Params).WindowName, numPstring);	// tack the number onto the end.
+		PLstrcat((**Params).WindowName, "\p)");
 	}
 
 	if (SessPtr->hostname[0] == 0) {
