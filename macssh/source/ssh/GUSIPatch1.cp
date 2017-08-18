@@ -60,7 +60,7 @@ extern "C" {
 void ssh2_init();
 void ssh2_sched();
 
-char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *parID);
+char *getprefsd(ConstStringPtr name, char *buf, size_t size, short *vRefNum, long *parID);
 
 int open(const char * path, int mode, ...);
 int dup(int s);
@@ -116,7 +116,7 @@ void ssh2_sched()
  * getprefsd return the full path of prefs directory
  */
 
-char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *dirID)
+char *getprefsd(ConstStringPtr name, char *buf, size_t size, short *vRefNum, long *dirID)
 {
 	OSErr			err;
 	FSSpec			fileSpec;
@@ -130,8 +130,7 @@ char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *dirID)
 	if (err) {
 		return NULL;
 	}
-	fileSpec.name[0] = strlen(name);
-	BlockMoveData(name, fileSpec.name + 1, fileSpec.name[0]);
+	PLstrcpy(fileSpec.name, name);
 	err = ResolveAliasFile(&fileSpec, true, &isFolder, &wasAlias);
 	err = FSpGetDirectoryID(&fileSpec, dirID, &isDirectory);
 	if (err == fnfErr) {

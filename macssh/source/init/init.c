@@ -53,7 +53,7 @@
 #include <sys/stat.h>
 
 extern void ssh2_init();
-extern char *getprefsd(char *name, char * buf, size_t size, short *vRefNum, long *parID);
+extern char *getprefsd(ConstStringPtr name, char * buf, size_t size, short *vRefNum, long *parID);
 
 /*--------------------------------------------------------------------------------*/
 
@@ -325,7 +325,7 @@ void DoTheGlobalInits(void)
 {
 	long junk = 0;
 	ParamBlockRec pb;
-	char folderString[256];
+	Str255 folderString;
 	int err;
 	char *buf;
 	
@@ -371,10 +371,7 @@ void DoTheGlobalInits(void)
 	TelInfo->SysFolder.name[0]=0;
 
 /* NONO */
-	GetIndString((unsigned char *)folderString,MISC_STRINGS,PREFS_FOLDER_NAME);
-	junk = folderString[0];
-	BlockMoveData(folderString + 1, folderString, junk);
-	folderString[junk] = 0;
+	GetIndString(folderString,MISC_STRINGS,PREFS_FOLDER_NAME);
 	// WARNING: this initializes GUSI which in turn calls our event handler...
 	buf = getprefsd(folderString, NULL, 0, &TelInfo->PrefFolder.vRefNum, &TelInfo->PrefFolder.parID);
 	if ( !buf ) {

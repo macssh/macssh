@@ -82,7 +82,7 @@ extern RSdata *RSlocal;
 
 extern void ssh2_init();
 extern void ssh2_sched();
-extern char *getprefsd(char *name, char *buf, size_t size, short *vRefNum, long *parID);
+extern char *getprefsd(ConstStringPtr name, char *buf, size_t size, short *vRefNum, long *parID);
 
 /*----------------------------------------------------------------------------*/
 
