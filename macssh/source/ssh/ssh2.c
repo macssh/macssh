@@ -1604,6 +1604,12 @@ void *ssh2_thread(WindRec*w)
 
 							if (bytes > 0)
 								libssh2_channel_write(channel, buf, bytes);
+							else if (bytes == 0)
+								break;	// EOF: window was closed. Close channel/session/connection.
+							else {
+								syslog(0, "read() from stdin returned -1 errno %d\n", errno);
+								break;
+							}
 						}
 						//if (FD_ISSET(stdoutfd, &writefds))
 						//{
