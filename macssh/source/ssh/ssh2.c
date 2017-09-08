@@ -1615,18 +1615,22 @@ void *ssh2_thread(WindRec*w)
 						//{
 						//}
 						if (FD_ISSET(sock, &readfds)) {
-							char buf[64];
-							ssize_t bytes;
+							char buf[256];
 
-							while ((bytes = libssh2_channel_read(channel, buf, sizeof(buf))) > 0)
-							{
-								syslog(0, "read %d bytes from channel\n", bytes);
+							while (1) {
+								ssize_t bytes = libssh2_channel_read(channel, buf, sizeof(buf));
 
+								syslog(0, "libssh2_channel_read() returned %d\n", bytes);
 								if (bytes > 0)
 									WriteCharsToTTY(1, NULL, buf, bytes);
-
-								if (libssh2_channel_eof(channel))
+								else
 									break;
+							}
+
+							if (libssh2_channel_eof(channel))
+							{
+								syslog(0, "libssh2_channel_eof() true\n");
+								break;
 							}
 						}
 						//if (FD_ISSET(sock, &writefds))
