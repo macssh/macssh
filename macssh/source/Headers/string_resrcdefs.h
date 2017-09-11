@@ -28,6 +28,7 @@
 #define	AE_PROBLEM_ERR			12			// Problem installing AppleEvent handlers
 #define CLOSE_ALL_WINDOWS_Q		13			// For Option-Command-W
 #define NEED_APPLEEVENTS_ERR	14			// AppleEvent Manager is required
+
 #define	OPFAILED_MESSAGES_ID	2001		// General messages when an operation fails
 #define	CANT_CREATE_FILE		1			// Can't create a file for some reason
 #define	CANT_OPEN_FILE			2			// Can't open a file
@@ -37,6 +38,7 @@
 #define	EXPORT_ERR				6			// export version wihout rsa
 #define	NO_OPENTPT_ERR			7			// opentpt 1.1 needed
 #define	NO_THREADS_ERR			8			// Threads Manager needed
+#define	KNOWN_HOSTS_ERR			9			// Error opening/reading known_hosts file
 
 #define	MISC_STRINGS			2002		// Misc. internal strings
 #define	CAPTFILENAME			1			// Name of default capture file

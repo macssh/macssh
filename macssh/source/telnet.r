@@ -7107,39 +7107,6 @@ data 'STR ' (1991, "Preferences File Name", purgeable) {
 	$"0C4D 6163 5353 4820 5072 6566 73"                   /* .MacSSH Prefs */
 };
 
-data 'STR#' (2001, "Operation Failed Messages", preload) {
-	$"0008 1E74 6865 2066 696C 6520 636F 756C"            /* ...the file coul */
-	$"6420 6E6F 7420 6265 2063 7265 6174 6564"            /* d not be created */
-	$"2E1D 7468 6520 6669 6C65 2063 6F75 6C64"            /* ..the file could */
-	$"206E 6F74 2062 6520 6F70 656E 6564 2E20"            /*  not be opened.  */
-	$"7468 6572 6520 6973 206E 6F74 2065 6E6F"            /* there is not eno */
-	$"7567 6820 6672 6565 206D 656D 6F72 792E"            /* ugh free memory. */
-	$"2474 6865 2073 6574 2063 6F6E 7461 696E"            /* $the set contain */
-	$"7320 616E 2069 6E76 616C 6964 206B 6579"            /* s an invalid key */
-	$"776F 7264 2E20 796F 7520 6361 6E6E 6F74"            /* word. you cannot */
-	$"206F 7065 6E20 6120 6E75 6C6C 2068 6F73"            /*  open a null hos */
-	$"746E 616D 652E 4E74 6869 7320 6973 2061"            /* tname.Nthis is a */
-	$"6E20 6578 706F 7274 2076 6572 7369 6F6E"            /* n export version */
-	$"206F 6620 4265 7474 6572 5465 6C6E 6574"            /*  of BetterTelnet */
-	$"2077 6869 6368 2064 6F65 7320 6E6F 7420"            /*  which does not  */
-	$"7375 7070 6F72 7420 7365 6375 7265 2073"            /* support secure s */
-	$"6865 6C6C 2E70 4D61 6353 5348 2072 6571"            /* hell.pMacSSH req */
-	$"7569 7265 7320 4F70 656E 5472 616E 7370"            /* uires OpenTransp */
-	$"6F72 7420 312E 312E 3120 6F72 2068 6967"            /* ort 1.1.1 or hig */
-	$"6865 7220 666F 7220 5353 4832 2063 6F6E"            /* her for SSH2 con */
-	$"6E65 6374 696F 6E73 2E0D 506C 6561 7365"            /* nections..Please */
-	$"2C20 696E 7374 616C 6C20 4F70 656E 5472"            /* , install OpenTr */
-	$"616E 7370 6F72 7420 616E 6420 7472 7920"            /* ansport and try  */
-	$"6167 6169 6E2E 6A4D 6163 5353 4820 7265"            /* again.jMacSSH re */
-	$"7175 6972 6573 2074 6865 2054 6872 6561"            /* quires the Threa */
-	$"6420 4D61 6E61 6765 7220 666F 7220 5353"            /* d Manager for SS */
-	$"4832 2063 6F6E 6E65 6374 696F 6E73 2E0D"            /* H2 connections.. */
-	$"506C 6561 7365 2C20 696E 7374 616C 6C20"            /* Please, install  */
-	$"7468 6520 5468 7265 6164 204D 616E 6167"            /* the Thread Manag */
-	$"6572 2061 6E64 2074 7279 2061 6761 696E"            /* er and try again */
-	$"2E"                                                 /* . */
-};
-
 data 'STR#' (2002, "Misc Strings", purgeable) {
 	$"002A 0C43 6170 7475 7265 2046 696C 650B"            /* .*.Capture File. */
 	$"4E65 7720 5365 7373 696F 6E0C 4E65 7720"            /* New Session.New  */
@@ -7858,6 +7825,43 @@ data 'STR#' (2000, "Misc. messages", purgeable) {
 	$"4820 7265 7175 6972 6573 2074 6865 2041"            /* H requires the A */
 	$"7070 6C65 4576 656E 7420 4D61 6E61 6765"            /* ppleEvent Manage */
 	$"722E"                                               /* r. */
+};
+
+data 'STR#' (2001, "Operation Failed Messages", preload) {
+	$"0009 1E74 6865 2066 696C 6520 636F 756C"            /* .Æ.the file coul */
+	$"6420 6E6F 7420 6265 2063 7265 6174 6564"            /* d not be created */
+	$"2E1D 7468 6520 6669 6C65 2063 6F75 6C64"            /* ..the file could */
+	$"206E 6F74 2062 6520 6F70 656E 6564 2E20"            /*  not be opened.  */
+	$"7468 6572 6520 6973 206E 6F74 2065 6E6F"            /* there is not eno */
+	$"7567 6820 6672 6565 206D 656D 6F72 792E"            /* ugh free memory. */
+	$"2474 6865 2073 6574 2063 6F6E 7461 696E"            /* $the set contain */
+	$"7320 616E 2069 6E76 616C 6964 206B 6579"            /* s an invalid key */
+	$"776F 7264 2E20 796F 7520 6361 6E6E 6F74"            /* word. you cannot */
+	$"206F 7065 6E20 6120 6E75 6C6C 2068 6F73"            /*  open a null hos */
+	$"746E 616D 652E 4E74 6869 7320 6973 2061"            /* tname.Nthis is a */
+	$"6E20 6578 706F 7274 2076 6572 7369 6F6E"            /* n export version */
+	$"206F 6620 4265 7474 6572 5465 6C6E 6574"            /*  of BetterTelnet */
+	$"2077 6869 6368 2064 6F65 7320 6E6F 7420"            /*  which does not  */
+	$"7375 7070 6F72 7420 7365 6375 7265 2073"            /* support secure s */
+	$"6865 6C6C 2E70 4D61 6353 5348 2072 6571"            /* hell.pMacSSH req */
+	$"7569 7265 7320 4F70 656E 5472 616E 7370"            /* uires OpenTransp */
+	$"6F72 7420 312E 312E 3120 6F72 2068 6967"            /* ort 1.1.1 or hig */
+	$"6865 7220 666F 7220 5353 4832 2063 6F6E"            /* her for SSH2 con */
+	$"6E65 6374 696F 6E73 2E0D 506C 6561 7365"            /* nections..Please */
+	$"2C20 696E 7374 616C 6C20 4F70 656E 5472"            /* , install OpenTr */
+	$"616E 7370 6F72 7420 616E 6420 7472 7920"            /* ansport and try  */
+	$"6167 6169 6E2E 6A4D 6163 5353 4820 7265"            /* again.jMacSSH re */
+	$"7175 6972 6573 2074 6865 2054 6872 6561"            /* quires the Threa */
+	$"6420 4D61 6E61 6765 7220 666F 7220 5353"            /* d Manager for SS */
+	$"4832 2063 6F6E 6E65 6374 696F 6E73 2E0D"            /* H2 connections.. */
+	$"506C 6561 7365 2C20 696E 7374 616C 6C20"            /* Please, install  */
+	$"7468 6520 5468 7265 6164 204D 616E 6167"            /* the Thread Manag */
+	$"6572 2061 6E64 2074 7279 2061 6761 696E"            /* er and try again */
+	$"2E48 4572 726F 7220 6F70 656E 696E 672F"            /* .HError opening/ */
+	$"7265 6164 696E 6720 6B6E 6F77 6E5F 686F"            /* reading known_ho */
+	$"7374 7320 6669 6C65 2E20 5365 6520 4C6F"            /* sts file. See Lo */
+	$"6720 7769 6E64 6F77 2066 6F72 206D 6F72"            /* g window for mor */
+	$"6520 6465 7461 696C 732E"                           /* e details. */
 };
 
 data 'SeSn' (1991, "<Default>") {
