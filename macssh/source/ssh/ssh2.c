@@ -1353,13 +1353,241 @@ static void libssh2_handler(LIBSSH2_SESSION *session, void *context, const char 
 
 extern int WriteCharsToTTY(int id, void *ctx, char *buffer, int n);
 
-static Boolean ssh2_hostkey_approved(LIBSSH2_SESSION *session)
+static Boolean ssh2_get_known_hosts_file(FSSpec *fsp)
 {
-	// TODO: init knownhosts, read lines from file, check host, display dialog with hash if no match
-	const char *hostkey_hash = libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA256);
+	// Return an FSSpec to the known_hosts file in Preferences:MacSSH.
+	// The old lsh-based MacSSH created MacSSH:known_hosts with creator code of CWIE. If this is found, rename the file
+	// and recreate with creator code 'Ssh2' (kNCSACreatorSignature).
+	// Otherwise, find the existing file
+	OSErr		err;
+	Str255		folderName;
+	short		vRefNum;
+	long		dirID;
+	Boolean		create = false;
 
-	// hostkey_hash is binary data (32 bytes for SHA256)
+	GetIndString(folderName,MISC_STRINGS,PREFS_FOLDER_NAME);
+	if( getprefsd(folderName, NULL, 0, &vRefNum, &dirID) == NULL ) {
+		syslog(0, "ssh2_get_known_hosts_file(): getprefsd() failed\n");
+		return false;
+	}
+
+	err = FSMakeFSSpec(vRefNum, dirID, "\pknown_hosts", fsp);
+
+	if( err == noErr )
 	{
+		// File exists, check creator code
+		FInfo finfo;
+		err = FSpGetFInfo(fsp, &finfo);
+		if( err == noErr )
+		{
+			if( finfo.fdCreator != kNCSACreatorSignature )
+			{
+				// rename, recreate file
+				syslog(0, "ssh2_get_known_hosts_file(): found old known_hosts file, renaming\n");
+				if( FSpRename(fsp, "\pknown_hosts-lsh-old") != noErr )
+				{
+					syslog(0, "ssh2_get_known_hosts_file(): FSpRename error\n");
+					return false;
+				}
+
+				create = true;
+			}
+		}
+	}
+	else if( err == fnfErr )
+	{
+		// 'known_hosts' file doesn't exist
+		create = true;
+	}
+	else
+	{
+		syslog(0, "ssh2_get_known_hosts_file(): FSMakeFSSpec returned error %d\n", err);
+		return false;
+	}
+
+	if( create ) {
+		short refNum;
+		syslog(0, "ssh2_get_known_hosts_file(): creating new known_hosts file\n");
+
+		err = FSpCreate(fsp, kNCSACreatorSignature, 'TEXT', smSystemScript);
+		if( err != noErr)
+		{
+			syslog(0, "ssh2_get_known_hosts_file(): FSpCreate returned error %d\n", err);
+			return false;
+		}
+
+		if( FSpOpenDF(fsp, fsCurPerm, &refNum) == noErr )
+		{
+			static const char header[] =
+				"# known_hosts file for MacSSH 3.0\n# File uses OpenSSH format and Unix line endings ('\\n')\n\n";
+			long count = sizeof(header) - 1;
+
+			FSWrite(refNum, &count, header);
+			FSClose(refNum);
+		}
+	}
+
+	// At this point, file exists and has correct creator code (either empty or is our format)
+	return true;
+}
+
+static Boolean ssh2_read_known_hosts_file(short refNum, LIBSSH2_KNOWNHOSTS *hosts)
+{
+	// Use PBReadSync to read until a Unix newline ('\n') is reached.
+	ParamBlockRec	pb;
+	OSErr			err;
+	char			buf[2048];
+
+	memset(&pb, 0, sizeof(pb));
+	pb.ioParam.ioRefNum = refNum;
+	pb.ioParam.ioBuffer = buf;
+	pb.ioParam.ioReqCount = sizeof(buf);
+	pb.ioParam.ioPosMode = ('\n' << 8) | newLineMask;
+	pb.ioParam.ioPosOffset = 0;
+
+	while (true)
+	{
+		OSErr err = PBReadSync(&pb);
+
+		if( (err == noErr) || ((err == eofErr) && (pb.ioParam.ioActCount > 0)) )
+		{
+			int err = libssh2_knownhost_readline(hosts, buf, pb.ioParam.ioActCount, LIBSSH2_KNOWNHOST_FILE_OPENSSH);
+			if (err != LIBSSH2_ERROR_NONE)
+				syslog(0, "ssh2_read_known_hosts_file(): libssh2_knownhost_readline returned error %d\n", err);
+		}
+		else if( err == eofErr )
+		{
+			break;
+		}
+		else
+		{
+			syslog(0, "ssh2_read_known_hosts_file(): PBReadSync returned error %d\n", err);
+			return false;
+		}
+	}
+	return true;
+}
+
+static Boolean ssh2_append_host_to_file(short refNum, LIBSSH2_KNOWNHOSTS *hosts, struct libssh2_knownhost *known)
+{
+	char			buf[2048];
+	size_t			outlen;
+
+	{
+		int err = libssh2_knownhost_writeline(hosts, known, buf, sizeof(buf), &outlen, LIBSSH2_KNOWNHOST_FILE_OPENSSH);
+		if( err != 0 )
+		{
+			syslog(0, "ssh2_append_host_to_file(): libssh2_knownhost_writeline returned error %d\n", err);
+			return false;
+		}
+	}
+
+	{
+		OSErr			err;
+		ParamBlockRec	pb;
+
+		memset(&pb, 0, sizeof(pb));
+		pb.ioParam.ioRefNum = refNum;
+		pb.ioParam.ioBuffer = buf;
+		pb.ioParam.ioReqCount = outlen;
+		pb.ioParam.ioPosMode = fsFromLEOF;
+		pb.ioParam.ioPosOffset = 0;
+
+		err = PBWriteSync(&pb);
+		if( err == noErr )
+		{
+			if( pb.ioParam.ioActCount != outlen )
+				syslog(0, "ssh2_append_host_to_file(): PBWrite only wrote %d bytes out of %d\n", pb.ioParam.ioActCount, outlen);
+		}
+		else
+		{
+			syslog(0, "ssh2_append_host_to_file(): PBWrite returned error %d\n", err);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static Boolean ssh2_hostkey_approved(LIBSSH2_SESSION *session, const char *hostname, in_port_t port)
+{
+	Boolean result = false, mismatch = false, error = false;
+	OSErr err;
+	LIBSSH2_KNOWNHOSTS *hosts = NULL;
+	const char *hostkey_raw;
+	size_t hostkey_raw_len;
+	int hostkey_type;
+	FSSpec known_hosts_fsp;
+	short known_hosts_refNum = -1;
+	int knownhost_type = LIBSSH2_KNOWNHOST_KEY_UNKNOWN;
+
+	hosts = libssh2_knownhost_init(session);
+	if (!hosts)
+	{
+		error = true;
+		goto exit;
+	}
+
+	hostkey_raw = libssh2_session_hostkey(session, &hostkey_raw_len, &hostkey_type);
+
+	switch (hostkey_type)
+	{
+		case LIBSSH2_HOSTKEY_TYPE_RSA:
+			knownhost_type = LIBSSH2_KNOWNHOST_KEY_SSHRSA;
+			break;
+		case LIBSSH2_HOSTKEY_TYPE_DSS:
+			knownhost_type = LIBSSH2_KNOWNHOST_KEY_SSHDSS;
+			break;
+	}
+
+	// read lines in from known hosts file
+	if( ssh2_get_known_hosts_file(&known_hosts_fsp) == true)
+	{
+		err = FSpOpenDF(&known_hosts_fsp, fsCurPerm, &known_hosts_refNum);
+		if( err == noErr )
+		{
+			if( ssh2_read_known_hosts_file(known_hosts_refNum, hosts) )
+			{
+				// check hosts for current host
+				switch (libssh2_knownhost_checkp(hosts, hostname, port, hostkey_raw, hostkey_raw_len, LIBSSH2_KNOWNHOST_TYPE_PLAIN | LIBSSH2_KNOWNHOST_KEYENC_RAW | knownhost_type, NULL))
+				{
+					case LIBSSH2_KNOWNHOST_CHECK_MATCH:
+						result = true;
+						break;
+					case LIBSSH2_KNOWNHOST_CHECK_NOTFOUND:
+						result = false;
+						break;
+					case LIBSSH2_KNOWNHOST_CHECK_MISMATCH:
+						result = false;
+						mismatch = true;
+						break;
+					case LIBSSH2_KNOWNHOST_CHECK_FAILURE:
+						break;
+				}
+			}
+			else
+			{
+				error = true;
+				goto exit;
+			}
+		}
+		else
+		{
+			error = true;
+			goto exit;
+		}
+	}
+	else
+	{
+		error = true;
+		goto exit;
+	}
+
+	if (!result)
+	{
+		short socresult;
+		// hostkey_hash is binary data (32 bytes for SHA256)
+		const char *hostkey_hash = libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA256);
 		char hostkey_hash_ascii[7+(32*3)+1] = "SHA256:";
 		base64_encode(32, hostkey_hash, sizeof(hostkey_hash_ascii)-7, hostkey_hash_ascii+7);
 
@@ -1372,10 +1600,57 @@ static Boolean ssh2_hostkey_approved(LIBSSH2_SESSION *session)
 		hostkey_hash[18], hostkey_hash[19]);
 		*/
 
-		syslog(0, "%s\n", hostkey_hash_ascii);
-		save_once_cancel1(hostkey_hash_ascii);
+		if( mismatch )
+			socresult = save_once_cancel2(hostkey_hash_ascii);
+		else
+			socresult = save_once_cancel1(hostkey_hash_ascii);
+
+		switch (socresult)
+		{
+			case 1: // save and accept
+			{
+				// append known host line to file
+				struct libssh2_knownhost *khost;
+
+				libssh2_knownhost_addc(hosts, hostname, NULL, hostkey_raw, hostkey_raw_len, NULL, 0, LIBSSH2_KNOWNHOST_TYPE_PLAIN | LIBSSH2_KNOWNHOST_KEYENC_RAW | knownhost_type, &khost);
+
+				if( ssh2_append_host_to_file(known_hosts_refNum, hosts, khost) )
+					result = true;
+				else
+					error = true;
+
+				// TODO: if mismatch, does previous line need to be removed from file?
+
+				break;
+			}
+			case 2: // accept (but no save)
+				result = true;
+				break;
+
+			case 3:	// cancel connection
+				result = false;
+				break;
+		}
 	}
-	return true;
+
+exit:
+	if (error)
+	{
+		// Each function will print more specific errors to the log window, and then this dialog is shown
+		Str255 str;
+		GetIndString(str, OPFAILED_MESSAGES_ID, KNOWN_HOSTS_ERR);
+		p2cstr(str);
+		SSH2ErrorDialog((char *)str);
+
+		result = true;
+	}
+
+	if (hosts)
+		libssh2_knownhost_free(hosts);
+	if (known_hosts_refNum != -1)
+		FSClose(known_hosts_refNum);
+
+	return result;
 }
 
 static void kbd_callback(const char* name, int name_len, const char* instruction,
@@ -1462,6 +1737,7 @@ void *ssh2_thread(WindRec*w)
 	port = w->port;
 
 	{
+		char hostname[256];
 		int sock;
 		int rc = libssh2_init(0);
 		syslog(0, "libssh2 init %d\n", rc);
@@ -1474,13 +1750,17 @@ void *ssh2_thread(WindRec*w)
 			sin.sin_port = htons(w->portNum);
 			{
 				struct hostent *hp;
-				Str255 hostname;
+
 				memcpy(hostname, &(w->sshdata.host[1]), w->sshdata.host[0]);
 				hostname[w->sshdata.host[0]] = '\0';
 				syslog(0, "host %s\n", hostname);
 				hp = gethostbyname(hostname);
 				if (hp) {
 					memcpy(&(sin.sin_addr.s_addr), hp->h_addr_list[0], hp->h_length);
+					syslog(0, "h_name %s\n", hp->h_name);
+				}
+				else {
+					// TODO: gethostbyname error
 				}
 			}
 			syslog(0, "port %d portNum %d\n", port, w->portNum);
@@ -1497,7 +1777,7 @@ void *ssh2_thread(WindRec*w)
 				syslog(0, "Failure establishing SSH session\n");
 			}
 
-			if (!ssh2_hostkey_approved(session))
+			if (!ssh2_hostkey_approved(session, hostname, w->portNum))
 				goto closesession;
 
 			if (!ssh2_authentication_successful(session, w))
