@@ -48,6 +48,7 @@ typedef struct sshinfo {
 	UInt32		ip;			// no v6...
 	pthread_t	thread;
 	void		*context;
+	void		*channel;
 } sshinfo;
 
 struct WindRec {

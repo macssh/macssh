@@ -1771,7 +1771,7 @@ void *ssh2_thread(WindRec*w)
 		}
 		{
 			LIBSSH2_SESSION *session = libssh2_session_init_ex(NULL, NULL, NULL, w);
-			libssh2_trace(session, INT_MAX);
+			//libssh2_trace(session, INT_MAX);
 			libssh2_trace_sethandler(session, NULL, libssh2_handler);
 			if (libssh2_session_startup(session, sock)) {
 				syslog(0, "Failure establishing SSH session\n");
@@ -1785,7 +1785,10 @@ void *ssh2_thread(WindRec*w)
 
 			{
 				LIBSSH2_CHANNEL *channel = libssh2_channel_open_session(session);
-				libssh2_channel_request_pty(channel, "vt100");
+				libssh2_channel_request_pty_ex(channel, "vt100", 5, NULL, 0,
+					VSgetcols( w->vs ) + 1, VSgetlines( w->vs ),
+					RSlocal[w->vs].fwidth * (VSgetcols( w->vs ) + 1),
+					RSlocal[w->vs].fheight * (VSgetlines( w->vs )));
 				libssh2_channel_shell(channel);
 
 				{
@@ -1809,6 +1812,7 @@ void *ssh2_thread(WindRec*w)
 					}
 				}
 
+				w->sshdata.channel = channel;
 				libssh2_session_set_blocking(session, 0);
 
 				{
@@ -2246,10 +2250,10 @@ void ssh_exportkey(void)
 void ssh_wresize(struct WindRec* w)
 {
 	if (w->sshdata.thread) {
-		lshcontext *context = (lshcontext *)w->sshdata.context;
-		pthread_kill( w->sshdata.thread, SIGWINCH );
-		while ( context->_window_changed ) {
-			sched_yield();
-		}
+		LIBSSH2_CHANNEL *channel = (LIBSSH2_CHANNEL *)w->sshdata.channel;
+		syslog(0, "width %d height %d pixels %d %d\n", VSgetcols( w->vs ) + 1, VSgetlines( w->vs ),
+			RSlocal[w->vs].fwidth * (VSgetcols( w->vs ) + 1), RSlocal[w->vs].fheight * (VSgetlines( w->vs )));
+		libssh2_channel_request_pty_size_ex(channel, VSgetcols( w->vs ) + 1, VSgetlines( w->vs ),
+			RSlocal[w->vs].fwidth * (VSgetcols( w->vs ) + 1), RSlocal[w->vs].fheight * (VSgetlines( w->vs )));
 	}
 }
