@@ -1072,10 +1072,6 @@ void init_context(lshcontext *context, short port)
 	context->_gConsoleInBufMax = CONSOLEBUFSIZE;
 	context->_gConsoleOutBufLen = 0;
 	context->_gConsoleOutBufMax = CONSOLEBUFSIZE;
-	context->_all_objects = NULL;
-	context->_number_of_objects = 0;
-	context->_number_of_strings = 0;
-	context->_live_objects = 0;
 	context->_quiet_flag = 0;
 	context->_verbose_flag = 0;
 	context->_trace_flag = 0;

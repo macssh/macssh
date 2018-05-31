@@ -40,11 +40,6 @@ typedef struct lshcontext {
 	long			_gConsoleOutBufMax;
 	char			_gConsoleOutBuf[CONSOLEBUFSIZE];
 
-	struct lsh_object *_all_objects;
-	unsigned		_number_of_objects;
-	unsigned		_number_of_strings;
-	unsigned		_live_objects;
-
 	int				_quiet_flag;
 	int				_verbose_flag;
 	int				_trace_flag;
@@ -74,13 +69,6 @@ typedef struct lshcontext {
 } lshcontext;
 
 extern pthread_key_t ssh2threadkey;
-
-
-#define all_objects (((lshcontext *)pthread_getspecific(ssh2threadkey))->_all_objects)
-#define number_of_objects (((lshcontext *)pthread_getspecific(ssh2threadkey))->_number_of_objects)
-#define number_of_strings (((lshcontext *)pthread_getspecific(ssh2threadkey))->_number_of_strings)
-
-#define live_objects (((lshcontext *)pthread_getspecific(ssh2threadkey))->_live_objects)
 
 #define quiet_flag (((lshcontext *)pthread_getspecific(ssh2threadkey))->_quiet_flag)
 #define verbose_flag (((lshcontext *)pthread_getspecific(ssh2threadkey))->_verbose_flag)
