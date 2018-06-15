@@ -1,13 +1,33 @@
-data 'DITL' (1000, purgeable) {
-	$"0003 0000 0000 0000 0000 00FA 0190 8000"            /* ...........˙.êÄ. */
-	$"0000 0000 0064 00DC 00F6 018C 0000 0000"            /* .....d.‹.ˆ.å.... */
-	$"0000 00E5 0019 00F4 00BF 0000 0000 0000"            /* ...Â...Ù.ø...... */
-	$"00AF 000A 00DF 00D4 0000"                           /* .Ø.¬.ﬂ.‘.. */
+resource 'DITL' (1000, purgeable) {
+	{	/* array DITLarray: 4 elements */
+		/* [1] */
+		{0, 0, 250, 400},
+		UserItem {
+			disabled
+		},
+		/* [2] */
+		{100, 220, 246, 396},
+		UserItem {
+			enabled
+		},
+		/* [3] */
+		{229, 25, 244, 191},
+		UserItem {
+			enabled
+		},
+		/* [4] */
+		{175, 10, 223, 212},
+		UserItem {
+			enabled
+		}
+	}
 };
 
-data 'STR#' (1000) {
-	$"0001 1668 7474 703A 2F2F 7777 772E 6D61"            /* ...http://www.ma */
-	$"6373 7368 2E63 6F6D 2F"                             /* cssh.com/ */
+resource 'STR#' (1000) {
+	{	/* array StringArray: 1 elements */
+		/* [1] */
+		"http://www.macssh.com/"
+	}
 };
 
 data 'TEXT' (1000, "Credits") {
@@ -223,9 +243,14 @@ data 'TEXT' (1000, "Credits") {
 	$"0D0D 0D"                                            /* ... */
 };
 
-data 'WIND' (1000) {
-	$"0032 0008 012C 0198 0002 0100 0000 0000"            /* .2...,.ò........ */
-	$"0000 0000 300A"                                     /* ....0¬ */
+resource 'WIND' (1000) {
+	{50, 8, 300, 408},
+	plainDBox,
+	visible,
+	noGoAway,
+	0x0,
+	"",
+	alertPositionMainScreen
 };
 
 data 'styl' (1000, "Credits") {
