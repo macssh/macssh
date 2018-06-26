@@ -1065,7 +1065,7 @@ void init_context(lshcontext *context, short port)
 	memcpy(&context->_mactermios, &defaulttermios, sizeof(struct termios));
 	context->_gConsoleInEOF = 0;
 	/*context->_convertLFs = 0;*/
-	context->_convertLFs = 1;
+	context->_convertLFs = 0;
 	context->_lastCR = 0;
 	context->_insock = NULL;
 	context->_gConsoleInBufLen = 0;
