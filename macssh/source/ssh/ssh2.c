@@ -1724,7 +1724,7 @@ static Boolean ssh2_authentication_successful(LIBSSH2_SESSION *session, WindRec 
 void *ssh2_thread(WindRec*w)
 {
 	OSErr			err;
-	lshcontext		*context;
+	lshcontext		*context = NULL;
 	short			port;
 	int				i;
 	int				result;
