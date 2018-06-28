@@ -40,6 +40,7 @@
 #include "IConfig.proto.h"		
 #include "ae.proto.h"			
 #include "prefs.proto.h"
+#include "sshglue.proto.h"
 #include "Appearance.h"
 
 //#define	PROFILER						//	Define to use MW profiler
@@ -174,6 +175,7 @@ void	quit( void)
 
 	close_mb_files();			/* BYU - Don't leave any files open! */
 	stopInternetConfig();
+	ssh_glue_exit();
 	TelInfo->done = 1;			/* BYU */
 }
 

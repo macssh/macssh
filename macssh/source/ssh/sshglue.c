@@ -16,6 +16,8 @@
 
 // prototypes for glued functions
 #ifdef WE_HAVE_SSH
+void ssh_library_initialize(void);
+void ssh_library_exit(void);
 void ssh_protocol_initial(WindRec*);
 void ssh_packet_read(struct WindRec*, unsigned char*, short);
 void ssh_protocol_write(struct WindRec*, unsigned char*, short);
@@ -24,6 +26,20 @@ void ssh_randomize(void);
 void ssh_exportkey(void);
 void ssh_wresize(struct WindRec*);
 #endif
+
+void ssh_glue_initialize(void)
+{
+#ifdef WE_HAVE_SSH
+	ssh_library_initialize();
+#endif
+}
+
+void ssh_glue_exit(void)
+{
+#ifdef WE_HAVE_SSH
+	ssh_library_exit();
+#endif
+}
 
 void ssh_glue_initial(WindRec* tw)
 {

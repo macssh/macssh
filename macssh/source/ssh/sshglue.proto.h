@@ -1,3 +1,6 @@
+void ssh_glue_initialize(void);
+void ssh_glue_exit(void);
+
 void ssh_glue_initial(WindRec*);
 short ssh_glue_installed(void);
 void ssh_glue_write(struct WindRec*, unsigned char*, short);

@@ -44,6 +44,7 @@
 #include "telneterrors.h"
 #include "wdefpatch.proto.h" //for wdefLoad
 #include "memory.proto.h"
+#include "sshglue.proto.h"
 #include "AddressXLation.h"
 
 #include <KeyChain.h>
@@ -491,6 +492,7 @@ void init(void)
 	loadErrors(); //ditto for the error code
 
 	ssh2_init();
+	ssh_glue_initialize();
 
 	gInitialized = true;
 }

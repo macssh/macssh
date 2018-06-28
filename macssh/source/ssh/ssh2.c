@@ -118,6 +118,8 @@ void make_env( lshcontext *context, WindRec *w );
 int cvs_listen( int port );
 
 void *ssh2_thread(WindRec*w);
+void ssh_library_initialize(void);
+void ssh_library_exit(void);
 void ssh_protocol_initial(WindRec*w);
 void ssh_packet_read(struct WindRec*w, unsigned char*databuf, short datalen);
 void ssh_protocol_write(struct WindRec*w, unsigned char*databuf, short datalen);
@@ -1734,10 +1736,8 @@ void *ssh2_thread(WindRec*w)
 
 	{
 		char hostname[256];
-		int sock;
-		int rc = libssh2_init(0);
-		syslog(0, "libssh2 init %d\n", rc);
-		sock = socket(AF_INET, SOCK_STREAM, 0);
+		int rc;
+		int sock = socket(AF_INET, SOCK_STREAM, 0);
 		fcntl(sock, F_SETFL, 0);
 
 		{
@@ -1908,7 +1908,6 @@ closesession:
 
 closesocket:
 		close(sock);
-		libssh2_exit();
 	}
 
 done:
@@ -2047,6 +2046,21 @@ done:
 #endif
 }
 
+/*
+ * ssh_library_initialize
+ */
+void ssh_library_initialize(void)
+{
+	libssh2_init(0);
+}
+
+/*
+ * ssh_library_exit
+ */
+void ssh_library_exit(void)
+{
+	libssh2_exit();
+}
 
 /*
  * ssh_protocol_initial
