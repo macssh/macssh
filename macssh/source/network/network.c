@@ -518,6 +518,7 @@ short netwrite(short pnum, void *buffer, short nsend)
 	if (i < 0) return Rnetwrite(pnum, buffer, nsend);
 
 /* NONO */
+/*
 	if ( screens[i].protocol == PROTOCOL_SSH ) {
 		WindRec *wind = &screens[i];
 		lshcontext *context = (lshcontext *)wind->sshdata.context;
@@ -549,12 +550,11 @@ short netwrite(short pnum, void *buffer, short nsend)
 		}
 		return nsend;
 	}
-/*
+*/
 	if (screens[i].protocol == PROTOCOL_SSH) {
 		ssh_glue_write(&screens[i], buffer, nsend);
 		return nsend;
 	}
-*/
 /* NONO */
 
 

@@ -1812,12 +1812,7 @@ void *ssh2_thread(WindRec*w)
 				libssh2_session_set_blocking(session, 0);
 
 				{
-					int stdinfd;
 					char c;
-
-					stdinfd = open("dev:ttyin", O_RDONLY);
-
-					syslog( 0, "stdin %d\n", stdinfd);
 
 					{
 						char buf[64];
@@ -1857,10 +1852,6 @@ void *ssh2_thread(WindRec*w)
 						if (sock > maxfd)
 							maxfd = sock;
 
-						FD_SET(stdinfd, &readfds);
-						if (stdinfd > maxfd)
-							maxfd = stdinfd;
-
 						//FD_SET(stdoutfd, &writefds);
 						//if (stdinfd > maxfd)
 						//	maxfd = stdinfd;
@@ -1875,22 +1866,6 @@ void *ssh2_thread(WindRec*w)
 							syslog(0, "select returned %d\n", rc);
 						}
 
-						if (FD_ISSET(stdinfd, &readfds)) {
-							char buf[64];
-							int bytes;
-
-							bytes = read(stdinfd, buf, sizeof(buf));
-							syslog(0, "read %d bytes from stdin\n", bytes);
-
-							if (bytes > 0)
-								libssh2_channel_write(channel, buf, bytes);
-							else if (bytes == 0)
-								break;	// EOF: window was closed. Close channel/session/connection.
-							else {
-								syslog(0, "read() from stdin returned -1 errno %d\n", errno);
-								break;
-							}
-						}
 						//if (FD_ISSET(stdoutfd, &writefds))
 						//{
 						//}
@@ -1921,8 +1896,6 @@ void *ssh2_thread(WindRec*w)
 							break;
 						}
 					}
-
-					close(stdinfd);
 				}
 
 				libssh2_channel_free(channel);
@@ -2197,6 +2170,17 @@ void ssh_packet_read(struct WindRec*w, unsigned char*databuf, short datalen)
 void ssh_protocol_write(struct WindRec*w, unsigned char*databuf, short datalen)
 {
 	syslog( 0, "### ssh_protocol_write, len : %d\n", datalen );
+
+	if (w->sshdata.thread) {
+		LIBSSH2_CHANNEL *channel = (LIBSSH2_CHANNEL *)w->sshdata.channel;
+		if (channel) {
+			if (datalen > 0) {
+				ssize_t ret = libssh2_channel_write(channel, databuf, datalen);
+				if (ret != datalen)
+					syslog( 0, "libssh2_channel_write returned %d\n", ret );
+			}
+		}
+	}
 }
 
 
