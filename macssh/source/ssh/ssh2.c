@@ -2190,10 +2190,13 @@ void ssh_protocol_write(struct WindRec*w, unsigned char*databuf, short datalen)
 
 void ssh_protocol_close(WindRec*w)
 {
+	syslog( 0, "### ssh_protocol_close\n" );
 	if (w->sshdata.thread) {
 		lshcontext *context = (lshcontext *)w->sshdata.context;
-		context->_gConsoleInEOF = true;
-		pthread_kill( w->sshdata.thread, SIGINT );
+		if (context) {
+			context->_gConsoleInEOF = true;
+			pthread_kill( w->sshdata.thread, SIGINT );
+		}
 		w->sshdata.thread = NULL;
 		ssh2_sched();
 	}
