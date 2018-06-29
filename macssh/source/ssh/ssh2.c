@@ -17,13 +17,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "lshprefix.h"
-#include "format.h"
-#include "io.h"
-#include "xalloc.h"
-#include "werror.h"
-#include "tty.h"
-
 #include "ssh2.h"
 #include "PasswordDialog.h"
 #include "base64.h"
@@ -36,6 +29,7 @@
 #include <signal.h>
 #include <SIOUX.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/errno.h>
 #include <stdarg.h>
 #include <sched.h>
@@ -44,6 +38,10 @@
 #include <netinet/in.h>
 #include <assert.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 
 #include "wind.h"
 #include "rsdefs.h"
@@ -474,6 +472,7 @@ void __msl_assertion_failed(char const *condition, char const *filename, char co
 	}
 }
 
+#if 0
 /*
  * tty_getwinsize : replaces tty_getwinsize from liblsh
  */
@@ -545,6 +544,7 @@ tcsetattr(int fd, int optional_actions, const struct termios *ios)
 	}
 	return 0;
 }
+#endif
 
 #pragma mark -
 
@@ -905,6 +905,7 @@ short save_once_cancel2(const char *fingerprint)
 	return result;
 }
 
+#if 0
 /*
  * yes_or_no
  */
@@ -932,6 +933,7 @@ int yes_or_no(struct lsh_string *s, int def, int free)
 	}
 	return def;
 }
+#endif
 
 #pragma mark -
 
