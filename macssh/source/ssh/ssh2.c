@@ -33,7 +33,6 @@
 #include <sys/errno.h>
 #include <stdarg.h>
 #include <sched.h>
-#include <termios.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <assert.h>
@@ -128,25 +127,6 @@ void ssh_wresize(struct WindRec* w);
 
 
 /*----------------------------------------------------------------------------*/
-
-/* this record has been stolen from my linuxppc pty */
-
-const struct termios defaulttermios = {
-	0x00000300,		/* c_iflag;               input mode flags */
-	0x00000003,		/* c_oflag;               output mode flags */
-	0x00000b0d,		/* c_cflag;               control mode flags */
-	0x000005cf,		/* c_lflag;               local mode flags */
-	0,				/* c_line;                line discipline (== c_cc[19]) */
-	{
-	  0x03,0x1c,0x7f,0x15,0x04,0x01,0x00,0x00,
-	  0x00,0x00,0x17,0x12,0x1a,0x11,0x13,0x16,
-	  0x15,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-	},				/* c_cc[NCCS];            control characters */
-	0,				/* c_ispeed;              input speed */
-	0				/* c_ospeed;              output speed */
-};
-
 
 /* true if we log werror/trace... to stdio, false => log to syslog */
 Boolean	gLogStdIO = 0;
@@ -508,38 +488,6 @@ tty_setwinsize( int fd, const struct terminal_dimensions *dims )
 		} else {
 			RScalcwsize( wind->vs, dims->char_width );
 	 	}
-		return 1;
-	}
-	return 0;
-}
-
-/*
- * tcgetattr : replaces tty_getattr from liblsh
- */
-
-int
-tcgetattr(int fd, struct termios *ios)
-{
-	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-
-	if ( context ) {
-		memcpy( ios, &context->_mactermios, sizeof(struct termios) );
-		return 1;
-	}
-	return 0;
-}
-
-/*
- * tcsetattr : replaces tty_setattr from liblsh
- */
-
-int
-tcsetattr(int fd, int optional_actions, const struct termios *ios)
-{
-	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-
-	if ( context ) {
-		memcpy( &context->_mactermios, ios, sizeof(struct termios) );
 		return 1;
 	}
 	return 0;
@@ -1066,7 +1014,6 @@ void init_context(lshcontext *context, short port)
 	context->_listener = -1;
 	context->_socket = -1;
 	/*context->_exitbuf = 0;*/
-	memcpy(&context->_mactermios, &defaulttermios, sizeof(struct termios));
 	context->_gConsoleInEOF = 0;
 	/*context->_convertLFs = 0;*/
 	context->_convertLFs = 0;

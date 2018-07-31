@@ -5,7 +5,6 @@
 
 #include <pthread.h>
 #include <setjmp.h>
-#include <termios.h>
 #include <signal.h>
 
 #include "lsh_types.h"
@@ -25,7 +24,6 @@ typedef struct lshcontext {
 	int				_socket;	// for cvs
 	int				_rcmdline;	// for cvs
 	jmp_buf			*_pexitbuf;
-	struct termios	_mactermios;
 
 	Boolean 		_gConsoleInEOF;
 	Boolean			_convertLFs;
