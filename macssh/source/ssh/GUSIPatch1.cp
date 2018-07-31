@@ -76,7 +76,6 @@ void ssh2_doevent(long sleepTime);
 #endif
 
 extern pthread_key_t ssh2threadkey;
-extern int g_error_fd;
 
 /*
  * ssh2_init
@@ -93,7 +92,6 @@ void ssh2_init()
 		gethostid();
 
 		/*GUSISetupConsole();*/
-		g_error_fd = open("dev:ttyerr", O_WRONLY );
 
 		sGUSISetup = true;
 	}

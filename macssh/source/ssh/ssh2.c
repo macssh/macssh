@@ -131,8 +131,6 @@ void ssh_wresize(struct WindRec* w);
 /* true if we log werror/trace... to stdio, false => log to syslog */
 Boolean	gLogStdIO = 0;
 
-int g_error_fd = -1;
-
 pthread_key_t ssh2threadkey = NULL;
 
 char homepath[256];
@@ -1027,10 +1025,6 @@ void init_context(lshcontext *context, short port)
 	context->_verbose_flag = 0;
 	context->_trace_flag = 0;
 	context->_debug_flag = 0;
-	/*context->_error_fd = STDERR_FILENO;*/
-	context->_error_fd = g_error_fd;
-	context->_error_pos = 0;
-	//context->_error_write = write_raw;
 	context->_tracing = 0;
 	context->_verbosing = 0;
 	context->_debugging = 0;

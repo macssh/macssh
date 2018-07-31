@@ -9,10 +9,8 @@
 
 #include "lsh_types.h"
 #include "lsh.h"
-#include "exception.h"
 
 #define CONSOLEBUFSIZE 16384
-#define ERROR_BUF_SIZE 512
 
 typedef struct lshcontext {
 	int				_port;		// for BetterTelnet's networking
@@ -43,11 +41,6 @@ typedef struct lshcontext {
 	int				_trace_flag;
 	int				_debug_flag;
 
-	int				_error_fd;
-	UINT8			_error_buffer[ERROR_BUF_SIZE];
-	UINT32			_error_pos;
-	const struct exception *(*_error_write)(int fd, UINT32 length, const UINT8 *data);
-
 	int				_tracing;
 	int				_verbosing;
 	int				_debugging;
@@ -72,11 +65,6 @@ extern pthread_key_t ssh2threadkey;
 #define verbose_flag (((lshcontext *)pthread_getspecific(ssh2threadkey))->_verbose_flag)
 #define trace_flag (((lshcontext *)pthread_getspecific(ssh2threadkey))->_trace_flag)
 #define debug_flag (((lshcontext *)pthread_getspecific(ssh2threadkey))->_debug_flag)
-
-#define error_fd (((lshcontext *)pthread_getspecific(ssh2threadkey))->_error_fd)
-#define error_buffer (((lshcontext *)pthread_getspecific(ssh2threadkey))->_error_buffer)
-#define error_pos (((lshcontext *)pthread_getspecific(ssh2threadkey))->_error_pos)
-#define error_write (((lshcontext *)pthread_getspecific(ssh2threadkey))->_error_write)
 
 #define tracing (((lshcontext *)pthread_getspecific(ssh2threadkey))->_tracing)
 #define verbosing (((lshcontext *)pthread_getspecific(ssh2threadkey))->_verbosing)
