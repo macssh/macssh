@@ -5,7 +5,6 @@
 
 #include <pthread.h>
 #include <setjmp.h>
-#include <signal.h>
 
 #include "lsh_types.h"
 #include "lsh.h"
@@ -44,8 +43,6 @@ typedef struct lshcontext {
 	int				_tracing;
 	int				_verbosing;
 	int				_debugging;
-
-	sig_atomic_t	_window_changed;
 
 	char			*_envv[4];		// "HOME", "LOGNAME", "TERM", "DISPLAY"
 	char			_term[64];		// home and logname never change

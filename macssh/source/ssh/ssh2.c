@@ -1028,7 +1028,6 @@ void init_context(lshcontext *context, short port)
 	context->_tracing = 0;
 	context->_verbosing = 0;
 	context->_debugging = 0;
-	context->_window_changed = 0;
 	context->_kpassword[0] = 0;
 	context->_kindex = 0;
 	context->_pindex = 0;
