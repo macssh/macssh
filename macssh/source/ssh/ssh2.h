@@ -21,7 +21,6 @@
 
 #define exit macosexit
 #define abort macosabort
-extern char *strsignal(int signo);
 
 /*******/
 

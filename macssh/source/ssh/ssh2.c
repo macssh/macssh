@@ -319,50 +319,6 @@ char * __strerror( int errnum, char *str )
 }
 
 /*
- * strsignal
- */
-
-#define __max_sigstr	64
-
-char * strsignal( int signo )
-{
-	static char		sigstr[__max_sigstr];
-
-	switch (signo)
-	{
-		case SIGHUP:            strcpy(sigstr,  "SIGHUP, hangup"); break;
-		case SIGINT:            strcpy(sigstr,  "SIGINT, interrupt"); break;
-		case SIGQUIT:           strcpy(sigstr,  "SIGQUIT, quit"); break;
-		case SIGILL:            strcpy(sigstr,  "SIGILL, illegal instruction"); break;
-		case SIGABRT:           strcpy(sigstr,  "SIGABRT, abort"); break;
-		case SIGFPE:            strcpy(sigstr,  "SIGFPE, floating point exception"); break;
-		case SIGKILL:           strcpy(sigstr,  "SIGKILL, kill"); break;
-		case SIGSEGV:           strcpy(sigstr,  "SIGSEGV, segmentation violation"); break;
-		case SIGPIPE:           strcpy(sigstr,  "SIGPIPE, write on a pipe with no one to read it"); break;
-		case SIGALRM:           strcpy(sigstr,  "SIGALRM, alarm clock"); break;
-		case SIGTERM:           strcpy(sigstr,  "SIGTERM, software termination signal from kill"); break;
-#ifndef _POSIX_SOURCE
-		case SIGURG:            strcpy(sigstr,  "SIGURG, urgent condition on IO channel"); break;
-#endif
-		case SIGSTOP:           strcpy(sigstr,  "SIGSTOP, sendable stop signal not from tty"); break;
-		case SIGTSTP:           strcpy(sigstr,  "SIGSTOP, stop signal from tty"); break;
-		case SIGCONT:           strcpy(sigstr,  "SIGCONT, continue a stopped process"); break;
-		case SIGCHLD:           strcpy(sigstr,  "SIGCHLD"); break;
-		case SIGTTIN:           strcpy(sigstr,  "SIGTTIN"); break;
-		case SIGTTOU:           strcpy(sigstr,  "SIGTTOU"); break;
-#ifndef _POSIX_SOURCE
-		case SIGIO:             strcpy(sigstr,  "SIGIO"); break;
-		case SIGPROF:           strcpy(sigstr,  "SIGPROF"); break;
-		case SIGWINCH:          strcpy(sigstr,  "SIGWINCH"); break;
-#endif
-		case SIGUSR1:           strcpy(sigstr,  "SIGUSR1, user defined signal 1"); break;
-		case SIGUSR2:           strcpy(sigstr,  "SIGUSR2, user defined signal 2"); break;
-		default:                sprintf(sigstr, "unknown signal no %d", signo); break;
-	}
-	return sigstr;
-}
-
-/*
  * getexitbuf
  */
 
