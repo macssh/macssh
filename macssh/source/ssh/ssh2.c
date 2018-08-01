@@ -62,7 +62,6 @@
 #include <Fonts.h>
 #include <LowMem.h>
 #include <Gestalt.h>
-#include <Resource.h>
 
 extern Boolean			gInitialized;
 
