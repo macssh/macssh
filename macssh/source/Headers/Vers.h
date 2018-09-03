@@ -8,10 +8,10 @@
 #define	final 0x80
 #endif
 
-#define VMajor			2
+#define VMajor			3
 #define VMinor			(1 * 16) + 0
-#define VStage			final
-#define VRelease		3
-#define VShortString	"2.1fc3"
+#define VStage			beta
+#define VRelease		1
+#define VShortString	"3.0b1"
 
-#define	CopyrightString	"©2000-2001 J.-P. Stierlin"
+#define	CopyrightString	"©2016-2018 Brendan Shanks"
