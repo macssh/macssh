@@ -1664,7 +1664,10 @@ void *ssh2_thread(WindRec*w)
 		}
 		{
 			LIBSSH2_SESSION *session = libssh2_session_init_ex(NULL, NULL, NULL, w);
-			//libssh2_trace(session, INT_MAX);
+
+			if (w->trace)
+				libssh2_trace(session, INT_MAX);
+
 			libssh2_trace_sethandler(session, NULL, libssh2_handler);
 			if (libssh2_session_startup(session, sock)) {
 				syslog(0, "Failure establishing SSH session\n");
