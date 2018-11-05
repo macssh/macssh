@@ -1763,7 +1763,8 @@ void *ssh2_thread(WindRec*w)
 							break;
 						}
 						else {
-							syslog(0, "select returned %d\n", rc);
+							if (w->trace)
+								syslog(0, "select returned %d\n", rc);
 						}
 
 						//if (FD_ISSET(stdoutfd, &writefds))
@@ -1775,7 +1776,8 @@ void *ssh2_thread(WindRec*w)
 							while (1) {
 								ssize_t bytes = libssh2_channel_read(channel, buf, sizeof(buf));
 
-								syslog(0, "libssh2_channel_read() returned %d\n", bytes);
+								if (w->trace)
+									syslog(0, "libssh2_channel_read() returned %d\n", bytes);
 								if (bytes > 0)
 									WriteCharsToTTY(1, NULL, buf, bytes);
 								else
@@ -2083,7 +2085,8 @@ void ssh_packet_read(struct WindRec*w, unsigned char*databuf, short datalen)
 
 void ssh_protocol_write(struct WindRec*w, unsigned char*databuf, short datalen)
 {
-	syslog( 0, "### ssh_protocol_write, len : %d\n", datalen );
+	if (w->trace)
+		syslog( 0, "### ssh_protocol_write, len : %d\n", datalen );
 
 	if (w->sshdata.thread) {
 		LIBSSH2_CHANNEL *channel = (LIBSSH2_CHANNEL *)w->sshdata.channel;
