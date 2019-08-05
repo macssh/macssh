@@ -35,7 +35,7 @@ extern "C" {
 #endif
 
 Boolean SSH2RandomizeDialog( long *type, long *level, long *encrypt, Str255 label );
-void SSH2ErrorDialog(char *mess1);
+void SSH2ErrorDialog(const char *mess1);
 
 Boolean SSH2LoginDialog(StringPtr inhost, StringPtr iologin, StringPtr outpassword);
 Boolean SSH2PasswordDialog (const char *inprompt, StringPtr outpassword, WindowPtr term);

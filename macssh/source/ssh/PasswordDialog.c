@@ -299,7 +299,7 @@ RandomizeFilter(DialogPtr dlog,EventRecord *event,short *itemHit)
 
 
 
-void SSH2ErrorDialog(char *mess1)
+void SSH2ErrorDialog(const char *mess1)
 {
 	DialogPtr		dlog;
 	short item;
