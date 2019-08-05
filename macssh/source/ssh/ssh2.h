@@ -64,7 +64,6 @@ typedef struct lshcontext {
 	int				_verbosing;
 	int				_debugging;
 
-	char			*_envv[4];		// "HOME", "LOGNAME", "TERM", "DISPLAY"
 	char			_term[64];		// home and logname never change
 	char			_display[64];	// home and logname never change
 	char			_kpassword[64];

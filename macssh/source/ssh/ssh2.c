@@ -137,20 +137,6 @@ char username[256];
 
 static char gmessage[512];
 
-static char *envp[] = {
-	"HOME",
-	"LOGNAME",
-	"TERM",
-	"DISPLAY"
-};
-
-enum {
-	kEnvHome = 0,
-	kEnvLogName,
-	kEnvTerm,
-	kEnvDisplay
-};
-
 struct CachedPass {
 	struct CachedPass	*link;
 	lshcontext		*context;
@@ -162,25 +148,6 @@ struct CachedPass {
 struct CachedPass *gcachedpass = NULL;
 int gcachepasscount = 0;
 int gcachepassdelay = 120;	/* 2 minutes */
-
-/*
- * getenv
- */
-
-char *getenv(const char *var)
-{
-	int			i;
-
-	lshcontext	*context = (lshcontext *)pthread_getspecific(ssh2threadkey);
-	if ( context ) {
-		for ( i = 0; i < sizeof(envp) / sizeof(char *); i++ ) {
-			if ( strcmp( var, envp[i] ) == 0 ) {
-				return context->_envv[i];
-			}
-		}
-	}
-	return NULL;
-}
 
 /*
  * openlog
