@@ -1573,13 +1573,35 @@ static Boolean ssh2_authentication_successful(LIBSSH2_SESSION *session, WindRec 
 			return true;
 	}
 	if (strstr(userauthlist, "password") != NULL) {
-		//SSH2LoginDialog(theScreen->sshdata.host, theScreen->sshdata.login, theScreen->sshdata.password);
-		// TODO: add pwd change callback
-		if (libssh2_userauth_password_ex(session, &(w->sshdata.login[1]), w->sshdata.login[0], &(w->sshdata.password[1]), w->sshdata.password[0], NULL) == 0)
-			return true;
-		// TODO: allow re-entering password on LIBSSH2_ERROR_AUTHENTICATION_FAILED
+		while (1) {
+			int result;
+			// TODO: add pwd change callback
+			result = libssh2_userauth_password_ex(session, &(w->sshdata.login[1]), w->sshdata.login[0], &(w->sshdata.password[1]), w->sshdata.password[0], NULL);
+			switch (result) {
+				case 0:
+					syslog( 0, "password authentication succeeded\n" );
+					return true;
+				case LIBSSH2_ERROR_AUTHENTICATION_FAILED:
+					syslog( 0, "password authentication failed\n" );
+					// TODO: use dialog with "authentication failed" prompt
+					if (SSH2LoginDialog(w->sshdata.host, w->sshdata.login, w->sshdata.password) == true) {
+						continue;
+					} else {
+						syslog( 0, "password dialog cancelled\n" );
+						return false;
+					}
+				case LIBSSH2_ERROR_SOCKET_DISCONNECT:
+					syslog( 0, "remote host closed connection\n", result );
+					SSH2ErrorDialog("Authentication failed; remote host closed connection");
+					return false;
+				default:
+					syslog( 0, "libssh2_userauth_password_ex() returned %d, failing authentication\n", result );
+					return false;
+			}
+		}
 	}
 	syslog( 0, "No supported authentication method found\n");
+	SSH2ErrorDialog("No supported authentication method found");
 	return false;
 }
 
