@@ -1560,6 +1560,7 @@ static Boolean ssh2_authentication_successful(LIBSSH2_SESSION *session, WindRec 
 			return true;
 		} else {
 			syslog(0, "Failed to retrieve authentication methods\n");
+			SSH2ErrorDialog("Failed to retrieve authentication methods");
 			return false;
 		}
 	} else {
