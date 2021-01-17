@@ -1800,6 +1800,11 @@ void ShowSessPanel(DialogPtr dptr, short panel)
 		ShowDialogItem(dptr, 93);
 /* NONO */
 
+		// Hide "Encryption", "Authentication", "Compression" menus
+		HideDialogItem(dptr, 62);
+		HideDialogItem(dptr, 73);
+		HideDialogItem(dptr, 74);
+
 		// Don't show "Initialize SSH Key" and "Export public key" buttons
 		HideDialogItem(dptr, 63);
 		HideDialogItem(dptr, 79);
